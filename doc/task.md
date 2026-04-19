@@ -1,0 +1,10 @@
+- [ ] [준비] AndroidManifest.xml 권한 추가 (Internet, Audio)
+- [ ] [기능1] 뉴스 키워드 브리핑 기초 구현
+    - [ ] NewsRepository (Jsoup 크롤링) 작성
+    - [ ] TtsManager (Google TTS) 작성
+    - [ ] NewsBriefingScreen UI 고도화 (키워드 입력 및 리스트)
+- [ ] [기능2] 운전 중 말하기 연습 기초 구현
+    - [ ] 오디오 녹음/재생 유틸리티 작성
+    - [ ] DrivingShadowingScreen UI 상호작용 구현
+- [ ] [기능3] 오디오 캡처 기능 (Foreground Service)
+- [ ] [기능4] 오전 자동 브리핑 스케줄링
