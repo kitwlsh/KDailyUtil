@@ -1,0 +1,261 @@
+package com.kitwlshcom.kdailyutil.ui.viewmodel
+
+import android.app.Application
+import android.content.Intent
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.kitwlshcom.kdailyutil.audio.AudioCaptureService
+import com.kitwlshcom.kdailyutil.data.model.AudioItem
+import com.kitwlshcom.kdailyutil.data.repository.AudioRepository
+import com.kitwlshcom.kdailyutil.data.repository.SettingsRepository
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlin.random.Random
+
+enum class PlaybackMode {
+    SEQUENTIAL, LOOP_LIST, SHUFFLE, REPEAT_ONE
+}
+
+class AudioCaptureViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val repository = AudioRepository(application)
+    private val settingsRepository = SettingsRepository(application)
+    
+    private val _recordings = MutableStateFlow<List<AudioItem>>(emptyList())
+    val recordings: StateFlow<List<AudioItem>> = _recordings.asStateFlow()
+
+    private val _isRecording = MutableStateFlow(false)
+    val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
+
+    private val _currentlyPlaying = MutableStateFlow<AudioItem?>(null)
+    val currentlyPlaying: StateFlow<AudioItem?> = _currentlyPlaying.asStateFlow()
+
+    private val _isPlaybackPaused = MutableStateFlow(false)
+    val isPlaybackPaused: StateFlow<Boolean> = _isPlaybackPaused.asStateFlow()
+
+    private val _playbackMode = MutableStateFlow(PlaybackMode.SEQUENTIAL)
+    val playbackMode: StateFlow<PlaybackMode> = _playbackMode.asStateFlow()
+
+    private val _isEditLocked = MutableStateFlow(true) // 기본은 잠금 상태
+    val isEditLocked: StateFlow<Boolean> = _isEditLocked.asStateFlow()
+
+    private val _playbackProgress = MutableStateFlow(0f)
+    val playbackProgress: StateFlow<Float> = _playbackProgress.asStateFlow()
+
+    private val _playbackDuration = MutableStateFlow(0L)
+    val playbackDuration: StateFlow<Long> = _playbackDuration.asStateFlow()
+
+    val isPrepared = AudioCaptureService.isPrepared
+
+    init {
+        loadRecordings()
+        observePlaybackProgress()
+        observePlaybackCompletion()
+        loadSettings()
+    }
+
+    private fun loadSettings() {
+        viewModelScope.launch {
+            settingsRepository.playbackModeFlow.collect { _playbackMode.value = it }
+        }
+        viewModelScope.launch {
+            settingsRepository.isEditLockedFlow.collect { _isEditLocked.value = it }
+        }
+    }
+
+    private fun observePlaybackCompletion() {
+        viewModelScope.launch {
+            AudioCaptureService.playbackCompleted.collect {
+                playNextRecording()
+            }
+        }
+    }
+
+    private fun observePlaybackProgress() {
+        viewModelScope.launch {
+            AudioCaptureService.currentPosition.collect { _playbackProgress.value = it.toFloat() }
+        }
+        viewModelScope.launch {
+            AudioCaptureService.playbackDuration.collect { _playbackDuration.value = it }
+        }
+    }
+
+    fun loadRecordings() {
+        viewModelScope.launch {
+            _recordings.value = repository.getRecordedFiles()
+        }
+    }
+
+    fun prepareRecording(resultData: Intent) {
+        val filePath = repository.getNewFilePath("m4a")
+        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
+            action = AudioCaptureService.ACTION_PREPARE
+            putExtra(AudioCaptureService.EXTRA_RESULT_DATA, resultData)
+            putExtra(AudioCaptureService.EXTRA_FILE_PATH, filePath)
+        }
+        getApplication<Application>().startForegroundService(intent)
+    }
+
+    fun startRecording(resultData: Intent) {
+        val filePath = repository.getNewFilePath("m4a")
+        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
+            action = AudioCaptureService.ACTION_START_RECORDING
+            putExtra(AudioCaptureService.EXTRA_RESULT_DATA, resultData)
+            putExtra(AudioCaptureService.EXTRA_FILE_PATH, filePath)
+        }
+        getApplication<Application>().startForegroundService(intent)
+        _isRecording.value = true
+    }
+
+    fun stopRecording() {
+        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
+            action = AudioCaptureService.ACTION_STOP_RECORDING
+        }
+        getApplication<Application>().startService(intent)
+        _isRecording.value = false
+        loadRecordings() // Refresh list
+    }
+
+    fun dismissPreparation() {
+        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
+            action = AudioCaptureService.ACTION_DISMISS_PREPARE
+        }
+        getApplication<Application>().startService(intent)
+    }
+
+    fun playAudio(item: AudioItem) {
+        if (_currentlyPlaying.value == item) {
+            if (_isPlaybackPaused.value) {
+                // Resume
+                val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
+                    action = AudioCaptureService.ACTION_PLAY
+                    putExtra(AudioCaptureService.EXTRA_FILE_PATH, item.path)
+                }
+                getApplication<Application>().startService(intent)
+                _isPlaybackPaused.value = false
+            } else {
+                // Pause
+                val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
+                    action = AudioCaptureService.ACTION_PAUSE
+                }
+                getApplication<Application>().startService(intent)
+                _isPlaybackPaused.value = true
+            }
+        } else {
+            // Start new playback
+            val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
+                action = AudioCaptureService.ACTION_PLAY
+                putExtra(AudioCaptureService.EXTRA_FILE_PATH, item.path)
+            }
+            getApplication<Application>().startService(intent)
+            _currentlyPlaying.value = item
+            _isPlaybackPaused.value = false
+        }
+    }
+
+    fun stopPlayback() {
+        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
+            action = AudioCaptureService.ACTION_STOP_PLAYBACK
+        }
+        getApplication<Application>().startService(intent)
+        _currentlyPlaying.value = null
+        _isPlaybackPaused.value = false
+    }
+
+    fun renameRecording(item: AudioItem, newName: String) {
+        val wasPlaying = _currentlyPlaying.value == item
+        val wasPaused = wasPlaying && _isPlaybackPaused.value
+        val savedPos = if (wasPlaying) _playbackProgress.value.toLong() else 0L
+
+        if (wasPlaying) {
+            stopPlayback()
+        }
+        
+        if (repository.renameFile(item, newName)) {
+            loadRecordings()
+            
+            // 이름 변경 후 다시 이어서 재생 시도
+            if (wasPlaying && !wasPaused) {
+                viewModelScope.launch {
+                    // 리스트 갱신 시간을 기다림
+                    kotlinx.coroutines.delay(200)
+                    val newItem = recordings.value.find { it.name.startsWith(newName) }
+                    newItem?.let {
+                        playAudio(it)
+                        seekTo(savedPos)
+                    }
+                }
+            }
+        }
+    }
+
+    fun seekTo(position: Long) {
+        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
+            action = AudioCaptureService.ACTION_SEEK
+            putExtra(AudioCaptureService.EXTRA_SEEK_POSITION, position)
+        }
+        getApplication<Application>().startService(intent)
+    }
+
+    fun playNextRecording() {
+        val currentList = recordings.value
+        if (currentList.isEmpty()) return
+
+        val currentIndex = currentList.indexOfFirst { it.path == _currentlyPlaying.value?.path }
+        
+        when (_playbackMode.value) {
+            PlaybackMode.SEQUENTIAL -> {
+                if (currentIndex != -1 && currentIndex < currentList.size - 1) {
+                    playAudio(currentList[currentIndex + 1])
+                } else {
+                    _currentlyPlaying.value = null
+                }
+            }
+            PlaybackMode.LOOP_LIST -> {
+                val nextIndex = (currentIndex + 1) % currentList.size
+                playAudio(currentList[nextIndex])
+            }
+            PlaybackMode.SHUFFLE -> {
+                val nextIndex = Random.nextInt(currentList.size)
+                playAudio(currentList[nextIndex])
+            }
+            PlaybackMode.REPEAT_ONE -> {
+                _currentlyPlaying.value?.let { playAudio(it) }
+            }
+        }
+    }
+
+    fun playPreviousRecording() {
+        val currentList = recordings.value
+        if (currentList.isEmpty()) return
+
+        val currentIndex = currentList.indexOfFirst { it.path == _currentlyPlaying.value?.path }
+        if (currentIndex == -1) return
+
+        val prevIndex = if (currentIndex > 0) currentIndex - 1 else currentList.size - 1
+        playAudio(currentList[prevIndex])
+    }
+
+    fun togglePlaybackMode() {
+        val newMode = when (_playbackMode.value) {
+            PlaybackMode.SEQUENTIAL -> PlaybackMode.LOOP_LIST
+            PlaybackMode.LOOP_LIST -> PlaybackMode.SHUFFLE
+            PlaybackMode.SHUFFLE -> PlaybackMode.REPEAT_ONE
+            PlaybackMode.REPEAT_ONE -> PlaybackMode.SEQUENTIAL
+        }
+        _playbackMode.value = newMode
+        viewModelScope.launch { settingsRepository.savePlaybackMode(newMode) }
+    }
+
+    fun toggleEditLock() {
+        val newLocked = !_isEditLocked.value
+        _isEditLocked.value = newLocked
+        viewModelScope.launch { settingsRepository.saveEditLocked(newLocked) }
+    }
+
+    fun deleteRecording(item: AudioItem) {
+        if (repository.deleteFile(item)) {
+            loadRecordings()
+        }
+    }
+}

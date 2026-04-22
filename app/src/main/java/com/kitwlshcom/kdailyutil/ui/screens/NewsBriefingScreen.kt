@@ -28,9 +28,9 @@ fun NewsBriefingScreen(
     val keywords by viewModel.keywords.collectAsState()
     val isPlaying by viewModel.isBriefingPlaying.collectAsState()
 
-    // 화면 진입 시 뉴스 자동 로딩
-    LaunchedEffect(keywords) {
-        if (newsItems.isEmpty() && keywords.isNotEmpty()) {
+    // 화면 진입 시 뉴스 자동 로딩 (키워드 유무와 관계없이 주요 뉴스 포함하여 가져옴)
+    LaunchedEffect(Unit) {
+        if (newsItems.isEmpty()) {
             viewModel.fetchNews()
         }
     }
@@ -46,7 +46,7 @@ fun NewsBriefingScreen(
                             contentDescription = null
                         ) 
                     },
-                    text = { Text(if (isPlaying) "브리핑 중지" else "AI 브리핑 시작") },
+                    text = { Text(if (isPlaying) "브리핑 중지" else "전체 브리핑 시작") },
                     containerColor = if (isPlaying) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
                 )
             }
@@ -69,13 +69,17 @@ fun NewsBriefingScreen(
                 }
             }
 
-            if (keywords.isEmpty()) {
+            if (isRefreshing && newsItems.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("설정에서 관심 키워드를 추가해 주세요.")
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("뉴스를 불러오는 중입니다...")
+                    }
                 }
-            } else if (isRefreshing && newsItems.isEmpty()) {
+            } else if (newsItems.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    Text("불러온 뉴스가 없습니다. 키워드를 확인하거나 나중에 다시 시도해 주세요.")
                 }
             } else {
                 LazyColumn(
@@ -129,10 +133,11 @@ fun NewsCard(
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
+            val displayContent = item.fullContent.ifBlank { item.description }
             Text(
-                text = item.description,
+                text = displayContent,
                 style = MaterialTheme.typography.bodyMedium,
-                maxLines = 3,
+                maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

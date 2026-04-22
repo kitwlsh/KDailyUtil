@@ -16,7 +16,11 @@ class NewsRepository {
     }
 
     suspend fun getNewsByKeyword(keyword: String, limit: Int = 3): List<NewsItem> = withContext(Dispatchers.IO) {
-        val url = "$BASE_URL/search?q=$keyword&$REGION_PARAMS"
+        val url = if (keyword.isBlank()) {
+            "$BASE_URL?$REGION_PARAMS"
+        } else {
+            "$BASE_URL/search?q=$keyword&$REGION_PARAMS"
+        }
         
         try {
             val doc = Jsoup.connect(url)
@@ -27,16 +31,14 @@ class NewsRepository {
             val items = doc.select("item")
             items.take(limit).map { item ->
                 val rawDescription = item.select("description").text()
-                // 1. HTML 태그 제거
-                // 2. URL 패턴 (http/https/www...) 제거
                 val cleanedDescription = Jsoup.parse(rawDescription).text()
                     .replace(Regex("(http|https)://[\\w\\-_]+(\\.[\\w\\-_]+)+([\\w\\-\\.,@?^=%&:/~\\+#]*[\\w\\-\\@?^=%&/~\\+#])?"), "")
                     .replace(Regex("www\\.[\\w\\-_]+(\\.[\\w\\-_]+)+([\\w\\-\\.,@?^=%&:/~\\+#]*[\\w\\-\\@?^=%&/~\\+#])?"), "")
-                    .split("기사 전체 보기")[0] // 불필요한 꼬리표 문구 제거
+                    .split("기사 전체 보기")[0]
                     .trim()
 
                 NewsItem(
-                    title = item.select("title").text().split(" - ")[0], // 언론사 이름 분리
+                    title = item.select("title").text().split(" - ")[0],
                     link = item.select("link").text(),
                     description = cleanedDescription,
                     pubDate = item.select("pubDate").text(),
@@ -44,8 +46,54 @@ class NewsRepository {
                 )
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Error fetching news for keyword: $keyword", e)
             emptyList()
+        }
+    }
+
+    suspend fun getTopNews(limit: Int = 10): List<NewsItem> = getNewsByKeyword("", limit)
+
+    suspend fun fetchFullContent(item: NewsItem): String = withContext(Dispatchers.IO) {
+        try {
+            val doc = Jsoup.connect(item.link)
+                .timeout(10000)
+                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                .get()
+
+            // 한국 주요 뉴스 사이트 본문 선택자 시도
+            val selectors = listOf(
+                "#articleBodyContents", // Naver
+                "#harmonyContainer",    // Daum
+                ".article_body",        // General
+                ".news_article",
+                "article",
+                ".view_con",            // Some newspapers
+                "#articleBody"
+            )
+
+            var content = ""
+            for (selector in selectors) {
+                val element = doc.select(selector).firstOrNull()
+                if (element != null) {
+                    // 불필요한 요소 제거 (스크립트, 광고 등)
+                    element.select("script, style, iframe, .ad, .sns").remove()
+                    content = element.text()
+                    if (content.length > 100) break
+                }
+            }
+
+            // 선택자로 못 찾은 경우 본문에서 가장 긴 텍스트를 가진 div 시도
+            if (content.length < 100) {
+                val body = doc.body()
+                val divs = body.select("div")
+                val longestDiv = divs.maxByOrNull { it.text().length }
+                content = longestDiv?.text() ?: item.description
+            }
+
+            content.trim()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching full content from ${item.link}", e)
+            item.description // 실패 시 설명이라도 반환
         }
     }
 

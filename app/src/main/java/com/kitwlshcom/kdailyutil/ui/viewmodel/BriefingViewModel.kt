@@ -64,7 +64,24 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     fun fetchNews() {
         viewModelScope.launch {
             _isRefreshing.value = true
-            _newsItems.value = newsRepository.getAllNews(keywords.value)
+            
+            // 1. 주요 뉴스 가져오기
+            val topNews = newsRepository.getTopNews(5)
+            
+            // 2. 키워드 기반 뉴스 가져오기
+            val keywordNews = newsRepository.getAllNews(keywords.value)
+            
+            // 3. 중복 제거 및 합치기 (링크 기준)
+            val allNews = (topNews + keywordNews).distinctBy { it.link }
+            
+            // 4. 각 뉴스 전문 미리 가져오기 (비동기 병렬 처리)
+            allNews.forEach { item ->
+                if (item.fullContent.isBlank()) {
+                    item.fullContent = newsRepository.fetchFullContent(item)
+                }
+            }
+            
+            _newsItems.value = allNews
             _isRefreshing.value = false
         }
     }
@@ -77,9 +94,17 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
 
         viewModelScope.launch {
             _isBriefingPlaying.value = true
-            val gemini = GeminiManager(geminiApiKey.value)
-            val summary = gemini.summarizeNews(newsItems.value)
-            ttsManager.speak(summary) {
+            
+            val briefingText = StringBuilder("오늘의 주요 뉴스 브리핑을 시작합니다.\n\n")
+            newsItems.value.forEachIndexed { index, item ->
+                briefingText.append("${index + 1}번 뉴스, ${item.title}입니다.\n")
+                // 전문이 있으면 전문을, 없으면 요약을, 둘 다 없으면 설명을 사용
+                val content = item.fullContent.ifBlank { item.summary.ifBlank { item.description } }
+                briefingText.append("$content\n\n")
+            }
+            briefingText.append("이상으로 오늘의 뉴스를 모두 마치겠습니다. 감사합니다.")
+
+            ttsManager.speak(briefingText.toString()) {
                 _isBriefingPlaying.value = false
             }
         }
@@ -89,9 +114,16 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         stopBriefing()
         viewModelScope.launch {
             _isBriefingPlaying.value = true
-            val gemini = GeminiManager(geminiApiKey.value)
-            val summary = gemini.summarizeNews(listOf(item)) // 한 건만 요약
-            ttsManager.speak(summary) {
+            
+            // 전문이 아직 없으면 가져옴
+            if (item.fullContent.isBlank()) {
+                item.fullContent = newsRepository.fetchFullContent(item)
+            }
+            
+            val content = item.fullContent.ifBlank { item.summary.ifBlank { item.description } }
+            val textToSpeak = "${item.title}. $content"
+            
+            ttsManager.speak(textToSpeak) {
                 _isBriefingPlaying.value = false
             }
         }
