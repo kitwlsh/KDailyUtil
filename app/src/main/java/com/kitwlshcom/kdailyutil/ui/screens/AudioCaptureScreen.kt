@@ -82,6 +82,8 @@ fun AudioCaptureScreen(
     }
 
     var showRenameDialog by remember { mutableStateOf<AudioItem?>(null) }
+    var showDeleteConfirmDialog by remember { mutableStateOf<AudioItem?>(null) }
+    var showHiddenManager by remember { mutableStateOf(false) }
     var newFileName by remember { mutableStateOf("") }
 
     val mediaProjectionManager = remember {
@@ -95,6 +97,12 @@ fun AudioCaptureScreen(
             // 녹음 시작 대신 '준비' 모드로 진입 (알림창에서 시작 가능하게)
             viewModel.prepareRecording(result.data!!)
         }
+    }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { viewModel.importFile(it) }
     }
 
     val listState = rememberLazyListState()
@@ -128,6 +136,59 @@ fun AudioCaptureScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showRenameDialog = null }) { Text("취소") }
+            }
+        )
+    }
+
+    if (showDeleteConfirmDialog != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = null },
+            title = { Text("파일 삭제") },
+            text = { Text("'${showDeleteConfirmDialog?.name}' 파일을 정말 삭제하시겠습니까?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteRecording(showDeleteConfirmDialog!!)
+                        showDeleteConfirmDialog = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("삭제") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = null }) { Text("취소") }
+            }
+        )
+    }
+
+    if (showHiddenManager) {
+        val hiddenFiles by viewModel.hiddenRecordings.collectAsState()
+        AlertDialog(
+            onDismissRequest = { showHiddenManager = false },
+            title = { Text("숨긴 파일 관리") },
+            text = {
+                if (hiddenFiles.isEmpty()) {
+                    Text("숨긴 파일이 없습니다.")
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
+                        items(hiddenFiles) { item ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(item.name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                                IconButton(onClick = { viewModel.restoreRecording(item) }) {
+                                    Icon(Icons.Default.AddCircle, contentDescription = "복구", tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showHiddenManager = false }) { Text("닫기") }
             }
         )
     }
@@ -191,6 +252,30 @@ fun AudioCaptureScreen(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    IconButton(
+                        onClick = { filePickerLauncher.launch("*/*") },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "파일 추가",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { showHiddenManager = true },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.VisibilityOff,
+                            contentDescription = "숨긴 파일 관리",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
             
@@ -241,7 +326,8 @@ fun AudioCaptureScreen(
                                 isPlaying = currentlyPlaying == item,
                                 isEditLocked = isEditLocked,
                                 onPlay = { viewModel.playAudio(item) },
-                                onDelete = { viewModel.deleteRecording(item) },
+                                onDelete = { showDeleteConfirmDialog = item },
+                                onHide = { viewModel.hideRecording(item) },
                                 onRename = { 
                                     newFileName = item.name.substringBeforeLast(".")
                                     showRenameDialog = item 
@@ -289,6 +375,7 @@ fun AudioListItem(
     isEditLocked: Boolean,
     onPlay: () -> Unit,
     onDelete: () -> Unit,
+    onHide: () -> Unit,
     onRename: () -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
@@ -337,6 +424,9 @@ fun AudioListItem(
                 Row {
                     IconButton(onClick = onRename, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Edit, contentDescription = "이름 변경", modifier = Modifier.size(16.dp))
+                    }
+                    IconButton(onClick = onHide, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.VisibilityOff, contentDescription = "목록에서 제외", modifier = Modifier.size(16.dp))
                     }
                     IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Delete, contentDescription = "삭제", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))

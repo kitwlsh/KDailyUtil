@@ -24,6 +24,9 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
     private val _recordings = MutableStateFlow<List<AudioItem>>(emptyList())
     val recordings: StateFlow<List<AudioItem>> = _recordings.asStateFlow()
 
+    private val _hiddenRecordings = MutableStateFlow<List<AudioItem>>(emptyList())
+    val hiddenRecordings: StateFlow<List<AudioItem>> = _hiddenRecordings.asStateFlow()
+
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
@@ -83,6 +86,25 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
     fun loadRecordings() {
         viewModelScope.launch {
             _recordings.value = repository.getRecordedFiles()
+            _hiddenRecordings.value = repository.getHiddenFiles()
+        }
+    }
+
+    fun loadHiddenRecordings() {
+        viewModelScope.launch {
+            _hiddenRecordings.value = repository.getHiddenFiles()
+        }
+    }
+
+    fun hideRecording(item: AudioItem) {
+        if (repository.hideFile(item)) {
+            loadRecordings()
+        }
+    }
+
+    fun restoreRecording(item: AudioItem) {
+        if (repository.restoreFile(item)) {
+            loadRecordings()
         }
     }
 
@@ -256,6 +278,14 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
     fun deleteRecording(item: AudioItem) {
         if (repository.deleteFile(item)) {
             loadRecordings()
+        }
+    }
+
+    fun importFile(uri: android.net.Uri) {
+        viewModelScope.launch {
+            if (repository.importFile(uri)) {
+                loadRecordings()
+            }
         }
     }
 }
