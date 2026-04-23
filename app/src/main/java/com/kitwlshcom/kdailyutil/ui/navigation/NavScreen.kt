@@ -19,6 +19,7 @@ sealed class NavScreen(
     object AudioCapture : NavScreen("audio_capture", "오디오 캡처", Icons.Default.Audiotrack)
     object MorningSettings : NavScreen("morning_settings", "설정", Icons.Default.Settings)
     object Placeholder : NavScreen("placeholder", "더보기", Icons.Default.MoreHoriz)
+    object NewsDetail : NavScreen("news_detail", "뉴스 상세", Icons.Default.Newspaper)
 
     companion object {
         val items = listOf(

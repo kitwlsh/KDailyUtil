@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 
 class ShadowingViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val newsRepository = NewsRepository()
+    private val newsRepository = NewsRepository(application)
     private val ttsManager = TtsManager(application)
     private val recordingManager = RecordingManager(application)
     private val textSplitter = TextSplitter()

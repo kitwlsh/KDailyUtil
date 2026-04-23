@@ -21,6 +21,7 @@ class SettingsRepository(private val context: Context) {
         val BRIEFING_MINUTE = intPreferencesKey("briefing_minute")
         val BRIEFING_ENABLED = booleanPreferencesKey("briefing_enabled")
         val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
+        val NEWS_CATEGORIES = stringSetPreferencesKey("news_categories")
     }
 
     // 신규 오디오 설정
@@ -52,6 +53,10 @@ class SettingsRepository(private val context: Context) {
         preferences[PreferencesKeys.GEMINI_API_KEY]
     }
 
+    val categoriesFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.NEWS_CATEGORIES] ?: setOf("전체", "정치", "경제", "사회", "IT/과학", "세계")
+    }
+
     // 저장 메서드들
     suspend fun savePlaybackMode(mode: PlaybackMode) {
         context.dataStore.edit { it[PreferencesKeys.PLAYBACK_MODE] = mode.name }
@@ -78,5 +83,9 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun updateGeminiApiKey(key: String) {
         context.dataStore.edit { it[PreferencesKeys.GEMINI_API_KEY] = key }
+    }
+
+    suspend fun updateCategories(categories: Set<String>) {
+        context.dataStore.edit { it[PreferencesKeys.NEWS_CATEGORIES] = categories }
     }
 }
