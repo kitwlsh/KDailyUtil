@@ -1,23 +1,29 @@
-# KDailyUtil 프로젝트 작업 현황 (완료)
+# KDailyUtil Project Tracker
 
-## 📰 뉴스 브리핑 기능
-- [x] Jsoup 기반 구글 뉴스 RSS 파서 구현
-- [x] Gemini AI 연동 요약 엔진 및 데모 모드 구현
-- [x] TTS 기반 뉴스 낭독 및 개별 뉴스 청취 기능
-- [x] 한국어 뉴스 및 국내 언론사 중심 수집 최적화
-- [x] 뉴스 본문 추출 로직 고도화 (CSS 유출 방지 및 클리닝 강화)
-- [ ] 특정 매체(조선일보 등) 추출 결과 최종 검수
+## 🏁 Milestone 1: Core Foundation (Completed)
+- [x] Project Initialization & Bottom Navigation.
+- [x] RSS Scraping with Jsoup.
+- [x] Gemini API Integration for Briefing.
 
+## 🏁 Milestone 2: Audio Capture & Playlist (Completed)
+- [x] Foreground Service for Audio Capture.
+- [x] Public storage integration (`Download/KDailyUtil`).
+- [x] Playlist/Folder management & File movement.
+- [x] Background playback with MediaSession.
 
-## 🚗 드라이빙 쉐도잉 기능
-- [x] 사설 및 칼럼 전용 수집 로직 구현
-- [x] 문장 단위 텍스트 스플리터 구현
-- [x] 자동 대기 시간 계산 및 녹음/재생 시스템
-- [x] 일시정지/이전/다음 건너뛰기 등 제어 로직 완비
-- [x] 운전 안전 모드 최적화 UI (고대비, 대형 폰트)
+## 🏁 Milestone 3: News Shadowing (Completed)
+- [x] News body extraction & cleanup.
+- [x] Shadowing UI with driving mode theme.
+- [x] Automatic recording and instant monitoring.
+- [x] Dedicated recording subfolder logic.
 
-## ⚙️ 설정 및 기반 작업
-- [x] DataStore 기반 키워드 및 API 키 저장 시스템
-- [x] 알람 및 알림 권한 처리 보강
-- [x] 런타임 권한(마이크) 요청 로직 적용
-- [x] 프로젝트 README 및 기술 문서 정리
+## 🏁 Milestone 4: Stability & Polishing (Completed)
+- [x] Fix `FileNotFoundException` in recording on Android 10+.
+- [x] Fix `IndexOutOfBoundsException` in shadowing UI.
+- [x] Implement runtime permission requests (Audio, Storage).
+- [x] Add path fallback for robust directory creation.
+
+## 🔜 Milestone 5: Next Steps
+- [ ] Implement practice statistics (Visual graphs).
+- [ ] Playlist renaming & Icon customization.
+- [ ] Refine extraction for high-security media sites.

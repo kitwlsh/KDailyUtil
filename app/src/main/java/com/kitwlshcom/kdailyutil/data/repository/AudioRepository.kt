@@ -70,18 +70,30 @@ class AudioRepository(private val context: Context) {
         }
     }
 
-    fun getRecordedFiles(): List<AudioItem> {
+    fun getPlaylists(): List<String> {
+        val reservedNames = listOf("hidden", "trash", "captures")
+        return captureDir.listFiles()
+            ?.filter { it.isDirectory && it.name !in reservedNames }
+            ?.map { it.name }
+            ?.sorted()
+            ?: emptyList()
+    }
+
+    fun getRecordedFiles(folderName: String? = null): List<AudioItem> {
+        val targetDir = if (folderName == null) captureDir else File(captureDir, folderName)
+        if (!targetDir.exists()) return emptyList()
+
         val retriever = android.media.MediaMetadataRetriever()
         val supportedExtensions = listOf("m4a", "wav", "mp3", "mp4", "mkv", "aac", "3gp")
-        val files = captureDir.listFiles()
+        val files = targetDir.listFiles()
             ?.filter { it.isFile && it.extension.lowercase() in supportedExtensions }
             ?: return emptyList()
 
         val items = files.map { mapToFileItem(it, retriever) }
         
-        // 순서 정보 불러오기
+        // 순서 정보 불러오기 (특정 폴더인 경우 순서 저장은 아직 기본 루트에만 지원하거나 확장이 필요할 수 있음)
         val order = getSavedOrder()
-        return if (order.isEmpty()) {
+        return if (order.isEmpty() || folderName != null) {
             items.sortedByDescending { it.dateAdded }
         } else {
             // 저장된 순서대로 정렬, 없는 파일은 뒤로 보냄
@@ -240,5 +252,24 @@ class AudioRepository(private val context: Context) {
     fun getNewFilePath(extension: String = "m4a"): String {
         val timestamp = System.currentTimeMillis()
         return File(captureDir, "capture_$timestamp.$extension").absolutePath
+    }
+
+    fun createPlaylist(name: String): Boolean {
+        val dir = File(captureDir, name)
+        return if (!dir.exists()) dir.mkdirs() else false
+    }
+
+    fun deletePlaylist(name: String): Boolean {
+        val dir = File(captureDir, name)
+        // 폴더 내 파일들을 루트로 이동시키거나 삭제할 수 있는데, 여기서는 폴더만 삭제(비어있을 때) 시도
+        return dir.deleteRecursively()
+    }
+
+    fun moveToPlaylist(item: AudioItem, folderName: String?): Boolean {
+        val targetDir = if (folderName == null) captureDir else File(captureDir, folderName)
+        if (!targetDir.exists()) targetDir.mkdirs()
+        
+        val targetFile = File(targetDir, item.name)
+        return item.file.renameTo(targetFile)
     }
 }

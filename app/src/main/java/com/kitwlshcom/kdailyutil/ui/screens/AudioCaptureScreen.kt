@@ -55,6 +55,8 @@ fun AudioCaptureScreen(
     val playbackProgress by viewModel.playbackProgress.collectAsState()
     val playbackDuration by viewModel.playbackDuration.collectAsState()
     val recordingSource by viewModel.recordingSource.collectAsState()
+    val playlists by viewModel.playlists.collectAsState()
+    val selectedPlaylist by viewModel.selectedPlaylist.collectAsState()
 
     // 앱으로 돌아올 때마다 목록 자동 새로고침
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -85,9 +87,12 @@ fun AudioCaptureScreen(
 
     var showRenameDialog by remember { mutableStateOf<AudioItem?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf<AudioItem?>(null) }
+    var showPlaylistMoveDialog by remember { mutableStateOf<AudioItem?>(null) }
+    var showNewPlaylistDialog by remember { mutableStateOf(false) }
     var showHiddenManager by remember { mutableStateOf(false) }
     var showTrashManager by remember { mutableStateOf(false) }
     var newFileName by remember { mutableStateOf("") }
+    var newPlaylistName by remember { mutableStateOf("") }
 
     val mediaProjectionManager = remember {
         context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
@@ -161,6 +166,65 @@ fun AudioCaptureScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirmDialog = null }) { Text("취소") }
+            }
+        )
+    }
+
+    if (showNewPlaylistDialog) {
+        AlertDialog(
+            onDismissRequest = { showNewPlaylistDialog = false },
+            title = { Text("새 재생목록") },
+            text = {
+                TextField(
+                    value = newPlaylistName,
+                    onValueChange = { newPlaylistName = it },
+                    label = { Text("목록 이름") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (newPlaylistName.isNotBlank()) {
+                        viewModel.addPlaylist(newPlaylistName)
+                        newPlaylistName = ""
+                        showNewPlaylistDialog = false
+                    }
+                }) { Text("생성") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewPlaylistDialog = false }) { Text("취소") }
+            }
+        )
+    }
+
+    if (showPlaylistMoveDialog != null) {
+        AlertDialog(
+            onDismissRequest = { showPlaylistMoveDialog = null },
+            title = { Text("이동하기") },
+            text = {
+                LazyColumn {
+                    item {
+                        ListItem(
+                            headlineContent = { Text("기본 리스트 (전체)") },
+                            modifier = Modifier.clickable {
+                                viewModel.moveItemToPlaylist(showPlaylistMoveDialog!!, null)
+                                showPlaylistMoveDialog = null
+                            }
+                        )
+                    }
+                    items(playlists) { playlist ->
+                        ListItem(
+                            headlineContent = { Text(playlist) },
+                            modifier = Modifier.clickable {
+                                viewModel.moveItemToPlaylist(showPlaylistMoveDialog!!, playlist)
+                                showPlaylistMoveDialog = null
+                            }
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPlaylistMoveDialog = null }) { Text("취소") }
             }
         )
     }
@@ -262,11 +326,20 @@ fun AudioCaptureScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "오디오 캡처",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
+                Column {
+                    Text(
+                        text = "오디오 캡처",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (selectedPlaylist != null) {
+                        Text(
+                            text = selectedPlaylist!!,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
                 
                 // 3단계 마이크 버튼 (Idle -> Ready(Green) -> Recording(Red))
                 val micColor = when {
@@ -371,6 +444,49 @@ fun AudioCaptureScreen(
                 }
             }
             
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // 재생목록 선택 바
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { showNewPlaylistDialog = true }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.CreateNewFolder, contentDescription = "폴더 생성", tint = MaterialTheme.colorScheme.primary)
+                }
+                
+                Spacer(modifier = Modifier.width(4.dp))
+                
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    item {
+                        FilterChip(
+                            selected = selectedPlaylist == null,
+                            onClick = { viewModel.selectPlaylist(null) },
+                            label = { Text("전체") }
+                        )
+                    }
+                    items(playlists) { playlist ->
+                        FilterChip(
+                            selected = selectedPlaylist == playlist,
+                            onClick = { viewModel.selectPlaylist(playlist) },
+                            label = { Text(playlist) },
+                            trailingIcon = {
+                                if (selectedPlaylist == playlist && !isEditLocked) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "삭제",
+                                        modifier = Modifier.size(14.dp).clickable { viewModel.deletePlaylist(playlist) }
+                                    )
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+            
             Spacer(modifier = Modifier.height(8.dp))
             
             val canDrawOverlays = remember { Settings.canDrawOverlays(context) }
@@ -428,6 +544,7 @@ fun AudioCaptureScreen(
                                     newFileName = item.name.substringBeforeLast(".")
                                     showRenameDialog = item 
                                 },
+                                onMoveToPlaylist = { showPlaylistMoveDialog = item },
                                 onMoveUp = { viewModel.moveItemUp(item) },
                                 onMoveDown = { viewModel.moveItemDown(item) }
                             )
@@ -475,10 +592,12 @@ fun AudioListItem(
     onDelete: () -> Unit,
     onHide: () -> Unit,
     onRename: () -> Unit,
+    onMoveToPlaylist: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
+    var showMenu by remember { mutableStateOf(false) }
     
     Card(
         modifier = Modifier
@@ -520,24 +639,45 @@ fun AudioListItem(
                 )
             }
 
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "메뉴")
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("이동하기") },
+                        onClick = { showMenu = false; onMoveToPlaylist() },
+                        leadingIcon = { Icon(Icons.Default.DriveFileMove, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("이름 변경") },
+                        onClick = { showMenu = false; onRename() },
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("숨기기") },
+                        onClick = { showMenu = false; onHide() },
+                        leadingIcon = { Icon(Icons.Default.VisibilityOff, contentDescription = null) }
+                    )
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = { Text("삭제") },
+                        onClick = { showMenu = false; onDelete() },
+                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
+                    )
+                }
+            }
+
             if (!isEditLocked) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column {
-                        IconButton(onClick = onMoveUp, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "위로 이동", modifier = Modifier.size(16.dp))
-                        }
-                        IconButton(onClick = onMoveDown, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "아래로 이동", modifier = Modifier.size(16.dp))
-                        }
+                Column {
+                    IconButton(onClick = onMoveUp, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "위로 이동", modifier = Modifier.size(16.dp))
                     }
-                    IconButton(onClick = onRename, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Edit, contentDescription = "이름 변경", modifier = Modifier.size(16.dp))
-                    }
-                    IconButton(onClick = onHide, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.VisibilityOff, contentDescription = "목록에서 제외", modifier = Modifier.size(16.dp))
-                    }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "삭제", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                    IconButton(onClick = onMoveDown, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "아래로 이동", modifier = Modifier.size(16.dp))
                     }
                 }
             }

@@ -52,9 +52,11 @@ fun DrivingShadowingScreen(
         if (isGranted) viewModel.startShadowing()
     }
 
-    // 초기 데이터 로드
+    // 초기 데이터 로드 (현재 선택된 기사가 없는 경우에만)
     LaunchedEffect(Unit) {
-        viewModel.loadEditorials()
+        if (currentTitle.isBlank()) {
+            viewModel.loadEditorials()
+        }
     }
 
     Column(
@@ -95,6 +97,7 @@ fun DrivingShadowingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 itemsIndexed(currentSentences) { index, sentence ->
+                    if (index >= currentSentences.size) return@itemsIndexed
                     val isCurrent = index == currentIndex
                     
                     Column(

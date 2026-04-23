@@ -23,16 +23,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.rememberNavController
 import com.kitwlshcom.kdailyutil.data.model.NewsItem
 import com.kitwlshcom.kdailyutil.ui.navigation.NavScreen
 import com.kitwlshcom.kdailyutil.ui.viewmodel.BriefingViewModel
+import com.kitwlshcom.kdailyutil.ui.viewmodel.ShadowingViewModel
+import androidx.compose.material.icons.filled.RecordVoiceOver
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewsBriefingScreen(
     navController: NavController = rememberNavController(),
-    viewModel: BriefingViewModel = viewModel()
+    viewModel: BriefingViewModel = viewModel(),
+    shadowingViewModel: ShadowingViewModel = viewModel()
 ) {
     val newsItems by viewModel.newsItems.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
@@ -146,6 +150,16 @@ fun NewsBriefingScreen(
                                 onClick = { 
                                     viewModel.setSelectedNewsItem(item)
                                     navController.navigate(NavScreen.NewsDetail.route)
+                                },
+                                onPracticeClick = {
+                                    shadowingViewModel.selectArticle(item)
+                                    navController.navigate(NavScreen.DrivingShadowing.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 }
                             )
                         }
@@ -192,7 +206,8 @@ fun CategoryTabItem(
 @Composable
 fun NewsCard(
     item: NewsItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onPracticeClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -202,39 +217,56 @@ fun NewsCard(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(12.dp)) {
                 Text(
-                    text = item.source,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
+                    text = item.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = item.source,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = item.pubDate,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                val displayContent = item.description
                 Text(
-                    text = item.pubDate,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline
+                    text = displayContent,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            val displayContent = item.description
-            Text(
-                text = displayContent,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            
+            // 말하기 연습 버튼 (우하단 배치)
+            IconButton(
+                onClick = onPracticeClick,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.RecordVoiceOver,
+                    contentDescription = "말하기 연습",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }

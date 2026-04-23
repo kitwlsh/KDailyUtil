@@ -1,26 +1,37 @@
-# KDailyUtil 기능 구현 계획 및 로 설계
+# KDailyUtil Implementation Plan (Updated)
 
-본 문서는 KDailyUtil의 핵심 기능인 '뉴스 브리핑' 및 '운전 중 말하기 연습(Shadowing)' 기능을 위한 설계 및 기록 문서입니다.
+## Goal
+Build a robust news collection and shadowing system with integrated audio management.
 
-## 1. 뉴스 키워드 브리핑 (News Briefing)
-사용자가 설정한 키워드와 관심사를 바탕으로 그날의 주요 뉴스를 수집하고, Gemini AI를 통해 자연스러운 대화체 요약을 생성하여 TTS로 읽어줍니다.
+## Key Components
 
-*   **데이터 소스**: 구글 뉴스 RSS (국내 중심: `ceid=KR:ko`)
-*   **AI 엔진**: Google Gemini 1.5 Flash
-*   **음성 엔진**: Android TextToSpeech (TTS)
-*   **특이사항**: API 키 미설정 시 '데모 모드(제목 읽기)' 제공
+### 1. News Shadowing (practice)
+- Prioritize high-quality editorials/columns.
+- Adaptive shadowing loop: TTS -> Wait (Adaptive) -> Record -> Monitor.
+- Driver-safe UI.
+- Organized storage in `Download/KDailyUtil/뉴스_쉐도잉`.
 
-## 2. 운전 중 말하기 연습 (Driving Shadowing)
-운전자들이 이동 중 사설이나 칼럼을 문장 단위로 따라 읽으며 학습할 수 있는 환경을 제공합니다.
+### 2. Audio Capture & Playlist Management
+- Multi-source recording (Internal/MIC).
+- Folder-based playlist organization.
+- Background playback stability (MediaSession, WakeLock).
+- Recycle Bin (Trash) and Hidden files support.
 
-*   **지능적 분할**: 문장 길이와 읽는 속도를 고려한 자동 대기 시간 산출.
-*   **자동 녹음 시스템**: 문장 학습 타이밍에 맞춰 사용자 목소리를 녹음 및 재생.
-*   **안전 UI**: 고대비 블랙 테마, 자동 스크롤, 거대 제어 버튼 적용.
+### 3. News Extraction Engine
+- Hybrid redirect resolution (Protobuf, Meta-refresh, WebView).
+- Clean text extraction with noise removal.
 
----
+## Technical Progress
+- [x] Base navigation and project structure.
+- [x] Gemini-powered news summarization.
+- [x] Audio Capture Service with floating controls.
+- [x] Reliable news body extraction for major Korean media.
+- [x] News Shadowing feature with recording subfolder.
+- [x] Audio playlist/folder system.
+- [x] Runtime permission management (API 10~13+).
+- [x] Crash resilience for recording and UI.
 
-## 📅 구현 히스토리
-- **2026-04-19**: 뉴스 브리핑 기본 엔진 및 UI 구현
-- **2026-04-19**: Gemini AI 연동 및 데모 모드 폴백 추가
-- **2026-04-19**: 운전 중 말하기 연습(Shadowing) 자동화 루프 및 녹음 기능 구현
-- **2026-04-19**: 한국어 뉴스 최적화 및 URL 필터링 강화
+## Future Plans
+- [ ] Statistical visualization for shadowing practice.
+- [ ] Improved playlist name editing UI.
+- [ ] Advanced anti-crawling handling for specific media.

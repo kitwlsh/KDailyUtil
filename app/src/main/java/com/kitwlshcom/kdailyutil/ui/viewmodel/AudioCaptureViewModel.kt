@@ -57,6 +57,12 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
 
     private val _recordingSource = MutableStateFlow(RecordingSource.INTERNAL)
     val recordingSource: StateFlow<RecordingSource> = _recordingSource.asStateFlow()
+    
+    private val _playlists = MutableStateFlow<List<String>>(emptyList())
+    val playlists: StateFlow<List<String>> = _playlists.asStateFlow()
+    
+    private val _selectedPlaylist = MutableStateFlow<String?>(null) // null = "전체"
+    val selectedPlaylist: StateFlow<String?> = _selectedPlaylist.asStateFlow()
 
     val isPrepared = AudioCaptureService.isPrepared
 
@@ -95,7 +101,8 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
 
     fun loadRecordings() {
         viewModelScope.launch {
-            _recordings.value = repository.getRecordedFiles()
+            _recordings.value = repository.getRecordedFiles(_selectedPlaylist.value)
+            _playlists.value = repository.getPlaylists()
             _hiddenRecordings.value = repository.getHiddenFiles()
             _trashRecordings.value = repository.getTrashFiles()
         }
@@ -351,6 +358,32 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
             currentList.add(index + 1, item)
             _recordings.value = currentList
             repository.saveOrder(currentList)
+        }
+    }
+
+    fun selectPlaylist(name: String?) {
+        _selectedPlaylist.value = name
+        loadRecordings()
+    }
+
+    fun addPlaylist(name: String) {
+        if (repository.createPlaylist(name)) {
+            loadRecordings()
+        }
+    }
+
+    fun deletePlaylist(name: String) {
+        if (repository.deletePlaylist(name)) {
+            if (_selectedPlaylist.value == name) {
+                _selectedPlaylist.value = null
+            }
+            loadRecordings()
+        }
+    }
+
+    fun moveItemToPlaylist(item: AudioItem, folderName: String?) {
+        if (repository.moveToPlaylist(item, folderName)) {
+            loadRecordings()
         }
     }
 }

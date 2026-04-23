@@ -15,7 +15,7 @@ sealed class NavScreen(
 ) {
     object NewsBriefing : NavScreen("news_briefing", "뉴스", Icons.Default.Newspaper)
 
-    object DrivingShadowing : NavScreen("driving_shadowing", "운전연습", Icons.Default.DriveEta)
+    object DrivingShadowing : NavScreen("driving_shadowing", "뉴스 쉐도잉", Icons.Default.DriveEta)
     object AudioCapture : NavScreen("audio_capture", "오디오 캡처", Icons.Default.Audiotrack)
     object MorningSettings : NavScreen("morning_settings", "설정", Icons.Default.Settings)
     object Placeholder : NavScreen("placeholder", "더보기", Icons.Default.MoreHoriz)

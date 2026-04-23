@@ -23,6 +23,7 @@ import com.kitwlshcom.kdailyutil.ui.screens.NewsBriefingScreen
 import com.kitwlshcom.kdailyutil.ui.screens.NewsDetailScreen
 import com.kitwlshcom.kdailyutil.ui.screens.PlaceholderScreen
 import com.kitwlshcom.kdailyutil.ui.viewmodel.BriefingViewModel
+import com.kitwlshcom.kdailyutil.ui.viewmodel.ShadowingViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
@@ -31,8 +32,9 @@ fun MainScreen() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     
-    // 뉴스 브리핑 관련 ViewModel을 공유하기 위해 상위에서 생성
+    // 뉴스 브리핑 및 말하기 연습 관련 ViewModel을 공유하기 위해 상위에서 생성
     val briefingViewModel: BriefingViewModel = viewModel()
+    val shadowingViewModel: ShadowingViewModel = viewModel()
 
     Scaffold(
         bottomBar = {
@@ -62,9 +64,15 @@ fun MainScreen() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(NavScreen.NewsBriefing.route) { 
-                NewsBriefingScreen(navController = navController, viewModel = briefingViewModel) 
+                NewsBriefingScreen(
+                    navController = navController, 
+                    viewModel = briefingViewModel,
+                    shadowingViewModel = shadowingViewModel
+                ) 
             }
-            composable(NavScreen.DrivingShadowing.route) { DrivingShadowingScreen() }
+            composable(NavScreen.DrivingShadowing.route) { 
+                DrivingShadowingScreen(viewModel = shadowingViewModel) 
+            }
             composable(NavScreen.AudioCapture.route) { AudioCaptureScreen() }
             composable(NavScreen.MorningSettings.route) { 
                 MorningBriefingSettingsScreen(viewModel = briefingViewModel) 

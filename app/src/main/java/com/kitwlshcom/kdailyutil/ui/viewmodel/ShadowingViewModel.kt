@@ -48,7 +48,8 @@ class ShadowingViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             val list = newsRepository.getEditorials()
             _editorials.value = list
-            if (list.isNotEmpty()) {
+            // 현재 선택된 기사가 없는 경우에만 첫 번째 기사 자동 선택
+            if (list.isNotEmpty() && _currentTitle.value.isBlank()) {
                 selectArticle(list[0])
             }
         }
@@ -56,13 +57,32 @@ class ShadowingViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun selectArticle(item: NewsItem) {
         _currentTitle.value = item.title
-        // 제목을 첫 번째 문장으로 추가하여 연습 리스트 구성
-        val sentences = mutableListOf(item.title)
-        sentences.addAll(textSplitter.splitIntoSentences(item.description))
         
-        _currentSentences.value = sentences
+        // 1. 현재 사용 가능한 텍스트(전문 우선, 없으면 요약)로 즉시 화면 구성
+        val initialContent = item.fullContent.ifBlank { item.description }
+        val initialSentences = mutableListOf(item.title)
+        initialSentences.addAll(textSplitter.splitIntoSentences(initialContent))
+        
+        _currentSentences.value = initialSentences
         _currentIndex.value = 0
         stopShadowing()
+
+        // 2. 만약 전문(fullContent)이 없다면 백그라운드에서 가져와서 업데이트
+        if (item.fullContent.isBlank()) {
+            viewModelScope.launch {
+                val fullText = newsRepository.fetchFullContent(item)
+                if (fullText.isNotBlank() && fullText != item.description) {
+                    item.fullContent = fullText
+                    
+                    // 현재 보기가 아직 이 기사인 경우에만 문장 리스트 업데이트
+                    if (_currentTitle.value == item.title) {
+                        val updatedSentences = mutableListOf(item.title)
+                        updatedSentences.addAll(textSplitter.splitIntoSentences(fullText))
+                        _currentSentences.value = updatedSentences
+                    }
+                }
+            }
+        }
     }
 
     fun startShadowing() {
@@ -79,7 +99,10 @@ class ShadowingViewModel(application: Application) : AndroidViewModel(applicatio
                     continue
                 }
 
-                val sentence = _currentSentences.value[_currentIndex.value]
+                // 안전한 인덱스 체크
+                val sentences = _currentSentences.value
+                if (_currentIndex.value >= sentences.size) break
+                val sentence = sentences[_currentIndex.value]
                 
                 // 1. TTS로 문장 읽기
                 ttsManager.speak(sentence, playBgm = false)
@@ -92,7 +115,14 @@ class ShadowingViewModel(application: Application) : AndroidViewModel(applicatio
                 // 2. 대기 시간 시작 및 녹음 시작
                 val waitTime = textSplitter.calculateWaitTime(sentence)
                 _isRecording.value = true
-                recordingManager.startRecording("idx_${_currentIndex.value}")
+                val fileName = "${_currentTitle.value}_문장${_currentIndex.value + 1}"
+                
+                // 녹음 시작 시 예외가 발생하더라도 루프가 멈추지 않게 함
+                try {
+                    recordingManager.startRecording(fileName)
+                } catch (e: Exception) {
+                    android.util.Log.e("ShadowingViewModel", "Failed to start recording for $fileName", e)
+                }
                 
                 waitForPeriod(waitTime)
                 

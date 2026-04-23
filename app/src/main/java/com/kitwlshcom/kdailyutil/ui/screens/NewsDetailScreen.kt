@@ -60,7 +60,11 @@ fun NewsDetailScreen(
                     
                     Button(
                         onClick = { 
-                            selectedNewsItem?.let { viewModel.startSingleNewsBriefing(it) }
+                            if (isBriefingPlaying) {
+                                viewModel.stopBriefing()
+                            } else {
+                                selectedNewsItem?.let { viewModel.startSingleNewsBriefing(it) }
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isBriefingPlaying) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
