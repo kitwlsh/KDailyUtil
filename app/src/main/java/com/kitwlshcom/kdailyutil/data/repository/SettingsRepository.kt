@@ -22,6 +22,8 @@ class SettingsRepository(private val context: Context) {
         val BRIEFING_ENABLED = booleanPreferencesKey("briefing_enabled")
         val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
         val NEWS_CATEGORIES = stringSetPreferencesKey("news_categories")
+        val AI_BRIEFING_COMMAND = stringPreferencesKey("ai_briefing_command")
+        val AI_COMMAND_AUDIO_PATH = stringPreferencesKey("ai_command_audio_path")
     }
 
     // 신규 오디오 설정
@@ -57,6 +59,14 @@ class SettingsRepository(private val context: Context) {
         preferences[PreferencesKeys.NEWS_CATEGORIES] ?: setOf("전체", "정치", "경제", "사회", "IT/과학", "세계")
     }
 
+    val aiBriefingCommandFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.AI_BRIEFING_COMMAND] ?: ""
+    }
+
+    val aiCommandAudioPathFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.AI_COMMAND_AUDIO_PATH] ?: ""
+    }
+
     // 저장 메서드들
     suspend fun savePlaybackMode(mode: PlaybackMode) {
         context.dataStore.edit { it[PreferencesKeys.PLAYBACK_MODE] = mode.name }
@@ -87,5 +97,13 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun updateCategories(categories: Set<String>) {
         context.dataStore.edit { it[PreferencesKeys.NEWS_CATEGORIES] = categories }
+    }
+
+    suspend fun updateAiBriefingCommand(command: String) {
+        context.dataStore.edit { it[PreferencesKeys.AI_BRIEFING_COMMAND] = command }
+    }
+
+    suspend fun updateAiCommandAudioPath(path: String) {
+        context.dataStore.edit { it[PreferencesKeys.AI_COMMAND_AUDIO_PATH] = path }
     }
 }

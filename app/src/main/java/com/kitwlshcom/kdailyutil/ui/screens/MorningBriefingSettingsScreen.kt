@@ -6,12 +6,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -27,6 +27,19 @@ fun MorningBriefingSettingsScreen(
     val briefingTime by viewModel.briefingTime.collectAsState()
     val isEnabled by viewModel.isBriefingEnabled.collectAsState()
     val apiKey by viewModel.geminiApiKey.collectAsState()
+    val aiCommand by viewModel.aiBriefingCommand.collectAsState()
+    val aiAudioPath by viewModel.aiCommandAudioPath.collectAsState()
+    val isRecording by viewModel.isRecordingCommand.collectAsState()
+    val sttPartialText by viewModel.sttPartialText.collectAsState()
+
+    var localAiCommand by remember { mutableStateOf(aiCommand) }
+    
+    // 외부(DataStore)에서 값이 변경되었을 때만 로컬 동기화 (초기화 등)
+    LaunchedEffect(aiCommand) {
+        if (!isRecording && localAiCommand != aiCommand) {
+            localAiCommand = aiCommand
+        }
+    }
 
     var newKeyword by remember { mutableStateOf("") }
     var newCategory by remember { mutableStateOf("") }
@@ -164,6 +177,101 @@ fun MorningBriefingSettingsScreen(
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // AI 커스텀 브리핑 명령어 설정
+        Text("나만의 AI 브리핑 명령어", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Text(
+            "AI가 뉴스를 분석할 때 참고할 특별한 요청사항을 입력하거나 음성으로 등록하세요.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.outline
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = localAiCommand,
+            onValueChange = { 
+                localAiCommand = it
+                viewModel.updateAiCommand(it) // 이미 뷰모델에서 최적화가 필요할 수도 있으나, 즉각적인 UI 반영을 위해 local 사용
+            },
+            label = { Text("예: 나스닥 상황 알려주고 코스닥 전망해줘") },
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                if (localAiCommand.isNotBlank()) {
+                    IconButton(onClick = { 
+                        localAiCommand = ""
+                        viewModel.updateAiCommand("") 
+                    }) {
+                        Icon(Icons.Default.Clear, contentDescription = "지우기")
+                    }
+                }
+            }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // 녹음 버튼
+            Button(
+                onClick = {
+                    if (isRecording) viewModel.stopCommandRecording()
+                    else viewModel.startCommandRecording()
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
+                ),
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    if (isRecording) Icons.Default.Stop else Icons.Default.Mic,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(if (isRecording) "녹음 중지" else "음성으로 등록")
+            }
+
+            // 다시 듣기 버튼
+            if (aiAudioPath.isNotBlank()) {
+                OutlinedIconButton(
+                    onClick = { viewModel.playCommandAudio() }
+                ) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = "명령어 듣기")
+                }
+            }
+        }
+        
+        if (isRecording || sttPartialText.isNotBlank()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        if (isRecording) "🎙 음성 인식 중..." else "마지막 인식 결과",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (sttPartialText.isBlank() && isRecording) "말씀해 주세요..." else sttPartialText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
     }
 
     if (showTimePicker) {

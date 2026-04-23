@@ -43,6 +43,7 @@ fun NewsBriefingScreen(
     val categories by viewModel.categories.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val isPlaying by viewModel.isBriefingPlaying.collectAsState()
+    val isAiLoading by viewModel.isAiAnalysisLoading.collectAsState()
 
     LaunchedEffect(Unit) {
         if (newsItems.isEmpty()) {
@@ -126,7 +127,18 @@ fun NewsBriefingScreen(
                     }
                 }
 
-                if (isRefreshing && newsItems.isEmpty()) {
+                if (selectedCategory == "AI" && isAiLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("Gemini가 뉴스를 분석하여 브리핑을 생성 중입니다...", 
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else if (isRefreshing && newsItems.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator()
@@ -136,7 +148,8 @@ fun NewsBriefingScreen(
                     }
                 } else if (newsItems.isEmpty() && !isRefreshing) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("불러온 뉴스가 없습니다.", textAlign = TextAlign.Center)
+                        val emptyMsg = if (selectedCategory == "AI") "AI 명령어를 먼저 등록해 주세요." else "불러온 뉴스가 없습니다."
+                        Text(emptyMsg, textAlign = TextAlign.Center)
                     }
                 } else {
                     LazyColumn(

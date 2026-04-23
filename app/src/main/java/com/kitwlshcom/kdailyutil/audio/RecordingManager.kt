@@ -12,11 +12,15 @@ class RecordingManager(private val context: Context) {
     private var player: MediaPlayer? = null
     private var currentOutputFile: File? = null
 
+    enum class RecordType(val folderName: String) {
+        SHADOWING("뉴스_쉐도잉"),
+        AI_COMMAND("AI_Commands")
+    }
+
     /**
      * 녹음을 시작합니다.
-     * 이제 폰의 'Download/KDailyUtil' 폴더에 저장되어 오디오 캡처 리스트에서도 보입니다.
      */
-    fun startRecording(fileName: String) {
+    fun startRecording(fileName: String, type: RecordType = RecordType.SHADOWING) {
         try {
             val rootDir = File(
                 android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
@@ -24,21 +28,24 @@ class RecordingManager(private val context: Context) {
             )
             if (!rootDir.exists()) rootDir.mkdirs()
 
-            var externalDir = File(rootDir, "뉴스_쉐도잉")
+            var externalDir = File(rootDir, type.folderName)
             if (!externalDir.exists()) {
                 val created = externalDir.mkdirs()
                 if (!created && !externalDir.exists()) {
                     android.util.Log.e("RecordingManager", "Failed to create subfolder, falling back to root: ${externalDir.absolutePath}")
-                    externalDir = rootDir // 폴더 생성 실패 시 루트에라도 저장
+                    externalDir = rootDir
                 }
             }
 
-            // 파일명에 타임스탬프를 포함하여 유니크하게 생성 (파일 이름 길이 제한 고려)
             val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()).format(java.util.Date())
             val safeFileName = fileName.replace(Regex("[^a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣]"), "_")
             val truncatedName = if (safeFileName.length > 50) safeFileName.substring(0, 50) else safeFileName
             
-            val prefix = if (externalDir.name == "KDailyUtil") "Shadowing_Practice_" else "Shadowing_"
+            val prefix = when(type) {
+                RecordType.SHADOWING -> if (externalDir.name == "KDailyUtil") "Shadowing_Practice_" else "Shadowing_"
+                RecordType.AI_COMMAND -> "AI_Command_"
+            }
+            
             val outputFile = File(externalDir, "${prefix}${timestamp}_${truncatedName}.m4a")
             currentOutputFile = outputFile
 
@@ -61,6 +68,28 @@ class RecordingManager(private val context: Context) {
         }
     }
 
+    /**
+     * 특정 경로의 오디오나 파일 객체를 재생합니다.
+     */
+    fun playAudio(path: String? = null, onComplete: () -> Unit = {}) {
+        val targetPath = path ?: currentOutputFile?.absolutePath ?: return
+        
+        try {
+            stopPlayback()
+            player = MediaPlayer().apply {
+                setDataSource(targetPath)
+                prepare()
+                start()
+                setOnCompletionListener {
+                    onComplete()
+                    releasePlayer()
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("RecordingManager", "Error playing audio: $targetPath", e)
+        }
+    }
+
     fun stopRecording() {
         try {
             recorder?.apply {
@@ -78,18 +107,10 @@ class RecordingManager(private val context: Context) {
      * 방금 녹음한 내용을 재생합니다.
      */
     fun playRecordedAudio(onComplete: () -> Unit = {}) {
-        currentOutputFile?.let {
-            player = MediaPlayer().apply {
-                setDataSource(it.absolutePath)
-                prepare()
-                start()
-                setOnCompletionListener {
-                    onComplete()
-                    releasePlayer()
-                }
-            }
-        }
+        playAudio(null, onComplete)
     }
+
+    fun getCurrentRecordingPath(): String? = currentOutputFile?.absolutePath
 
     fun stopPlayback() {
         player?.stop()

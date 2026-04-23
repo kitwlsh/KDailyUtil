@@ -70,4 +70,35 @@ class GeminiManager(private val apiKey: String?) {
             ""
         }
     }
+
+    /**
+     * 사용자의 특정 명령(커스텀 브리핑)을 처리합니다.
+     * @param command 사용자의 요청 (예: "나스닥 상황을 보고 코스닥 전망해줘")
+     * @param referenceNews 분석에 참고할 최신 뉴스 목록
+     */
+    suspend fun processAiCustomBriefing(command: String, referenceNews: List<NewsItem>): String = withContext(Dispatchers.IO) {
+        if (generativeModel == null || apiKey.isNullOrBlank()) {
+            return@withContext "AI 분석을 위해 Gemini API 키가 필요합니다."
+        }
+
+        val prompt = content {
+            text("당신은 전문 뉴스 분석가이자 일상 비서입니다. 사용자의 다음 요청에 대해 수집된 뉴스 데이터를 바탕으로 심도 있는 브리핑을 작성해 주세요.\n\n" +
+                 "사용자 요청: \"$command\"\n\n" +
+                 "참고 뉴스 데이터:\n" +
+                 referenceNews.joinToString("\n") { "- ${it.title}: ${it.description}" } + "\n\n" +
+                 "요청 사항:\n" +
+                 "1. 제공된 뉴스 데이터를 최대한 활용하여 요청에 답변하세요.\n" +
+                 "2. 질문이 구체적이라면(예: 전망, 비교) 가능한 한 논리적인 분석을 포함하세요.\n" +
+                 "3. 말투는 친절하고 전문적인 대화체로 작성해 주세요.\n" +
+                 "4. 결과가 너무 길지 않게(5-7문장 내외) 핵심 위주로 작성해 주세요.")
+        }
+
+        try {
+            val response = generativeModel?.generateContent(prompt)
+            response?.text ?: "분석 결과를 생성할 수 없습니다."
+        } catch (e: Exception) {
+            e.printStackTrace()
+            "분석 중 오류 발생: ${e.message}"
+        }
+    }
 }
