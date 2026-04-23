@@ -16,6 +16,10 @@ enum class PlaybackMode {
     SEQUENTIAL, LOOP_LIST, SHUFFLE, REPEAT_ONE
 }
 
+enum class RecordingSource {
+    INTERNAL, MIC
+}
+
 class AudioCaptureViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = AudioRepository(application)
@@ -26,6 +30,9 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
 
     private val _hiddenRecordings = MutableStateFlow<List<AudioItem>>(emptyList())
     val hiddenRecordings: StateFlow<List<AudioItem>> = _hiddenRecordings.asStateFlow()
+
+    private val _trashRecordings = MutableStateFlow<List<AudioItem>>(emptyList())
+    val trashRecordings: StateFlow<List<AudioItem>> = _trashRecordings.asStateFlow()
 
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
@@ -47,6 +54,9 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
 
     private val _playbackDuration = MutableStateFlow(0L)
     val playbackDuration: StateFlow<Long> = _playbackDuration.asStateFlow()
+
+    private val _recordingSource = MutableStateFlow(RecordingSource.INTERNAL)
+    val recordingSource: StateFlow<RecordingSource> = _recordingSource.asStateFlow()
 
     val isPrepared = AudioCaptureService.isPrepared
 
@@ -87,12 +97,19 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
         viewModelScope.launch {
             _recordings.value = repository.getRecordedFiles()
             _hiddenRecordings.value = repository.getHiddenFiles()
+            _trashRecordings.value = repository.getTrashFiles()
         }
     }
 
     fun loadHiddenRecordings() {
         viewModelScope.launch {
             _hiddenRecordings.value = repository.getHiddenFiles()
+        }
+    }
+
+    fun loadTrashRecordings() {
+        viewModelScope.launch {
+            _trashRecordings.value = repository.getTrashFiles()
         }
     }
 
@@ -118,15 +135,24 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
         getApplication<Application>().startForegroundService(intent)
     }
 
-    fun startRecording(resultData: Intent) {
+    fun startRecording(resultData: Intent?) {
         val filePath = repository.getNewFilePath("m4a")
         val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
             action = AudioCaptureService.ACTION_START_RECORDING
-            putExtra(AudioCaptureService.EXTRA_RESULT_DATA, resultData)
+            if (resultData != null) putExtra(AudioCaptureService.EXTRA_RESULT_DATA, resultData)
             putExtra(AudioCaptureService.EXTRA_FILE_PATH, filePath)
+            putExtra(AudioCaptureService.EXTRA_RECORDING_SOURCE, _recordingSource.value.name)
         }
         getApplication<Application>().startForegroundService(intent)
         _isRecording.value = true
+    }
+
+    fun toggleRecordingSource() {
+        _recordingSource.value = if (_recordingSource.value == RecordingSource.INTERNAL) {
+            RecordingSource.MIC
+        } else {
+            RecordingSource.INTERNAL
+        }
     }
 
     fun stopRecording() {
@@ -281,11 +307,50 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    fun importFile(uri: android.net.Uri) {
+    fun restoreFromTrash(item: AudioItem) {
+        if (repository.restoreFromTrash(item)) {
+            loadRecordings()
+        }
+    }
+
+    fun permanentlyDelete(item: AudioItem) {
+        if (repository.permanentlyDelete(item)) {
+            loadRecordings()
+        }
+    }
+
+    fun emptyTrash() {
+        repository.emptyTrash()
+        loadRecordings()
+    }
+
+    fun importFiles(uris: List<android.net.Uri>) {
         viewModelScope.launch {
-            if (repository.importFile(uri)) {
+            if (repository.importFiles(uris) > 0) {
                 loadRecordings()
             }
+        }
+    }
+
+    fun moveItemUp(item: AudioItem) {
+        val currentList = _recordings.value.toMutableList()
+        val index = currentList.indexOf(item)
+        if (index > 0) {
+            currentList.removeAt(index)
+            currentList.add(index - 1, item)
+            _recordings.value = currentList
+            repository.saveOrder(currentList)
+        }
+    }
+
+    fun moveItemDown(item: AudioItem) {
+        val currentList = _recordings.value.toMutableList()
+        val index = currentList.indexOf(item)
+        if (index != -1 && index < currentList.size - 1) {
+            currentList.removeAt(index)
+            currentList.add(index + 1, item)
+            _recordings.value = currentList
+            repository.saveOrder(currentList)
         }
     }
 }

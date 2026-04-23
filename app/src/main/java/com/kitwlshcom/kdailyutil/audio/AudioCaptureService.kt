@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import java.io.File
 import java.io.IOException
+import android.media.session.MediaSession
 import kotlin.concurrent.thread
 
 class AudioCaptureService : Service() {
@@ -36,6 +37,9 @@ class AudioCaptureService : Service() {
     private var floatingView: View? = null
     private var params: WindowManager.LayoutParams? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var mediaSession: MediaSession? = null
+    private var isForeground = false
+    private lateinit var notificationManager: NotificationManager
 
     companion object {
         private const val TAG = "AudioCaptureService"
@@ -55,6 +59,7 @@ class AudioCaptureService : Service() {
         const val EXTRA_RESULT_DATA = "EXTRA_RESULT_DATA"
         const val EXTRA_FILE_PATH = "EXTRA_FILE_PATH"
         const val EXTRA_SEEK_POSITION = "EXTRA_SEEK_POSITION"
+        const val EXTRA_RECORDING_SOURCE = "EXTRA_RECORDING_SOURCE"
 
         private val _currentPosition = MutableStateFlow(0L)
         val currentPosition = _currentPosition.asStateFlow()
@@ -98,6 +103,12 @@ class AudioCaptureService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        
+        mediaSession = MediaSession(this, "AudioCaptureService").apply {
+            isActive = true
+        }
+        
         createNotificationChannel()
         // WakeLock 초기화
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -130,14 +141,22 @@ class AudioCaptureService : Service() {
             }
             ACTION_START_RECORDING -> {
                 val resultData = savedResultData
-                val filePath = savedFilePath
-                if (resultData != null && filePath != null) {
+                val filePath = savedFilePath ?: intent.getStringExtra(EXTRA_FILE_PATH)
+                val source = intent.getStringExtra(EXTRA_RECORDING_SOURCE) ?: "INTERNAL"
+                
+                if (filePath != null) {
+                    val serviceType = if (source == "MIC") {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0
+                    } else {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION else 0
+                    }
+                    
                     startForeground(
                         NOTIFICATION_ID, 
-                        createNotification("녹음 중..."),
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION else 0
+                        createNotification(if (source == "MIC") "마이크 녹음 중..." else "시스템 소리 녹음 중..."),
+                        serviceType
                     )
-                    startRecording(resultData, filePath)
+                    startRecording(resultData, filePath, source)
                     updateFloatingButtonIcon()
                 }
             }
@@ -172,75 +191,101 @@ class AudioCaptureService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun startRecording(resultData: Intent, filePath: String) {
+    private fun startRecording(resultData: Intent?, filePath: String, source: String = "INTERNAL") {
         if (isRecording) return
-        val mpManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        mediaProjection = mpManager.getMediaProjection(Activity.RESULT_OK, resultData)
+        acquireWakeLock()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val sampleRate = 44100
-            val bufferSize = AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_STEREO, AudioFormat.ENCODING_PCM_16BIT)
-            
+        if (source == "INTERNAL" && resultData != null) {
+            val mpManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            mediaProjection = mpManager.getMediaProjection(Activity.RESULT_OK, resultData)
+        }
+
+        val sampleRate = 44100
+        val channelConfig = if (source == "INTERNAL") AudioFormat.CHANNEL_IN_STEREO else AudioFormat.CHANNEL_IN_MONO
+        val audioSource = if (source == "INTERNAL") {
+            // Internal audio requires specific config and MediaProjection
+            -1 // We'll handle this separately
+        } else {
+            MediaRecorder.AudioSource.MIC
+        }
+
+        val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, AudioFormat.ENCODING_PCM_16BIT)
+
+        audioRecord = if (source == "INTERNAL" && mediaProjection != null) {
             val config = AudioPlaybackCaptureConfiguration.Builder(mediaProjection!!)
                 .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
                 .addMatchingUsage(AudioAttributes.USAGE_GAME)
                 .build()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                AudioRecord.Builder()
+                    .setAudioFormat(AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(channelConfig)
+                        .build())
+                    .setBufferSizeInBytes(bufferSize)
+                    .setAudioPlaybackCaptureConfig(config)
+                    .build()
+            } else null
+        } else if (source == "MIC") {
+            AudioRecord(audioSource, sampleRate, channelConfig, AudioFormat.ENCODING_PCM_16BIT, bufferSize)
+        } else null
 
-            audioRecord = AudioRecord.Builder()
-                .setAudioFormat(AudioFormat.Builder()
-                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setSampleRate(sampleRate)
-                    .setChannelMask(AudioFormat.CHANNEL_IN_STEREO)
-                    .build())
-                .setBufferSizeInBytes(bufferSize)
-                .setAudioPlaybackCaptureConfig(config)
-                .build()
+        if (audioRecord == null) {
+            Log.e(TAG, "Failed to initialize AudioRecord")
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            releaseWakeLock()
+            return
+        }
 
-            isRecording = true
-            audioRecord?.startRecording()
+        isRecording = true
+        audioRecord?.startRecording()
 
-            thread {
-                try {
-                    val encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
-                    val format = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, 2)
-                    format.setInteger(MediaFormat.KEY_BIT_RATE, 128000)
-                    format.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
-                    format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, bufferSize)
-                    
-                    encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-                    val muxer = MediaMuxer(filePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-                    var trackIndex = -1
-                    
-                    encoder.start()
-                    val bufferInfo = MediaCodec.BufferInfo()
-                    val pcmData = ByteArray(bufferSize)
-                    
-                    while (isRecording) {
-                        val inputBufferIndex = encoder.dequeueInputBuffer(10000)
-                        if (inputBufferIndex >= 0) {
-                            val inputBuffer = encoder.getInputBuffer(inputBufferIndex)
-                            val read = audioRecord?.read(pcmData, 0, bufferSize) ?: 0
-                            if (read > 0) {
-                                inputBuffer?.put(pcmData, 0, read)
-                                encoder.queueInputBuffer(inputBufferIndex, 0, read, System.nanoTime() / 1000, 0)
-                            }
-                        }
-                        
-                        var outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, 10000)
-                        while (outputBufferIndex >= 0) {
-                            if (trackIndex == -1) {
-                                trackIndex = muxer.addTrack(encoder.outputFormat)
-                                muxer.start()
-                            }
-                            val outputBuffer = encoder.getOutputBuffer(outputBufferIndex)
-                            outputBuffer?.let { muxer.writeSampleData(trackIndex, it, bufferInfo) }
-                            encoder.releaseOutputBuffer(outputBufferIndex, false)
-                            outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, 0)
+        thread {
+            try {
+                val encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
+                val format = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, if (channelConfig == AudioFormat.CHANNEL_IN_STEREO) 2 else 1)
+                format.setInteger(MediaFormat.KEY_BIT_RATE, 128000)
+                format.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
+                format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, bufferSize)
+                
+                encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+                val muxer = MediaMuxer(filePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+                var trackIndex = -1
+                
+                encoder.start()
+                val bufferInfo = MediaCodec.BufferInfo()
+                val pcmData = ByteArray(bufferSize)
+                
+                while (isRecording) {
+                    val inputBufferIndex = encoder.dequeueInputBuffer(10000)
+                    if (inputBufferIndex >= 0) {
+                        val inputBuffer = encoder.getInputBuffer(inputBufferIndex)
+                        val read = audioRecord?.read(pcmData, 0, bufferSize) ?: 0
+                        if (read > 0) {
+                            inputBuffer?.put(pcmData, 0, read)
+                            encoder.queueInputBuffer(inputBufferIndex, 0, read, System.nanoTime() / 1000, 0)
                         }
                     }
-                    encoder.stop(); encoder.release()
-                    muxer.stop(); muxer.release()
-                } catch (e: Exception) { Log.e(TAG, "Recording error", e) }
+                    
+                    var outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, 10000)
+                    while (outputBufferIndex >= 0) {
+                        if (trackIndex == -1) {
+                            trackIndex = muxer.addTrack(encoder.outputFormat)
+                            muxer.start()
+                        }
+                        val outputBuffer = encoder.getOutputBuffer(outputBufferIndex)
+                        outputBuffer?.let { muxer.writeSampleData(trackIndex, it, bufferInfo) }
+                        encoder.releaseOutputBuffer(outputBufferIndex, false)
+                        outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, 0)
+                    }
+                }
+                encoder.stop(); encoder.release()
+                muxer.stop(); muxer.release()
+            } catch (e: Exception) { 
+                Log.e(TAG, "Recording error", e) 
+            } finally {
+                handler.post { releaseWakeLock() }
             }
         }
     }
@@ -248,13 +293,12 @@ class AudioCaptureService : Service() {
     private fun stopRecording() {
         isRecording = false
         audioRecord?.stop(); audioRecord?.release(); audioRecord = null
-        // mediaProjection?.stop() 은 호출하지 않음 (반복 녹음을 위해 유지)
+        releaseWakeLock()
         
-        // 플로팅 버튼을 숨기지 않고 아이콘만 '준비' 상태로 변경
         updateFloatingButtonIcon()
         updateNotification("녹음 대기 중... 언제든 다시 시작하세요.")
         
-        val dir = File(filesDir, "captures")
+        val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "KDailyUtil")
         if (!dir.exists()) dir.mkdirs()
         savedFilePath = File(dir, "capture_${System.currentTimeMillis()}.m4a").absolutePath
     }
@@ -337,37 +381,61 @@ class AudioCaptureService : Service() {
             _isPlaybackPaused.value = false
             handler.post(progressRunnable)
             acquireWakeLock()
-            startForeground(NOTIFICATION_ID, createNotification("재생 중..."), if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0)
+            val notification = createNotification("재생 중: ${File(filePath).name}")
+            if (!isForeground) {
+                val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                } else 0
+                startForeground(NOTIFICATION_ID, notification, type)
+                isForeground = true
+            } else {
+                notificationManager.notify(NOTIFICATION_ID, notification)
+            }
             return
         }
 
-        stopAudio()
-        currentPlayingPath = filePath
-        mediaPlayer = MediaPlayer().apply {
-            try {
-                setDataSource(filePath)
-                // 하드웨어 WakeLock 설정
+        // stopAudio() 호출을 제거하여 포그라운드 상태를 유지함
+        if (mediaPlayer == null) {
+            mediaPlayer = MediaPlayer().apply {
                 setWakeMode(this@AudioCaptureService, PowerManager.PARTIAL_WAKE_LOCK)
-                // 오디오 속성 설정 (안드로이드 시스템에 미디어임을 알림)
                 setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                         .build()
                 )
+            }
+        } else {
+            mediaPlayer?.reset()
+        }
+        
+        currentPlayingPath = filePath
+        mediaPlayer?.apply {
+            try {
+                setDataSource(filePath)
                 prepare()
                 _playbackDuration.value = duration.toLong()
                 start()
                 _isPlaybackPaused.value = false
                 handler.post(progressRunnable)
                 acquireWakeLock()
-                startForeground(NOTIFICATION_ID, createNotification("재생 중..."), if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0)
+                
+                val notification = createNotification("재생 중: ${File(filePath).name}")
+                if (!isForeground) {
+                    val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                    } else 0
+                    startForeground(NOTIFICATION_ID, notification, type)
+                    isForeground = true
+                } else {
+                    notificationManager.notify(NOTIFICATION_ID, notification)
+                }
+                
                 setOnCompletionListener {
                     handler.removeCallbacks(progressRunnable)
                     _currentPosition.value = 0
                     currentPlayingPath = null
-                    releaseWakeLock()
-                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    updateNotification("다음 곡 대기 중...")
                     thread { kotlinx.coroutines.runBlocking { _playbackCompleted.emit(Unit) } }
                 }
             } catch (e: IOException) { Log.e(TAG, "Playback error", e) }
@@ -411,6 +479,7 @@ class AudioCaptureService : Service() {
         mediaPlayer?.stop(); mediaPlayer?.release(); mediaPlayer = null
         releaseWakeLock()
         stopForeground(STOP_FOREGROUND_REMOVE)
+        isForeground = false
     }
 
     private fun createNotificationChannel() {
@@ -435,12 +504,14 @@ class AudioCaptureService : Service() {
 
     private fun updateNotification(contentText: String) {
         val notification = createNotification(contentText)
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(NOTIFICATION_ID, notification)
+        notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
     override fun onDestroy() {
         releaseWakeLock()
-        hideFloatingControl(); stopRecording(); stopAudio(); super.onDestroy()
+        hideFloatingControl(); stopRecording(); stopAudio()
+        mediaSession?.release()
+        mediaSession = null
+        super.onDestroy()
     }
 }

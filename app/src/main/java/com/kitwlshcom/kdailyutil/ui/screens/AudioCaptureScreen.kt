@@ -32,6 +32,7 @@ import com.kitwlshcom.kdailyutil.data.model.AudioItem
 import com.kitwlshcom.kdailyutil.audio.AudioCaptureService
 import com.kitwlshcom.kdailyutil.ui.viewmodel.AudioCaptureViewModel
 import com.kitwlshcom.kdailyutil.ui.viewmodel.PlaybackMode
+import com.kitwlshcom.kdailyutil.ui.viewmodel.RecordingSource
 import android.provider.Settings
 import android.content.Intent
 import android.net.Uri
@@ -53,6 +54,7 @@ fun AudioCaptureScreen(
     val isEditLocked by viewModel.isEditLocked.collectAsState()
     val playbackProgress by viewModel.playbackProgress.collectAsState()
     val playbackDuration by viewModel.playbackDuration.collectAsState()
+    val recordingSource by viewModel.recordingSource.collectAsState()
 
     // 앱으로 돌아올 때마다 목록 자동 새로고침
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -84,6 +86,7 @@ fun AudioCaptureScreen(
     var showRenameDialog by remember { mutableStateOf<AudioItem?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf<AudioItem?>(null) }
     var showHiddenManager by remember { mutableStateOf(false) }
+    var showTrashManager by remember { mutableStateOf(false) }
     var newFileName by remember { mutableStateOf("") }
 
     val mediaProjectionManager = remember {
@@ -100,9 +103,11 @@ fun AudioCaptureScreen(
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let { viewModel.importFile(it) }
+        ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            viewModel.importFiles(uris)
+        }
     }
 
     val listState = rememberLazyListState()
@@ -193,6 +198,58 @@ fun AudioCaptureScreen(
         )
     }
 
+    if (showTrashManager) {
+        val trashFiles by viewModel.trashRecordings.collectAsState()
+        AlertDialog(
+            onDismissRequest = { showTrashManager = false },
+            title = { 
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("휴지통")
+                }
+            },
+            text = {
+                if (trashFiles.isEmpty()) {
+                    Text("휴지통이 비어 있습니다.")
+                } else {
+                    Column {
+                        TextButton(
+                            onClick = { viewModel.emptyTrash() },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text("비우기", color = MaterialTheme.colorScheme.error)
+                        }
+                        LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
+                            items(trashFiles) { item ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(item.name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f), maxLines = 1)
+                                    Row {
+                                        IconButton(onClick = { viewModel.restoreFromTrash(item) }) {
+                                            Icon(Icons.Default.Restore, contentDescription = "복구", tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                        IconButton(onClick = { viewModel.permanentlyDelete(item) }) {
+                                            Icon(Icons.Default.DeleteForever, contentDescription = "영구 삭제", tint = MaterialTheme.colorScheme.error)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTrashManager = false }) { Text("닫기") }
+            }
+        )
+    }
+
     Scaffold { innerPadding ->
         Column(
             modifier = Modifier
@@ -235,7 +292,11 @@ fun AudioCaptureScreen(
                             } else if (isPrepared) {
                                 viewModel.dismissPreparation()
                             } else {
-                                projectionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
+                                if (recordingSource == RecordingSource.MIC) {
+                                    viewModel.startRecording(null)
+                                } else {
+                                    projectionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
+                                }
                             }
                         },
                         shape = CircleShape,
@@ -267,12 +328,43 @@ fun AudioCaptureScreen(
                     }
 
                     IconButton(
+                        onClick = { viewModel.toggleRecordingSource() },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                if (recordingSource == RecordingSource.MIC) Icons.Default.Mic else Icons.Default.GraphicEq,
+                                contentDescription = "녹음 소스",
+                                tint = if (recordingSource == RecordingSource.MIC) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                if (recordingSource == RecordingSource.MIC) "마이크" else "시스템",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 8.sp,
+                                color = if (recordingSource == RecordingSource.MIC) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    IconButton(
                         onClick = { showHiddenManager = true },
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             Icons.Default.VisibilityOff,
-                            contentDescription = "숨긴 파일 관리",
+                            contentDescription = "숨김",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { showTrashManager = true },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "휴지통",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -284,7 +376,11 @@ fun AudioCaptureScreen(
             val canDrawOverlays = remember { Settings.canDrawOverlays(context) }
             
             Text(
-                text = if (isRecording) "내부 소리 녹음 중..." else "마이크를 눌러 '준비' 상태가 되면 알림창이나 플로팅 버튼으로 녹음이 가능합니다.",
+                text = when {
+                    isRecording -> if (recordingSource == RecordingSource.MIC) "외부 마이크 녹음 중..." else "내부 소리 녹음 중..."
+                    recordingSource == RecordingSource.MIC -> "마이크를 눌러 바로 외부 소리 녹음이 가능합니다."
+                    else -> "마이크를 눌러 '준비' 상태가 되면 알림창이나 플로팅 버튼으로 녹음이 가능합니다."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -331,7 +427,9 @@ fun AudioCaptureScreen(
                                 onRename = { 
                                     newFileName = item.name.substringBeforeLast(".")
                                     showRenameDialog = item 
-                                }
+                                },
+                                onMoveUp = { viewModel.moveItemUp(item) },
+                                onMoveDown = { viewModel.moveItemDown(item) }
                             )
                         }
                     }
@@ -376,7 +474,9 @@ fun AudioListItem(
     onPlay: () -> Unit,
     onDelete: () -> Unit,
     onHide: () -> Unit,
-    onRename: () -> Unit
+    onRename: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
     
@@ -421,7 +521,15 @@ fun AudioListItem(
             }
 
             if (!isEditLocked) {
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column {
+                        IconButton(onClick = onMoveUp, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "위로 이동", modifier = Modifier.size(16.dp))
+                        }
+                        IconButton(onClick = onMoveDown, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "아래로 이동", modifier = Modifier.size(16.dp))
+                        }
+                    }
                     IconButton(onClick = onRename, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Edit, contentDescription = "이름 변경", modifier = Modifier.size(16.dp))
                     }
