@@ -391,6 +391,12 @@ class AudioCaptureService : Service() {
             } else {
                 notificationManager.notify(NOTIFICATION_ID, notification)
             }
+            
+            // 재생 정보 업데이트
+            val repository = com.kitwlshcom.kdailyutil.data.repository.AudioRepository(this)
+            val item = repository.getRecordedFiles().find { it.path == filePath }
+            _currentlyPlaying.value = item
+            
             return
         }
 
@@ -431,10 +437,17 @@ class AudioCaptureService : Service() {
                     notificationManager.notify(NOTIFICATION_ID, notification)
                 }
                 
+                
+                // 재생 정보 업데이트
+                val repository = com.kitwlshcom.kdailyutil.data.repository.AudioRepository(this@AudioCaptureService)
+                val item = repository.getRecordedFiles().find { it.path == filePath }
+                _currentlyPlaying.value = item
+
                 setOnCompletionListener {
                     handler.removeCallbacks(progressRunnable)
                     _currentPosition.value = 0
                     currentPlayingPath = null
+                    _currentlyPlaying.value = null
                     updateNotification("다음 곡 대기 중...")
                     thread { kotlinx.coroutines.runBlocking { _playbackCompleted.emit(Unit) } }
                 }
@@ -476,6 +489,8 @@ class AudioCaptureService : Service() {
         handler.removeCallbacks(progressRunnable)
         _currentPosition.value = 0
         currentPlayingPath = null
+        _currentlyPlaying.value = null
+        _isPlaybackPaused.value = false
         mediaPlayer?.stop(); mediaPlayer?.release(); mediaPlayer = null
         releaseWakeLock()
         stopForeground(STOP_FOREGROUND_REMOVE)

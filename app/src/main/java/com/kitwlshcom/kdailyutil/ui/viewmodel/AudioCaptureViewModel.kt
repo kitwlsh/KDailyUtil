@@ -30,6 +30,9 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
 
     private val _hiddenRecordings = MutableStateFlow<List<AudioItem>>(emptyList())
     val hiddenRecordings: StateFlow<List<AudioItem>> = _hiddenRecordings.asStateFlow()
+    
+    private val _allRootFiles = MutableStateFlow<List<AudioItem>>(emptyList())
+    val allRootFiles: StateFlow<List<AudioItem>> = _allRootFiles.asStateFlow()
 
     private val _trashRecordings = MutableStateFlow<List<AudioItem>>(emptyList())
     val trashRecordings: StateFlow<List<AudioItem>> = _trashRecordings.asStateFlow()
@@ -70,7 +73,17 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
         loadRecordings()
         observePlaybackProgress()
         observePlaybackCompletion()
+        observeServiceState()
         loadSettings()
+    }
+
+    private fun observeServiceState() {
+        viewModelScope.launch {
+            AudioCaptureService.currentlyPlaying.collect { _currentlyPlaying.value = it }
+        }
+        viewModelScope.launch {
+            AudioCaptureService.isPlaybackPaused.collect { _isPlaybackPaused.value = it }
+        }
     }
 
     private fun loadSettings() {
@@ -102,6 +115,7 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
     fun loadRecordings() {
         viewModelScope.launch {
             _recordings.value = repository.getRecordedFiles(_selectedPlaylist.value)
+            _allRootFiles.value = repository.getRecordedFiles(null) // 항상 전체 파일 로드
             _playlists.value = repository.getPlaylists()
             _hiddenRecordings.value = repository.getHiddenFiles()
             _trashRecordings.value = repository.getTrashFiles()
@@ -339,6 +353,16 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    fun importPlaylistFile(uri: android.net.Uri) {
+        viewModelScope.launch {
+            val playlistName = repository.importPlaylist(uri)
+            if (playlistName != null) {
+                _selectedPlaylist.value = playlistName
+                loadRecordings()
+            }
+        }
+    }
+
     fun moveItemUp(item: AudioItem) {
         val currentList = _recordings.value.toMutableList()
         val index = currentList.indexOf(item)
@@ -368,6 +392,7 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
 
     fun addPlaylist(name: String) {
         if (repository.createPlaylist(name)) {
+            _selectedPlaylist.value = name // 새 재생목록 생성 시 자동 선택
             loadRecordings()
         }
     }
@@ -381,8 +406,23 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    fun moveItemToPlaylist(item: AudioItem, folderName: String?) {
-        if (repository.moveToPlaylist(item, folderName)) {
+    fun renamePlaylist(oldName: String, newName: String) {
+        if (repository.renamePlaylist(oldName, newName)) {
+            if (_selectedPlaylist.value == oldName) {
+                _selectedPlaylist.value = newName
+            }
+            loadRecordings()
+        }
+    }
+
+    fun addItemToPlaylist(item: AudioItem, playlistName: String) {
+        if (repository.addItemToPlaylist(item, playlistName)) {
+            loadRecordings()
+        }
+    }
+
+    fun removeItemFromPlaylist(item: AudioItem, playlistName: String) {
+        if (repository.removeItemFromPlaylist(item, playlistName)) {
             loadRecordings()
         }
     }
