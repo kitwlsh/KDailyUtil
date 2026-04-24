@@ -1,37 +1,37 @@
-# KDailyUtil Implementation Plan (Updated)
+# KDailyUtil Implementation Plan (Updated 2026-04-24)
 
 ## Goal
-Build a robust news collection and shadowing system with integrated audio management.
+Build a professional-grade utility app featuring AI news briefing, driver-optimized news shadowing, and a sophisticated audio management system.
 
-## Key Components
+## Key Architectures
 
-### 1. News Shadowing (practice)
-- Prioritize high-quality editorials/columns.
-- Adaptive shadowing loop: TTS -> Wait (Adaptive) -> Record -> Monitor.
-- Driver-safe UI.
-- Organized storage in `Download/KDailyUtil/뉴스_쉐도잉`.
+### 1. Unified Audio Management (Revamped)
+- **Side-Tab Sub-menus**: Decoupled UI for Recording, Playing, File Management, and Playlists.
+- **Global Player State**: Shared ViewModel across the app for seamless media control.
+- **Smart System Integration**: 
+    - Auto-pause on Bluetooth/Headphone disconnect.
+    - Context-aware floating icons (background only).
+- **Modern Storage Strategy**: 
+    - Transition to Scoped Storage native paths to eliminate Permission Denied errors.
+    - Automatic data migration for legacy files.
 
-### 2. Audio Capture & Playlist Management
-- Multi-source recording (Internal/MIC).
-- Folder-based playlist organization.
-- Background playback stability (MediaSession, WakeLock).
-- Recycle Bin (Trash) and Hidden files support.
+### 2. News Shadowing & Learning
+- **Educational Content Focus**: Prioritizing high-quality editorials.
+- **Adaptive Practice Loop**: Intelligent waiting periods based on sentence length.
+- **Clean Extraction**: Advanced noise removal and redirect resolution for complex Korean media sites.
 
-### 3. News Extraction Engine
-- Hybrid redirect resolution (Protobuf, Meta-refresh, WebView).
-- Clean text extraction with noise removal.
+### 3. AI Intelligence
+- **Gemini 1.5 Flash Integration**: Real-time summarization of collected news.
+- **Custom Briefing**: Voice/STT commanded analysis for specific user requests.
 
-## Technical Progress
-- [x] Base navigation and project structure.
-- [x] Gemini-powered news summarization.
-- [x] Audio Capture Service with floating controls.
-- [x] Reliable news body extraction for major Korean media.
-- [x] News Shadowing feature with recording subfolder.
-- [x] Audio playlist/folder system.
-- [x] Runtime permission management (API 10~13+).
-- [x] Crash resilience for recording and UI.
+## Technical Milestones
+- [x] Scoped Storage & Permission system (Android 10~14+).
+- [x] Background-only floating recording control.
+- [x] Bluetooth-aware playback service.
+- [x] Side-navigation integrated Audio UI.
+- [x] Hybrid redirect resolution (Protobuf, Meta-refresh, WebView).
 
-## Future Plans
-- [ ] Statistical visualization for shadowing practice.
-- [ ] Improved playlist name editing UI.
-- [ ] Advanced anti-crawling handling for specific media.
+## Future Roadmap
+- [ ] **Rich UI Components**: Markdown rendering for AI reports.
+- [ ] **Performance Tuning**: Memory optimization for long-running recording sessions.
+- [ ] **Visual Data**: Graphs showing daily news consumption and practice statistics.

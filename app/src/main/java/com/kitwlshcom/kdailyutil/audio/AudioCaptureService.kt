@@ -101,9 +101,20 @@ class AudioCaptureService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    private val noisyReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (AudioManager.ACTION_AUDIO_BECOMING_NOISY == intent?.action) {
+                pauseAudio()
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        
+        val filter = android.content.IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+        registerReceiver(noisyReceiver, filter)
         
         mediaSession = MediaSession(this, "AudioCaptureService").apply {
             isActive = true
@@ -124,14 +135,14 @@ class AudioCaptureService : Service() {
                     @Suppress("DEPRECATION")
                     intent.getParcelableExtra(EXTRA_RESULT_DATA)
                 }
-                _isPrepared.value = true // 명시적 업데이트
-                savedFilePath = intent.getStringExtra(EXTRA_FILE_PATH)
+                savedFilePath = intent.getStringExtra(EXTRA_FILE_PATH) ?: savedFilePath
+                _isPrepared.value = true
                 startForeground(
                     NOTIFICATION_ID, 
                     createNotification("녹음 준비됨. 시작 버튼을 누르세요."),
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION else 0
                 )
-                showFloatingControl()
+                // showFloatingControl() // 앱 내부에서는 Lifecycle에서 표시/제어함
             }
             ACTION_DISMISS_PREPARE -> {
                 savedResultData = null
@@ -446,9 +457,8 @@ class AudioCaptureService : Service() {
                 setOnCompletionListener {
                     handler.removeCallbacks(progressRunnable)
                     _currentPosition.value = 0
-                    currentPlayingPath = null
-                    _currentlyPlaying.value = null
-                    updateNotification("다음 곡 대기 중...")
+                    // _currentlyPlaying.value = null // ViewModel에서 다음 곡 계산을 위해 유지
+                    updateNotification("재생 완료")
                     thread { kotlinx.coroutines.runBlocking { _playbackCompleted.emit(Unit) } }
                 }
             } catch (e: IOException) { Log.e(TAG, "Playback error", e) }
@@ -523,6 +533,9 @@ class AudioCaptureService : Service() {
     }
 
     override fun onDestroy() {
+        try {
+            unregisterReceiver(noisyReceiver)
+        } catch (e: Exception) {}
         releaseWakeLock()
         hideFloatingControl(); stopRecording(); stopAudio()
         mediaSession?.release()

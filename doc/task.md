@@ -7,7 +7,7 @@
 
 ## 🏁 Milestone 2: Audio Capture & Playlist (Completed)
 - [x] Foreground Service for Audio Capture.
-- [x] Public storage integration (`Download/KDailyUtil`).
+- [x] Scoped Storage optimization (`getExternalFilesDir`).
 - [x] Playlist/Folder management & File movement.
 - [x] Background playback with MediaSession.
 
@@ -23,7 +23,16 @@
 - [x] Implement runtime permission requests (Audio, Storage).
 - [x] Add path fallback for robust directory creation.
 
-## 🔜 Milestone 5: Next Steps
-- [ ] Implement practice statistics (Visual graphs).
-- [ ] Playlist renaming & Icon customization.
-- [ ] Refine extraction for high-security media sites.
+## 🏁 Milestone 5: Audio System Revamp (Completed 2026-04-24)
+- [x] Integrated Side-Tab architecture for Audio sub-menus.
+- [x] Bluetooth disconnection auto-pause (`NoisyAudioReceiver`).
+- [x] Background-only floating icon lifecycle management.
+- [x] Global ViewModel for cross-screen player synchronization.
+- [x] Storage migration from Public Download to App-specific folders.
+- [x] Toast feedback for playlist operations.
+
+## 🔜 Milestone 6: Next Steps
+- [ ] **Chosun Ilbo Tuning**: Optimize selectors and rendering for specific secure media sites.
+- [ ] **AI Markdown Rendering**: Support rich text in AI briefing results.
+- [ ] **Sidebar Polishing**: Add icons to current text-only sidebar tabs for better visual cues.
+- [ ] **Statistics**: Implement visual practice time tracking.

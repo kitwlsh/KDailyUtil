@@ -20,6 +20,10 @@ enum class RecordingSource {
     INTERNAL, MIC
 }
 
+enum class AudioTab {
+    CAPTURE, PLAYER, FILES, PLAYLISTS
+}
+
 class AudioCaptureViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = AudioRepository(application)
@@ -66,6 +70,9 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
     
     private val _selectedPlaylist = MutableStateFlow<String?>(null) // null = "전체"
     val selectedPlaylist: StateFlow<String?> = _selectedPlaylist.asStateFlow()
+
+    private val _activeTab = MutableStateFlow(AudioTab.FILES) // 기본값은 파일 목록
+    val activeTab: StateFlow<AudioTab> = _activeTab.asStateFlow()
 
     val isPrepared = AudioCaptureService.isPrepared
 
@@ -114,11 +121,17 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
 
     fun loadRecordings() {
         viewModelScope.launch {
+            repository.initializeStorage() // 권한 확인 후 저장소 초기화/이동 시도
             _recordings.value = repository.getRecordedFiles(_selectedPlaylist.value)
             _allRootFiles.value = repository.getRecordedFiles(null) // 항상 전체 파일 로드
             _playlists.value = repository.getPlaylists()
             _hiddenRecordings.value = repository.getHiddenFiles()
             _trashRecordings.value = repository.getTrashFiles()
+            
+            // 선택된 재생목록이 여전히 존재하는지 확인
+            if (_selectedPlaylist.value != null && !_playlists.value.contains(_selectedPlaylist.value)) {
+                _selectedPlaylist.value = null
+            }
         }
     }
 
@@ -144,52 +157,6 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
         if (repository.restoreFile(item)) {
             loadRecordings()
         }
-    }
-
-    fun prepareRecording(resultData: Intent) {
-        val filePath = repository.getNewFilePath("m4a")
-        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
-            action = AudioCaptureService.ACTION_PREPARE
-            putExtra(AudioCaptureService.EXTRA_RESULT_DATA, resultData)
-            putExtra(AudioCaptureService.EXTRA_FILE_PATH, filePath)
-        }
-        getApplication<Application>().startForegroundService(intent)
-    }
-
-    fun startRecording(resultData: Intent?) {
-        val filePath = repository.getNewFilePath("m4a")
-        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
-            action = AudioCaptureService.ACTION_START_RECORDING
-            if (resultData != null) putExtra(AudioCaptureService.EXTRA_RESULT_DATA, resultData)
-            putExtra(AudioCaptureService.EXTRA_FILE_PATH, filePath)
-            putExtra(AudioCaptureService.EXTRA_RECORDING_SOURCE, _recordingSource.value.name)
-        }
-        getApplication<Application>().startForegroundService(intent)
-        _isRecording.value = true
-    }
-
-    fun toggleRecordingSource() {
-        _recordingSource.value = if (_recordingSource.value == RecordingSource.INTERNAL) {
-            RecordingSource.MIC
-        } else {
-            RecordingSource.INTERNAL
-        }
-    }
-
-    fun stopRecording() {
-        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
-            action = AudioCaptureService.ACTION_STOP_RECORDING
-        }
-        getApplication<Application>().startService(intent)
-        _isRecording.value = false
-        loadRecordings() // Refresh list
-    }
-
-    fun dismissPreparation() {
-        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
-            action = AudioCaptureService.ACTION_DISMISS_PREPARE
-        }
-        getApplication<Application>().startService(intent)
     }
 
     fun playAudio(item: AudioItem) {
@@ -357,8 +324,11 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
         viewModelScope.launch {
             val playlistName = repository.importPlaylist(uri)
             if (playlistName != null) {
+                android.widget.Toast.makeText(getApplication(), "재생목록 '${playlistName}'을 불러왔습니다.", android.widget.Toast.LENGTH_SHORT).show()
                 _selectedPlaylist.value = playlistName
                 loadRecordings()
+            } else {
+                android.widget.Toast.makeText(getApplication(), "재생목록 가져오기 실패", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -392,6 +362,7 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
 
     fun addPlaylist(name: String) {
         if (repository.createPlaylist(name)) {
+            android.widget.Toast.makeText(getApplication(), "재생목록 '${name}' 생성됨", android.widget.Toast.LENGTH_SHORT).show()
             _selectedPlaylist.value = name // 새 재생목록 생성 시 자동 선택
             loadRecordings()
         }
@@ -421,9 +392,73 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    fun addItemsToPlaylist(items: List<AudioItem>, playlistName: String) {
+        var anySuccess = false
+        items.forEach { item ->
+            if (repository.addItemToPlaylist(item, playlistName)) {
+                anySuccess = true
+            }
+        }
+        if (anySuccess) {
+            loadRecordings()
+        }
+    }
+
     fun removeItemFromPlaylist(item: AudioItem, playlistName: String) {
         if (repository.removeItemFromPlaylist(item, playlistName)) {
             loadRecordings()
         }
+    }
+
+    fun setActiveTab(tab: AudioTab) {
+        _activeTab.value = tab
+    }
+
+    fun toggleRecordingSource() {
+        val newSource = if (_recordingSource.value == RecordingSource.INTERNAL) RecordingSource.MIC else RecordingSource.INTERNAL
+        _recordingSource.value = newSource
+        if (newSource == RecordingSource.MIC) {
+            dismissPrepare() // 마이크로 전환 시 이전 내부 오디오 준비 해제
+        }
+    }
+
+    fun prepareRecording(resultData: Intent) {
+        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
+            action = AudioCaptureService.ACTION_PREPARE
+            putExtra(AudioCaptureService.EXTRA_RESULT_DATA, resultData)
+            putExtra(AudioCaptureService.EXTRA_FILE_PATH, repository.getNewFilePath())
+        }
+        getApplication<Application>().startService(intent)
+    }
+
+    fun startRecording(resultData: Intent?) {
+        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
+            action = AudioCaptureService.ACTION_START_RECORDING
+            putExtra(AudioCaptureService.EXTRA_RECORDING_SOURCE, _recordingSource.value.name)
+            if (resultData != null) putExtra(AudioCaptureService.EXTRA_RESULT_DATA, resultData)
+            putExtra(AudioCaptureService.EXTRA_FILE_PATH, repository.getNewFilePath())
+        }
+        getApplication<Application>().startService(intent)
+        _isRecording.value = true
+    }
+
+    fun stopRecording() {
+        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
+            action = AudioCaptureService.ACTION_STOP_RECORDING
+        }
+        getApplication<Application>().startService(intent)
+        _isRecording.value = false
+        // 녹음 완료 후 목록 새로고침
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(500)
+            loadRecordings()
+        }
+    }
+
+    fun dismissPrepare() {
+        val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
+            action = AudioCaptureService.ACTION_DISMISS_PREPARE
+        }
+        getApplication<Application>().startService(intent)
     }
 }

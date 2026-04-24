@@ -28,18 +28,18 @@ import com.kitwlshcom.kdailyutil.ui.screens.PlaceholderScreen
 import com.kitwlshcom.kdailyutil.ui.viewmodel.BriefingViewModel
 import com.kitwlshcom.kdailyutil.ui.viewmodel.ShadowingViewModel
 import com.kitwlshcom.kdailyutil.ui.viewmodel.AudioCaptureViewModel
+import com.kitwlshcom.kdailyutil.ui.viewmodel.AudioTab
 import com.kitwlshcom.kdailyutil.ui.components.BottomPlayerBar
 
 @Composable
-fun MainScreen() {
+fun MainScreen(audioViewModel: AudioCaptureViewModel = viewModel()) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     
-    // 뷰모델 생성
+    // 뷰모델 생성 (전달받은 것 사용)
     val briefingViewModel: BriefingViewModel = viewModel()
     val shadowingViewModel: ShadowingViewModel = viewModel()
-    val audioViewModel: AudioCaptureViewModel = viewModel()
 
     // 재생 상태 구독
     val currentlyPlaying by audioViewModel.currentlyPlaying.collectAsState()
@@ -48,29 +48,10 @@ fun MainScreen() {
     val isEditLocked by audioViewModel.isEditLocked.collectAsState()
     val playbackProgress by audioViewModel.playbackProgress.collectAsState()
     val playbackDuration by audioViewModel.playbackDuration.collectAsState()
+    val activeTab by audioViewModel.activeTab.collectAsState()
 
     Scaffold(
         bottomBar = {
-            Column {
-                // 오디오 캡처 화면에서만 재생 컨트롤 바 표시
-                if (currentlyPlaying != null && currentDestination?.route == NavScreen.AudioCapture.route) {
-                    BottomPlayerBar(
-                        item = currentlyPlaying!!,
-                        isPaused = isPlaybackPaused,
-                        playbackMode = playbackMode,
-                        isEditLocked = isEditLocked,
-                        progress = playbackProgress,
-                        totalDuration = playbackDuration,
-                        onTogglePlay = { audioViewModel.playAudio(currentlyPlaying!!) },
-                        onToggleMode = { audioViewModel.togglePlaybackMode() },
-                        onToggleLock = { audioViewModel.toggleEditLock() },
-                        onSeek = { audioViewModel.seekTo(it.toLong()) },
-                        onPrev = { audioViewModel.playPreviousRecording() },
-                        onNext = { audioViewModel.playNextRecording() }
-                    )
-                }
-                
-                // 하단 내비게이션 바
                 NavigationBar {
                     NavScreen.items.forEach { screen ->
                         NavigationBarItem(
@@ -90,7 +71,6 @@ fun MainScreen() {
                     }
                 }
             }
-        }
     ) { innerPadding ->
         NavHost(
             navController = navController,
@@ -107,7 +87,7 @@ fun MainScreen() {
             composable(NavScreen.DrivingShadowing.route) { 
                 DrivingShadowingScreen(viewModel = shadowingViewModel) 
             }
-            composable(NavScreen.AudioCapture.route) { AudioCaptureScreen() }
+            composable(NavScreen.AudioCapture.route) { AudioCaptureScreen(audioViewModel) }
             composable(NavScreen.MorningSettings.route) { 
                 MorningBriefingSettingsScreen(viewModel = briefingViewModel) 
             }

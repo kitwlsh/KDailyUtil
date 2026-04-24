@@ -32,6 +32,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitwlshcom.kdailyutil.data.model.AudioItem
 import com.kitwlshcom.kdailyutil.audio.AudioCaptureService
 import com.kitwlshcom.kdailyutil.ui.viewmodel.AudioCaptureViewModel
+import com.kitwlshcom.kdailyutil.ui.viewmodel.AudioTab
 import com.kitwlshcom.kdailyutil.ui.viewmodel.PlaybackMode
 import com.kitwlshcom.kdailyutil.ui.viewmodel.RecordingSource
 import android.provider.Settings
@@ -47,6 +48,9 @@ fun AudioCaptureScreen(
 ) {
     val context = LocalContext.current
     val recordings by viewModel.recordings.collectAsState()
+    val allFiles by viewModel.allRootFiles.collectAsState()
+    val hiddenFiles by viewModel.hiddenRecordings.collectAsState()
+    val trashFiles by viewModel.trashRecordings.collectAsState()
     val isRecording by viewModel.isRecording.collectAsState()
     val isPrepared by viewModel.isPrepared.collectAsState()
     val currentlyPlaying by viewModel.currentlyPlaying.collectAsState()
@@ -54,43 +58,15 @@ fun AudioCaptureScreen(
     val recordingSource by viewModel.recordingSource.collectAsState()
     val playlists by viewModel.playlists.collectAsState()
     val selectedPlaylist by viewModel.selectedPlaylist.collectAsState()
+    val activeTab by viewModel.activeTab.collectAsState()
     
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-
-    // 앱으로 돌아올 때마다 목록 자동 새로고침
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> {
-                    viewModel.loadRecordings()
-                    // 앱이 활성화되면 플로팅 버튼 숨김
-                    context.startService(Intent(context, AudioCaptureService::class.java).apply {
-                        action = AudioCaptureService.ACTION_HIDE_FLOATING
-                    })
-                }
-                Lifecycle.Event.ON_PAUSE -> {
-                    // 다른 앱으로 가면 플로팅 버튼 다시 표시 (녹음 준비/시작 상태일 때만)
-                    context.startService(Intent(context, AudioCaptureService::class.java).apply {
-                        action = AudioCaptureService.ACTION_SHOW_FLOATING
-                    })
-                }
-                else -> {}
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
 
     var showRenameDialog by remember { mutableStateOf<AudioItem?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf<AudioItem?>(null) }
     var showPlaylistMoveDialog by remember { mutableStateOf<AudioItem?>(null) }
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
-    var showHiddenManager by remember { mutableStateOf(false) }
-    var showTrashManager by remember { mutableStateOf(false) }
     var showAddFilesDialog by remember { mutableStateOf(false) }
     var showPlaylistManager by remember { mutableStateOf(false) }
     var showRenamePlaylistDialog by remember { mutableStateOf<String?>(null) }
@@ -235,94 +211,7 @@ fun AudioCaptureScreen(
             }
         )
     }
-
-    if (showHiddenManager) {
-        val hiddenFiles by viewModel.hiddenRecordings.collectAsState()
-        AlertDialog(
-            onDismissRequest = { showHiddenManager = false },
-            title = { Text("숨긴 파일 관리") },
-            text = {
-                if (hiddenFiles.isEmpty()) {
-                    Text("숨긴 파일이 없습니다.")
-                } else {
-                    LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
-                        items(hiddenFiles) { item ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(item.name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                                IconButton(onClick = { viewModel.restoreRecording(item) }) {
-                                    Icon(Icons.Default.AddCircle, contentDescription = "복구", tint = MaterialTheme.colorScheme.primary)
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showHiddenManager = false }) { Text("닫기") }
-            }
-        )
-    }
-
-    if (showTrashManager) {
-        val trashFiles by viewModel.trashRecordings.collectAsState()
-        AlertDialog(
-            onDismissRequest = { showTrashManager = false },
-            title = { 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("휴지통")
-                }
-            },
-            text = {
-                if (trashFiles.isEmpty()) {
-                    Text("휴지통이 비어 있습니다.")
-                } else {
-                    Column {
-                        TextButton(
-                            onClick = { viewModel.emptyTrash() },
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Text("비우기", color = MaterialTheme.colorScheme.error)
-                        }
-                        LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
-                            items(trashFiles) { item ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(item.name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f), maxLines = 1)
-                                    Row {
-                                        IconButton(onClick = { viewModel.restoreFromTrash(item) }) {
-                                            Icon(Icons.Default.Restore, contentDescription = "복구", tint = MaterialTheme.colorScheme.primary)
-                                        }
-                                        IconButton(onClick = { viewModel.permanentlyDelete(item) }) {
-                                            Icon(Icons.Default.DeleteForever, contentDescription = "영구 삭제", tint = MaterialTheme.colorScheme.error)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showTrashManager = false }) { Text("닫기") }
-            }
-        )
-    }
-
     if (showAddFilesDialog && selectedPlaylist != null) {
-        val allFiles by viewModel.allRootFiles.collectAsState()
         val currentPaths = recordings.map { it.path }
         var selectedPaths by remember { mutableStateOf(setOf<String>()) }
         
@@ -366,9 +255,9 @@ fun AudioCaptureScreen(
             },
             confirmButton = {
                 Button(onClick = {
-                    selectedPaths.forEach { path ->
-                        val item = allFiles.find { it.path == path }
-                        if (item != null) viewModel.addItemToPlaylist(item, selectedPlaylist!!)
+                    val selectedItems = allFiles.filter { it.path in selectedPaths }
+                    if (selectedItems.isNotEmpty()) {
+                        viewModel.addItemsToPlaylist(selectedItems, selectedPlaylist!!)
                     }
                     showAddFilesDialog = false
                     scope.launch {
@@ -468,223 +357,87 @@ fun AudioCaptureScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            // 헤더 섹션
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            // 사이드 탭 (NavigationRail)
+            NavigationRail(
+                modifier = Modifier.width(80.dp),
+                containerColor = MaterialTheme.colorScheme.surface
             ) {
-                Column {
-                    Text(
-                        text = "오디오 캡처",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (selectedPlaylist != null) {
-                        Text(
-                            text = "📌 ${selectedPlaylist!!}",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    } else {
-                        Text(
-                            text = "전체 목록",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(16.dp))
                 
-                val micColor = when {
-                    isRecording -> Color.Red
-                    isPrepared -> Color(0xFF4CAF50)
-                    else -> MaterialTheme.colorScheme.primary
-                }
+                NavigationRailItem(
+                    selected = activeTab == AudioTab.CAPTURE,
+                    onClick = { viewModel.setActiveTab(AudioTab.CAPTURE) },
+                    icon = { Icon(Icons.Default.Mic, contentDescription = "녹음") },
+                    label = { Text("녹음", fontSize = 10.sp) }
+                )
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        onClick = {
-                            if (isRecording) {
-                                viewModel.stopRecording()
-                            } else if (isPrepared) {
-                                viewModel.dismissPreparation()
-                            } else {
-                                if (recordingSource == RecordingSource.MIC) {
-                                    viewModel.startRecording(null)
-                                } else {
-                                    projectionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
-                                }
-                            }
-                        },
-                        shape = CircleShape,
-                        color = micColor,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(if (isRecording) Icons.Default.Stop else Icons.Default.Mic, contentDescription = null, tint = Color.White)
-                        }
-                    }
+                NavigationRailItem(
+                    selected = activeTab == AudioTab.PLAYER,
+                    onClick = { viewModel.setActiveTab(AudioTab.PLAYER) },
+                    icon = { Icon(Icons.Default.PlayCircle, contentDescription = "재생") },
+                    label = { Text("재생", fontSize = 10.sp) }
+                )
+                
+                NavigationRailItem(
+                    selected = activeTab == AudioTab.FILES,
+                    onClick = { viewModel.setActiveTab(AudioTab.FILES) },
+                    icon = { Icon(Icons.Default.Folder, contentDescription = "파일") },
+                    label = { Text("파일", fontSize = 10.sp) }
+                )
+                
+                NavigationRailItem(
+                    selected = activeTab == AudioTab.PLAYLISTS,
+                    onClick = { viewModel.setActiveTab(AudioTab.PLAYLISTS) },
+                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "목록") },
+                    label = { Text("목록", fontSize = 10.sp) }
+                )
 
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
-                        Icon(Icons.Default.Add, contentDescription = "파일 추가", tint = MaterialTheme.colorScheme.primary)
-                    }
-
+                Spacer(modifier = Modifier.weight(1f))
+                
+                // 소스 전환 버튼을 사이드 하단에 배치 (녹음 탭일 때만 표시)
+                if (activeTab == AudioTab.CAPTURE) {
                     IconButton(onClick = { viewModel.toggleRecordingSource() }) {
-                        Icon(if (recordingSource == RecordingSource.MIC) Icons.Default.Mic else Icons.Default.GraphicEq, contentDescription = "소스 전환")
-                    }
-
-                    IconButton(onClick = { showHiddenManager = true }) {
-                        Icon(Icons.Default.VisibilityOff, contentDescription = "숨김")
-                    }
-
-                    IconButton(onClick = { showTrashManager = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "휴지통")
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // 재생목록 섹션
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { showNewPlaylistDialog = true }) {
-                    Icon(Icons.Default.CreateNewFolder, contentDescription = "새 리스트", tint = MaterialTheme.colorScheme.primary)
-                }
-                IconButton(onClick = { showPlaylistManager = true }) {
-                    Icon(Icons.Default.Settings, contentDescription = "리스트 관리", tint = MaterialTheme.colorScheme.secondary)
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    item {
-                        FilterChip(
-                            selected = selectedPlaylist == null,
-                            onClick = { viewModel.selectPlaylist(null) },
-                            label = { Text("전체") }
+                        Icon(
+                            if (recordingSource == RecordingSource.MIC) Icons.Default.Mic else Icons.Default.GraphicEq, 
+                            contentDescription = "소스"
                         )
                     }
-                    items(playlists) { playlist ->
-                        FilterChip(
-                            selected = selectedPlaylist == playlist,
-                            onClick = { viewModel.selectPlaylist(playlist) },
-                            label = { Text(playlist) }
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
 
-            // 파일 리스트 섹션
-            if (recordings.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(if (selectedPlaylist == null) "파일이 없습니다." else "비어 있는 재생목록입니다.")
-                        if (selectedPlaylist != null) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Button(onClick = { showAddFilesDialog = true }) {
-                                Text("곡 추가하기")
-                            }
+            VerticalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+
+            // 메인 콘텐츠 영역
+            Box(modifier = Modifier.weight(1f)) {
+                when (activeTab) {
+                    AudioTab.CAPTURE -> CaptureTabContent(
+                        viewModel = viewModel,
+                        onStartInternalRecording = {
+                            projectionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
                         }
-                    }
-                }
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 120.dp)
-                ) {
-                    items(recordings) { item ->
-                        AudioListItem(
-                            item = item,
-                            isPlaying = currentlyPlaying == item,
-                            isEditLocked = isEditLocked,
-                            onPlay = { viewModel.playAudio(item) },
-                            onDelete = { showDeleteConfirmDialog = item },
-                            onHide = { viewModel.hideRecording(item) },
-                            onRename = { 
-                                newFileName = item.name.substringBeforeLast(".")
-                                showRenameDialog = item 
-                            },
-                            onAddToPlaylist = { showPlaylistMoveDialog = item },
-                            onRemoveFromPlaylist = if (selectedPlaylist != null) {
-                                { viewModel.removeItemFromPlaylist(item, selectedPlaylist!!) }
-                            } else null,
-                            onMoveUp = { viewModel.moveItemUp(item) },
-                            onMoveDown = { viewModel.moveItemDown(item) }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun AudioListItem(
-    item: AudioItem,
-    isPlaying: Boolean,
-    isEditLocked: Boolean,
-    onPlay: () -> Unit,
-    onDelete: () -> Unit,
-    onHide: () -> Unit,
-    onRename: () -> Unit,
-    onAddToPlaylist: () -> Unit,
-    onRemoveFromPlaylist: (() -> Unit)? = null,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit
-) {
-    val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
-    var showMenu by remember { mutableStateOf(false) }
-    
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable { onPlay() },
-        colors = CardDefaults.cardColors(
-            containerColor = if (isPlaying) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                if (isPlaying) Icons.AutoMirrored.Filled.VolumeUp else Icons.Default.Audiotrack,
-                contentDescription = null,
-                tint = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(item.name, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium)
-                Text(dateFormat.format(Date(item.dateAdded)), style = MaterialTheme.typography.labelSmall)
-            }
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = null)
-                }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(text = { Text("목록에 추가") }, onClick = { showMenu = false; onAddToPlaylist() })
-                    if (onRemoveFromPlaylist != null) {
-                        DropdownMenuItem(text = { Text("목록에서 제거") }, onClick = { showMenu = false; onRemoveFromPlaylist() })
-                    }
-                    DropdownMenuItem(text = { Text("이름 변경") }, onClick = { showMenu = false; onRename() })
-                    DropdownMenuItem(text = { Text("숨기기") }, onClick = { showMenu = false; onHide() })
-                    HorizontalDivider()
-                    DropdownMenuItem(text = { Text("삭제") }, onClick = { showMenu = false; onDelete() })
-                }
-            }
-            if (!isEditLocked) {
-                Column {
-                    IconButton(onClick = onMoveUp, modifier = Modifier.size(24.dp)) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null) }
-                    IconButton(onClick = onMoveDown, modifier = Modifier.size(24.dp)) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) }
+                    )
+                    AudioTab.PLAYER -> PlayerTabContent(viewModel)
+                    AudioTab.FILES -> FileManagerTabContent(
+                        viewModel = viewModel,
+                        onRenameClick = { 
+                            newFileName = it.name.substringBeforeLast(".")
+                            showRenameDialog = it 
+                        },
+                        onDeleteClick = { showDeleteConfirmDialog = it },
+                        onPlaylistClick = { showPlaylistMoveDialog = it }
+                    )
+                    AudioTab.PLAYLISTS -> PlaylistTabContent(
+                        viewModel = viewModel,
+                        onCreateClick = { showNewPlaylistDialog = true },
+                        onManageClick = { showPlaylistManager = true },
+                        onAddClick = { showAddFilesDialog = true }
+                    )
                 }
             }
         }

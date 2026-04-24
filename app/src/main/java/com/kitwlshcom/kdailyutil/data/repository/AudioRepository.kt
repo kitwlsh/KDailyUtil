@@ -7,7 +7,7 @@ import java.io.File
 class AudioRepository(private val context: Context) {
 
     private val captureDir: File
-        get() = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "KDailyUtil").apply { if (!exists()) mkdirs() }
+        get() = File(context.getExternalFilesDir(null), "KDailyUtil").apply { if (!exists()) mkdirs() }
 
     private val hiddenDir: File
         get() = File(captureDir, "hidden").apply { if (!exists()) mkdirs() }
@@ -16,10 +16,16 @@ class AudioRepository(private val context: Context) {
         get() = File(captureDir, "trash").apply { if (!exists()) mkdirs() }
 
     private val playlistsDir: File
-        get() = File(captureDir, "playlists").apply { if (!exists()) mkdirs() }
+        get() = File(context.filesDir, "playlists").apply { if (!exists()) mkdirs() }
 
     private val importsDir: File
         get() = File(captureDir, "imports").apply { if (!exists()) mkdirs() }
+
+    private val legacyPublicDir: File
+        get() = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "KDailyUtil")
+
+    private val legacyPublicPlaylistsDir: File
+        get() = File(legacyPublicDir, "playlists")
 
     private val oldCaptureDir: File
         get() = File(context.filesDir, "captures")
@@ -34,20 +40,32 @@ class AudioRepository(private val context: Context) {
         get() = File(context.filesDir, "audio_order.txt")
 
     init {
-        migrateInternalFiles()
+        // Migration call moved to initializeStorage()
+    }
+
+    fun initializeStorage() {
+        try {
+            migrateInternalFiles()
+        } catch (e: Exception) {
+            android.util.Log.e("AudioRepository", "Storage init error", e)
+        }
     }
 
     private fun migrateInternalFiles() {
         // 1. 내부 저장소(filesDir)에서 이동
         migrateFrom(oldCaptureDir)
-        // 2. 이전 외부 저장소(Android/data)에서 이동
+        // 2. 이전 외부 저장소(Android/data/Music)에서 이동
         migrateFrom(previousExternalDir)
-        // 3. 재생목록 이동
+        // 3. 공용 Download 폴더의 이전 데이터에서 이동 (권한이 있는 경우만 작동)
+        migrateFrom(legacyPublicDir)
+        
+        // 4. 재생목록 이동
         migratePlaylists()
     }
 
     private fun migratePlaylists() {
-        if (oldPlaylistsDir.exists() && oldPlaylistsDir.isDirectory) {
+        // 내부 저장소의 이전 재생목록 위치 확인 (있을 경우 그대로 두거나 새 위치로 이동)
+        if (oldPlaylistsDir.exists() && oldPlaylistsDir.isDirectory && oldPlaylistsDir != playlistsDir) {
             oldPlaylistsDir.listFiles()?.forEach { file ->
                 if (file.isFile && file.extension == "plt") {
                     val target = File(playlistsDir, file.name)
@@ -62,6 +80,21 @@ class AudioRepository(private val context: Context) {
                 }
             }
             oldPlaylistsDir.delete()
+        }
+        
+        // 공용 Download 폴더에 있던 재생목록 이동 시도 (권한 이슈로 일부 실패할 수 있음)
+        if (legacyPublicPlaylistsDir.exists() && legacyPublicPlaylistsDir.isDirectory) {
+            legacyPublicPlaylistsDir.listFiles()?.forEach { file ->
+                if (file.isFile && file.extension == "plt") {
+                    val target = File(playlistsDir, file.name)
+                    if (!target.exists()) {
+                        try {
+                            file.copyTo(target, overwrite = true)
+                            // 원본 삭제는 하지 않음 (권한에 따라 에러 날 수 있으므로)
+                        } catch (e: Exception) { e.printStackTrace() }
+                    }
+                }
+            }
         }
     }
 
@@ -101,7 +134,13 @@ class AudioRepository(private val context: Context) {
     }
 
     fun getPlaylists(): List<String> {
-        return playlistsDir.listFiles()
+        val dir = playlistsDir
+        if (!dir.exists()) dir.mkdirs()
+        
+        val files = dir.listFiles()
+        android.util.Log.d("AudioRepository", "Found ${files?.size ?: 0} files in $dir")
+        
+        return files
             ?.filter { it.isFile && it.extension == "plt" }
             ?.map { it.nameWithoutExtension }
             ?.sorted()
@@ -308,14 +347,33 @@ class AudioRepository(private val context: Context) {
         )
     }
 
+    private fun scanFile(file: File) {
+        android.media.MediaScannerConnection.scanFile(
+            context,
+            arrayOf(file.absolutePath),
+            null,
+            null
+        )
+    }
+
     fun hideFile(item: AudioItem): Boolean {
         val target = File(hiddenDir, item.name)
-        return item.file.renameTo(target)
+        val success = item.file.renameTo(target)
+        if (success) {
+            scanFile(item.file)
+            scanFile(target)
+        }
+        return success
     }
 
     fun restoreFile(item: AudioItem): Boolean {
         val target = File(captureDir, item.name)
-        return item.file.renameTo(target)
+        val success = item.file.renameTo(target)
+        if (success) {
+            scanFile(item.file)
+            scanFile(target)
+        }
+        return success
     }
 
     fun importFiles(uris: List<android.net.Uri>): Int {
@@ -345,6 +403,7 @@ class AudioRepository(private val context: Context) {
                     inputStream.copyTo(outputStream)
                 }
             }
+            scanFile(destinationFile)
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -397,21 +456,38 @@ class AudioRepository(private val context: Context) {
         val extension = item.file.extension
         val cleanName = if (newName.endsWith(".$extension")) newName else "$newName.$extension"
         val newFile = File(captureDir, cleanName)
-        return item.file.renameTo(newFile)
+        val success = item.file.renameTo(newFile)
+        if (success) {
+            scanFile(item.file)
+            scanFile(newFile)
+        }
+        return success
     }
 
     fun deleteFile(item: AudioItem): Boolean {
         val target = File(trashDir, item.name)
-        return item.file.renameTo(target)
+        val success = item.file.renameTo(target)
+        if (success) {
+            scanFile(item.file)
+            scanFile(target)
+        }
+        return success
     }
 
     fun restoreFromTrash(item: AudioItem): Boolean {
         val target = File(captureDir, item.name)
-        return item.file.renameTo(target)
+        val success = item.file.renameTo(target)
+        if (success) {
+            scanFile(item.file)
+            scanFile(target)
+        }
+        return success
     }
 
     fun permanentlyDelete(item: AudioItem): Boolean {
-        return item.file.delete()
+        val success = item.file.delete()
+        if (success) scanFile(item.file)
+        return success
     }
 
     fun emptyTrash() {
