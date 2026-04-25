@@ -61,6 +61,9 @@ fun AudioCaptureScreen(
     val playlists by viewModel.playlists.collectAsState()
     val selectedPlaylist by viewModel.selectedPlaylist.collectAsState()
     val activeTab by viewModel.activeTab.collectAsState()
+
+    var showPlayerSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
     
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -68,6 +71,7 @@ fun AudioCaptureScreen(
     var showRenameDialog by remember { mutableStateOf<AudioItem?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf<AudioItem?>(null) }
     var showPlaylistMoveDialog by remember { mutableStateOf<AudioItem?>(null) }
+    var showInfoDialog by remember { mutableStateOf<AudioItem?>(null) }
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
     var showAddFilesDialog by remember { mutableStateOf(false) }
     var showPlaylistManager by remember { mutableStateOf(false) }
@@ -356,6 +360,27 @@ fun AudioCaptureScreen(
         )
     }
 
+    if (showInfoDialog != null) {
+        val item = showInfoDialog!!
+        val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) }
+        AlertDialog(
+            onDismissRequest = { showInfoDialog = null },
+            title = { Text("상세 정보") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("파일명: ${item.name}", fontWeight = FontWeight.Bold)
+                    Text("경로: ${item.path}", fontSize = 12.sp, color = Color.Gray)
+                    Text("크기: ${String.format("%.2f MB", item.size / (1024f * 1024f))}")
+                    Text("날짜: ${dateFormat.format(Date(item.dateAdded))}")
+                    Text("길이: ${String.format("%02d:%02d", (item.duration/1000)/60, (item.duration/1000)%60)}")
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showInfoDialog = null }) { Text("확인") }
+            }
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
@@ -376,13 +401,6 @@ fun AudioCaptureScreen(
                     onClick = { viewModel.setActiveTab(AudioTab.CAPTURE) },
                     icon = { Icon(Icons.Default.Mic, contentDescription = "녹음") },
                     label = { Text("녹음", fontSize = 10.sp) }
-                )
-                
-                NavigationRailItem(
-                    selected = activeTab == AudioTab.PLAYER,
-                    onClick = { viewModel.setActiveTab(AudioTab.PLAYER) },
-                    icon = { Icon(Icons.Default.PlayCircle, contentDescription = "재생") },
-                    label = { Text("재생", fontSize = 10.sp) }
                 )
                 
                 NavigationRailItem(
@@ -417,33 +435,56 @@ fun AudioCaptureScreen(
 
             // 메인 콘텐츠 영역
             Box(modifier = Modifier.weight(1f)) {
-                Crossfade(targetState = activeTab, animationSpec = tween(300), label = "tabTransition") { tab ->
-                    when (tab) {
-                        AudioTab.CAPTURE -> CaptureTabContent(
-                            viewModel = viewModel,
-                            onStartInternalRecording = {
-                                projectionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        Crossfade(targetState = activeTab, animationSpec = tween(300), label = "tabTransition") { tab ->
+                            when (tab) {
+                                AudioTab.CAPTURE -> CaptureTabContent(
+                                    viewModel = viewModel,
+                                    onStartInternalRecording = {
+                                        projectionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
+                                    }
+                                )
+                                AudioTab.FILES -> FileManagerTabContent(
+                                    viewModel = viewModel,
+                                    onRenameClick = { 
+                                        newFileName = it.name.substringBeforeLast(".")
+                                        showRenameDialog = it 
+                                    },
+                                    onDeleteClick = { showDeleteConfirmDialog = it },
+                                    onPlaylistClick = { showPlaylistMoveDialog = it },
+                                    onInfoClick = { showInfoDialog = it }
+                                )
+                                AudioTab.PLAYLISTS -> PlaylistTabContent(
+                                    viewModel = viewModel,
+                                    onCreateClick = { showNewPlaylistDialog = true },
+                                    onManageClick = { showPlaylistManager = true },
+                                    onAddClick = { showAddFilesDialog = true },
+                                    onInfoClick = { showInfoDialog = it }
+                                )
                             }
-                        )
-                        AudioTab.PLAYER -> PlayerTabContent(viewModel)
-                        AudioTab.FILES -> FileManagerTabContent(
-                            viewModel = viewModel,
-                            onRenameClick = { 
-                                newFileName = it.name.substringBeforeLast(".")
-                                showRenameDialog = it 
-                            },
-                            onDeleteClick = { showDeleteConfirmDialog = it },
-                            onPlaylistClick = { showPlaylistMoveDialog = it }
-                        )
-                        AudioTab.PLAYLISTS -> PlaylistTabContent(
-                            viewModel = viewModel,
-                            onCreateClick = { showNewPlaylistDialog = true },
-                            onManageClick = { showPlaylistManager = true },
-                            onAddClick = { showAddFilesDialog = true }
-                        )
+                        }
                     }
+                    
+                    // 하단 미니 플레이어
+                    MiniPlayerContent(
+                        viewModel = viewModel,
+                        onClick = { showPlayerSheet = true }
+                    )
                 }
             }
+        }
+    }
+
+    // 재생 상세 바텀 시트
+    if (showPlayerSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showPlayerSheet = false },
+            sheetState = sheetState,
+            dragHandle = { BottomSheetDefaults.DragHandle() },
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            FullPlayerSheetContent(viewModel = viewModel)
         }
     }
 }

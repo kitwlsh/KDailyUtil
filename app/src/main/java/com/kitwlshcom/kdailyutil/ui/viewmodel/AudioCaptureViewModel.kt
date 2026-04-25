@@ -21,7 +21,7 @@ enum class RecordingSource {
 }
 
 enum class AudioTab {
-    CAPTURE, PLAYER, FILES, PLAYLISTS
+    CAPTURE, FILES, PLAYLISTS
 }
 
 class AudioCaptureViewModel(application: Application) : AndroidViewModel(application) {

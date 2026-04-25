@@ -107,12 +107,20 @@ class AudioRepository(private val context: Context) {
                     if (!target.exists()) {
                         try {
                             file.copyTo(target, overwrite = true)
-                            file.delete()
+                            if (file.delete()) {
+                                android.util.Log.d("AudioRepository", "Migrated and deleted: ${file.name}")
+                            } else {
+                                android.util.Log.w("AudioRepository", "Migrated but failed to delete source: ${file.name}")
+                            }
                         } catch (e: Exception) { e.printStackTrace() }
                     } else {
-                        file.delete() // 이미 존재하면 삭제
+                        // 이미 존재하면 (사이즈 비교 후 같으면) 삭제
+                        if (file.length() == target.length()) {
+                            file.delete()
+                        }
                     }
                 } else if (file.isDirectory && file.name == "hidden") {
+                    // hidden 폴더 내 파일 이동
                     file.listFiles()?.forEach { hiddenFile ->
                         if (hiddenFile.isFile) {
                             val target = File(hiddenDir, hiddenFile.name)
@@ -122,14 +130,16 @@ class AudioRepository(private val context: Context) {
                                     hiddenFile.delete()
                                 } catch (e: Exception) { e.printStackTrace() }
                             } else {
-                                hiddenFile.delete()
+                                if (hiddenFile.length() == target.length()) hiddenFile.delete()
                             }
                         }
                     }
-                    sourceDir.delete()
                 }
             }
-            sourceDir.delete()
+            // 폴더가 비어있으면 삭제
+            if (sourceDir.listFiles()?.isEmpty() == true) {
+                sourceDir.delete()
+            }
         }
     }
 
@@ -159,7 +169,9 @@ class AudioRepository(private val context: Context) {
             // MediaStore로 추가 시도 (사용자가 수동으로 옮긴 파일들)
             val mediaStoreFiles = queryMediaStoreFiles(supportedExtensions)
             
-            val allFiles = (rootFiles + importedFiles + mediaStoreFiles).distinctBy { it.absolutePath }
+            val allFiles = (rootFiles + importedFiles + mediaStoreFiles).distinctBy { 
+                try { it.canonicalPath } catch (e: Exception) { it.absolutePath }
+            }
             val items = allFiles.map { mapToFileItem(it) }
             
             val order = getSavedOrder()
@@ -456,10 +468,24 @@ class AudioRepository(private val context: Context) {
 
     fun deleteFile(item: AudioItem): Boolean {
         val target = File(trashDir, item.name)
+        if (target.exists()) target.delete() // 기존 동일 이름 있으면 삭제
+        
         val success = item.file.renameTo(target)
         if (success) {
             scanFile(item.file)
             scanFile(target)
+        } else {
+            // renameTo 실패 시 복사 후 삭제 시도
+            try {
+                item.file.copyTo(target, overwrite = true)
+                if (item.file.delete()) {
+                    scanFile(item.file)
+                    scanFile(target)
+                    return true
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("AudioRepository", "Delete failed: ${item.path}", e)
+            }
         }
         return success
     }

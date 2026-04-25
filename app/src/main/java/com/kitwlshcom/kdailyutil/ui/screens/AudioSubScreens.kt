@@ -115,7 +115,7 @@ fun CaptureTabContent(
 }
 
 @Composable
-fun PlayerTabContent(viewModel: AudioCaptureViewModel) {
+fun FullPlayerSheetContent(viewModel: AudioCaptureViewModel) {
     val currentlyPlaying by viewModel.currentlyPlaying.collectAsState()
     val isPaused by viewModel.isPlaybackPaused.collectAsState()
     val progress by viewModel.playbackProgress.collectAsState()
@@ -123,16 +123,32 @@ fun PlayerTabContent(viewModel: AudioCaptureViewModel) {
     val mode by viewModel.playbackMode.collectAsState()
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 48.dp), // Bottom sheet handle and safe area
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (currentlyPlaying == null) {
-            Text("재생 중인 곡이 없습니다.", style = MaterialTheme.typography.bodyLarge)
+            Box(modifier = Modifier.height(300.dp), contentAlignment = Alignment.Center) {
+                Text("재생 중인 곡이 없습니다.", style = MaterialTheme.typography.bodyLarge)
+            }
         } else {
-            Icon(Icons.Default.Audiotrack, contentDescription = null, modifier = Modifier.size(120.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(16.dp))
+            Icon(
+                imageVector = Icons.Default.Audiotrack, 
+                contentDescription = null, 
+                modifier = Modifier.size(120.dp), 
+                tint = MaterialTheme.colorScheme.primary
+            )
             Spacer(modifier = Modifier.height(24.dp))
-            Text(currentlyPlaying!!.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(
+                text = currentlyPlaying!!.name, 
+                style = MaterialTheme.typography.titleLarge, 
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
             
             Spacer(modifier = Modifier.height(32.dp))
             
@@ -143,13 +159,16 @@ fun PlayerTabContent(viewModel: AudioCaptureViewModel) {
             )
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(formatTime(progress.toLong()))
-                Text(formatTime(duration))
+                Text(formatTime(progress.toLong()), style = MaterialTheme.typography.labelMedium)
+                Text(formatTime(duration), style = MaterialTheme.typography.labelMedium)
             }
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically, 
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
                 IconButton(onClick = { viewModel.togglePlaybackMode() }) {
                     Icon(
                         imageVector = when(mode) {
@@ -186,11 +205,82 @@ fun PlayerTabContent(viewModel: AudioCaptureViewModel) {
 }
 
 @Composable
+fun MiniPlayerContent(
+    viewModel: AudioCaptureViewModel,
+    onClick: () -> Unit
+) {
+    val currentlyPlaying by viewModel.currentlyPlaying.collectAsState()
+    val isPaused by viewModel.isPlaybackPaused.collectAsState()
+    val progress by viewModel.playbackProgress.collectAsState()
+    val duration by viewModel.playbackDuration.collectAsState()
+
+    if (currentlyPlaying != null) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .clickable { onClick() },
+            color = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp),
+            tonalElevation = 4.dp
+        ) {
+            Column {
+                // Progress bar at the top of mini player
+                LinearProgressIndicator(
+                    progress = { if (duration > 0) progress / duration.toFloat() else 0f },
+                    modifier = Modifier.fillMaxWidth().height(2.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+                
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Audiotrack,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = currentlyPlaying!!.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = if (isPaused) "일시정지됨" else "재생 중",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(onClick = { viewModel.playAudio(currentlyPlaying!!) }) {
+                        Icon(
+                            imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                            contentDescription = null
+                        )
+                    }
+                    IconButton(onClick = { viewModel.playNextRecording() }) {
+                        Icon(Icons.Default.SkipNext, contentDescription = null)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun FileManagerTabContent(
     viewModel: AudioCaptureViewModel,
     onRenameClick: (AudioItem) -> Unit,
     onDeleteClick: (AudioItem) -> Unit,
-    onPlaylistClick: (AudioItem) -> Unit
+    onPlaylistClick: (AudioItem) -> Unit,
+    onInfoClick: (AudioItem) -> Unit
 ) {
     val currentlyPlaying by viewModel.currentlyPlaying.collectAsState()
     val isEditLocked by viewModel.isEditLocked.collectAsState()
@@ -271,6 +361,7 @@ fun FileManagerTabContent(
                         },
                         onRename = { onRenameClick(item) },
                         onAddToPlaylist = { onPlaylistClick(item) },
+                        onInfoClick = { onInfoClick(item) },
                         onMoveUp = { viewModel.moveItemUp(item) },
                         onMoveDown = { viewModel.moveItemDown(item) }
                     )
@@ -285,7 +376,8 @@ fun PlaylistTabContent(
     viewModel: AudioCaptureViewModel,
     onCreateClick: () -> Unit,
     onManageClick: () -> Unit,
-    onAddClick: () -> Unit
+    onAddClick: () -> Unit,
+    onInfoClick: (AudioItem) -> Unit
 ) {
     val playlists by viewModel.playlists.collectAsState()
     val selectedPlaylist by viewModel.selectedPlaylist.collectAsState()
@@ -378,6 +470,7 @@ fun PlaylistTabContent(
                             onRename = { /* Use main rename dialog */ },
                             onAddToPlaylist = { /* Already in playlist */ },
                             onRemoveFromPlaylist = { viewModel.removeItemFromPlaylist(item, selectedPlaylist!!) },
+                            onInfoClick = { onInfoClick(item) },
                             onMoveUp = { viewModel.moveItemUp(item) },
                             onMoveDown = { viewModel.moveItemDown(item) }
                         )
@@ -399,6 +492,7 @@ fun AudioListItem(
     onRename: () -> Unit,
     onAddToPlaylist: () -> Unit,
     onRemoveFromPlaylist: (() -> Unit)? = null,
+    onInfoClick: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit
 ) {
@@ -436,6 +530,7 @@ fun AudioListItem(
                     }
                     DropdownMenuItem(text = { Text("이름 변경") }, onClick = { showMenu = false; onRename() })
                     DropdownMenuItem(text = { Text("숨기기") }, onClick = { showMenu = false; onHide() })
+                    DropdownMenuItem(text = { Text("상세 정보") }, onClick = { showMenu = false; onInfoClick() })
                     HorizontalDivider()
                     DropdownMenuItem(text = { Text("삭제") }, onClick = { showMenu = false; onDelete() })
                 }
