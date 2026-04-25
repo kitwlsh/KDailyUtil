@@ -194,21 +194,8 @@ fun FileManagerTabContent(
 ) {
     val currentlyPlaying by viewModel.currentlyPlaying.collectAsState()
     val isEditLocked by viewModel.isEditLocked.collectAsState()
-    
-    // 필터링 상태 (ALL, IMPORTS, HIDDEN, TRASH)
-    var filterMode by remember { mutableStateOf("ALL") }
-    
-    val allFiles by viewModel.allRootFiles.collectAsState()
-    val recordings by viewModel.recordings.collectAsState() // This is usually "ALL" (Root + Imports)
-    val hiddenFiles by viewModel.hiddenRecordings.collectAsState()
-    val trashFiles by viewModel.trashRecordings.collectAsState()
-
-    val displayFiles = when(filterMode) {
-        "IMPORTS" -> allFiles.filter { it.path.contains("/imports/") }
-        "HIDDEN" -> hiddenFiles
-        "TRASH" -> trashFiles
-        else -> allFiles
-    }
+    val filterMode by viewModel.filterMode.collectAsState()
+    val displayFiles by viewModel.displayFiles.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -228,28 +215,28 @@ fun FileManagerTabContent(
                 item {
                     FilterChip(
                         selected = filterMode == "ALL",
-                        onClick = { filterMode = "ALL" },
+                        onClick = { viewModel.setFilterMode("ALL") },
                         label = { Text("전체") }
                     )
                 }
                 item {
                     FilterChip(
                         selected = filterMode == "IMPORTS",
-                        onClick = { filterMode = "IMPORTS" },
+                        onClick = { viewModel.setFilterMode("IMPORTS") },
                         label = { Text("가져온 파일") }
                     )
                 }
                 item {
                     FilterChip(
                         selected = filterMode == "HIDDEN",
-                        onClick = { filterMode = "HIDDEN" },
+                        onClick = { viewModel.setFilterMode("HIDDEN") },
                         label = { Text("숨김") }
                     )
                 }
                 item {
                     FilterChip(
                         selected = filterMode == "TRASH",
-                        onClick = { filterMode = "TRASH" },
+                        onClick = { viewModel.setFilterMode("TRASH") },
                         label = { Text("휴지통") }
                     )
                 }
@@ -268,7 +255,7 @@ fun FileManagerTabContent(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(displayFiles) { item ->
+                items(items = displayFiles, key = { it.path }) { item ->
                     AudioListItem(
                         item = item,
                         isPlaying = currentlyPlaying == item,
@@ -380,7 +367,7 @@ fun PlaylistTabContent(
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(recordings) { item ->
+                    items(items = recordings, key = { it.path }) { item ->
                         AudioListItem(
                             item = item,
                             isPlaying = currentlyPlaying == item,

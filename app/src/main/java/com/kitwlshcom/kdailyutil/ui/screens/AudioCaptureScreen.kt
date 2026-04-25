@@ -23,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -415,29 +417,31 @@ fun AudioCaptureScreen(
 
             // 메인 콘텐츠 영역
             Box(modifier = Modifier.weight(1f)) {
-                when (activeTab) {
-                    AudioTab.CAPTURE -> CaptureTabContent(
-                        viewModel = viewModel,
-                        onStartInternalRecording = {
-                            projectionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
-                        }
-                    )
-                    AudioTab.PLAYER -> PlayerTabContent(viewModel)
-                    AudioTab.FILES -> FileManagerTabContent(
-                        viewModel = viewModel,
-                        onRenameClick = { 
-                            newFileName = it.name.substringBeforeLast(".")
-                            showRenameDialog = it 
-                        },
-                        onDeleteClick = { showDeleteConfirmDialog = it },
-                        onPlaylistClick = { showPlaylistMoveDialog = it }
-                    )
-                    AudioTab.PLAYLISTS -> PlaylistTabContent(
-                        viewModel = viewModel,
-                        onCreateClick = { showNewPlaylistDialog = true },
-                        onManageClick = { showPlaylistManager = true },
-                        onAddClick = { showAddFilesDialog = true }
-                    )
+                Crossfade(targetState = activeTab, animationSpec = tween(300), label = "tabTransition") { tab ->
+                    when (tab) {
+                        AudioTab.CAPTURE -> CaptureTabContent(
+                            viewModel = viewModel,
+                            onStartInternalRecording = {
+                                projectionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
+                            }
+                        )
+                        AudioTab.PLAYER -> PlayerTabContent(viewModel)
+                        AudioTab.FILES -> FileManagerTabContent(
+                            viewModel = viewModel,
+                            onRenameClick = { 
+                                newFileName = it.name.substringBeforeLast(".")
+                                showRenameDialog = it 
+                            },
+                            onDeleteClick = { showDeleteConfirmDialog = it },
+                            onPlaylistClick = { showPlaylistMoveDialog = it }
+                        )
+                        AudioTab.PLAYLISTS -> PlaylistTabContent(
+                            viewModel = viewModel,
+                            onCreateClick = { showNewPlaylistDialog = true },
+                            onManageClick = { showPlaylistManager = true },
+                            onAddClick = { showAddFilesDialog = true }
+                        )
+                    }
                 }
             }
         }

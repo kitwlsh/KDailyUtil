@@ -74,6 +74,20 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
     private val _activeTab = MutableStateFlow(AudioTab.FILES) // 기본값은 파일 목록
     val activeTab: StateFlow<AudioTab> = _activeTab.asStateFlow()
 
+    private val _filterMode = MutableStateFlow("ALL")
+    val filterMode: StateFlow<String> = _filterMode.asStateFlow()
+
+    val displayFiles: StateFlow<List<AudioItem>> = combine(
+        allRootFiles, hiddenRecordings, trashRecordings, _filterMode
+    ) { all, hidden, trash, mode ->
+        when (mode) {
+            "IMPORTS" -> all.filter { it.path.contains("/imports/") }
+            "HIDDEN" -> hidden
+            "TRASH" -> trash
+            else -> all
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val isPrepared = AudioCaptureService.isPrepared
 
     init {
@@ -412,6 +426,10 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
 
     fun setActiveTab(tab: AudioTab) {
         _activeTab.value = tab
+    }
+
+    fun setFilterMode(mode: String) {
+        _filterMode.value = mode
     }
 
     fun toggleRecordingSource() {

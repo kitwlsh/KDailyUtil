@@ -148,7 +148,6 @@ class AudioRepository(private val context: Context) {
     }
 
     fun getRecordedFiles(playlistName: String? = null): List<AudioItem> {
-        val retriever = android.media.MediaMetadataRetriever()
         val supportedExtensions = listOf("m4a", "wav", "mp3", "mp4", "mkv", "aac", "3gp")
         
         if (playlistName == null) {
@@ -161,7 +160,7 @@ class AudioRepository(private val context: Context) {
             val mediaStoreFiles = queryMediaStoreFiles(supportedExtensions)
             
             val allFiles = (rootFiles + importedFiles + mediaStoreFiles).distinctBy { it.absolutePath }
-            val items = allFiles.map { mapToFileItem(it, retriever) }
+            val items = allFiles.map { mapToFileItem(it) }
             
             val order = getSavedOrder()
             return if (order.isEmpty()) {
@@ -198,7 +197,7 @@ class AudioRepository(private val context: Context) {
                 }
                 
                 if (file.exists()) {
-                    mapToFileItem(file, retriever)
+                    mapToFileItem(file)
                 } else null
             }
             return items
@@ -218,24 +217,22 @@ class AudioRepository(private val context: Context) {
     }
 
     fun getHiddenFiles(): List<AudioItem> {
-        val retriever = android.media.MediaMetadataRetriever()
         val supportedExtensions = listOf("m4a", "wav", "mp3", "mp4", "mkv", "aac", "3gp")
         return hiddenDir.listFiles()
             ?.filter { it.isFile && it.extension.lowercase() in supportedExtensions }
             ?.map { file ->
-                mapToFileItem(file, retriever)
+                mapToFileItem(file)
             }
             ?.sortedByDescending { it.dateAdded }
             ?: emptyList()
     }
 
     fun getTrashFiles(): List<AudioItem> {
-        val retriever = android.media.MediaMetadataRetriever()
         val supportedExtensions = listOf("m4a", "wav", "mp3", "mp4", "mkv", "aac", "3gp")
         return trashDir.listFiles()
             ?.filter { it.isFile && it.extension.lowercase() in supportedExtensions }
             ?.map { file ->
-                mapToFileItem(file, retriever)
+                mapToFileItem(file)
             }
             ?.sortedByDescending { it.dateAdded }
             ?: emptyList()
@@ -330,18 +327,11 @@ class AudioRepository(private val context: Context) {
         return files
     }
 
-    private fun mapToFileItem(file: File, retriever: android.media.MediaMetadataRetriever): AudioItem {
-        var duration = 0L
-        try {
-            retriever.setDataSource(file.absolutePath)
-            duration = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
-        } catch (e: Exception) {
-            // Ignore errors for individual files
-        }
+    private fun mapToFileItem(file: File): AudioItem {
         return AudioItem(
             name = file.name,
             path = file.absolutePath,
-            duration = duration,
+            duration = 0L, // Duration will be fetched by service during playback
             size = file.length(),
             dateAdded = file.lastModified()
         )
