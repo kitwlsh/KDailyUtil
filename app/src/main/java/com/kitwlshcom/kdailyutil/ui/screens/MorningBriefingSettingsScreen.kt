@@ -31,8 +31,23 @@ fun MorningBriefingSettingsScreen(
     val aiAudioPath by viewModel.aiCommandAudioPath.collectAsState()
     val isRecording by viewModel.isRecordingCommand.collectAsState()
     val sttPartialText by viewModel.sttPartialText.collectAsState()
+    val apiKeyStatus by viewModel.apiKeyStatus.collectAsState()
+    
+    val apiKeyStatusColor = when (apiKeyStatus) {
+        is com.kitwlshcom.kdailyutil.ui.viewmodel.ApiKeyStatus.Valid -> MaterialTheme.colorScheme.primary
+        is com.kitwlshcom.kdailyutil.ui.viewmodel.ApiKeyStatus.Invalid -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.outline
+    }
 
     var localAiCommand by remember { mutableStateOf(aiCommand) }
+    var localApiKey by remember { mutableStateOf(apiKey ?: "") }
+    
+    // 외부(DataStore)에서 값이 변경되었을 때만 로컬 동기화
+    LaunchedEffect(apiKey) {
+        if (localApiKey != (apiKey ?: "")) {
+            localApiKey = apiKey ?: ""
+        }
+    }
     
     // 외부(DataStore)에서 값이 변경되었을 때만 로컬 동기화 (초기화 등)
     LaunchedEffect(aiCommand) {
@@ -169,14 +184,58 @@ fun MorningBriefingSettingsScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Gemini API Key
-        Text("Gemini API Key", style = MaterialTheme.typography.titleMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Gemini API Key", style = MaterialTheme.typography.titleMedium)
+            if (apiKeyStatus is com.kitwlshcom.kdailyutil.ui.viewmodel.ApiKeyStatus.Validating) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            } else {
+                TextButton(onClick = { viewModel.validateApiKey() }) {
+                    Text("연결 테스트")
+                }
+            }
+        }
+        
+        var isKeyVisible by remember { mutableStateOf(false) }
+        
         OutlinedTextField(
-            value = apiKey ?: "",
-            onValueChange = { viewModel.updateApiKey(it) },
+            value = localApiKey,
+            onValueChange = { 
+                localApiKey = it
+                viewModel.updateApiKey(it) 
+            },
             label = { Text("API Key를 입력하세요") },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth()
+            visualTransformation = if (isKeyVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+            isError = apiKeyStatus is com.kitwlshcom.kdailyutil.ui.viewmodel.ApiKeyStatus.Invalid,
+            trailingIcon = {
+                IconButton(onClick = { isKeyVisible = !isKeyVisible }) {
+                    Icon(
+                        imageVector = if (isKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (isKeyVisible) "비밀번호 숨기기" else "비밀번호 보기"
+                    )
+                }
+            }
         )
+
+        // 검증 상태 표시
+        val statusText = when (val status = apiKeyStatus) {
+            is com.kitwlshcom.kdailyutil.ui.viewmodel.ApiKeyStatus.Valid -> status.message
+            is com.kitwlshcom.kdailyutil.ui.viewmodel.ApiKeyStatus.Invalid -> status.error
+            else -> ""
+        }
+        
+        if (statusText.isNotBlank()) {
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.bodySmall,
+                color = apiKeyStatusColor,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
         HorizontalDivider()

@@ -42,7 +42,11 @@ class NewsRepository(private val context: Context? = null) {
                 .get()
 
             val items = doc.select("item")
-            items.take(limit).map { item ->
+            items.take(limit).mapNotNull { item ->
+                val link = item.select("link").text()
+                // 조선일보 제외
+                if (link.contains("chosun.com")) return@mapNotNull null
+
                 val rawDescription = item.select("description").text()
                 val cleanedDescription = Jsoup.parse(rawDescription).text()
                     .replace(Regex("(http|https)://[\\w\\-_]+(\\.[\\w\\-_]+)+([\\w\\-\\.,@?^=%&:/~\\+#]*[\\w\\-\\@?^=%&/~\\+#])?"), "")
@@ -52,7 +56,7 @@ class NewsRepository(private val context: Context? = null) {
 
                 NewsItem(
                     title = item.select("title").text().split(" - ")[0],
-                    link = item.select("link").text(),
+                    link = link,
                     description = cleanedDescription,
                     pubDate = item.select("pubDate").text(),
                     source = item.select("source").text()
@@ -67,15 +71,15 @@ class NewsRepository(private val context: Context? = null) {
     suspend fun getTopNews(limit: Int = 10): List<NewsItem> = getNewsByKeyword("", limit)
 
     /**
-     * 핵심 본문 추출 로직 (Jsoup Document 기반)
+     * 핵심 본문 및 HTML 추출 로직
+     * @return Pair(Plain Text, Cleaned HTML)
      */
-    private fun extractFromBody(doc: Document): String? {
+    private fun extractFromBody(doc: Document): Pair<String, String>? {
         try {
             // 1. 불필요한 요소 제거 (광고, 네비게이션, 스타일, 스크립트 등)
             val noiseSelectors = listOf(
                 "script", "style", "noscript", "iframe", "header", "footer", "nav", "aside",
                 "button", "input", "textarea", "form", "svg", "path", "video", "canvas",
-                "figcaption", "figure", ".figure", ".photo", ".image", // 사진 및 캡션 제거
                 ".subtitle", ".article-subtitle", ".at_sub_ttl", // 부제목 제거
                 ".author", ".byline", ".reporter", ".author_info", // 기자 정보 제거
                 ".date", ".publish-date", ".time", // 날짜 정보 제거
@@ -95,48 +99,100 @@ class NewsRepository(private val context: Context? = null) {
             // .text 가 .article-text 보다 앞에 오도록 하여 실제 본문 영역을 먼저 잡도록 함
             val contentSelectors = listOf(
                 ".text", ".article-text", "#articleBodyContents", "#dic_area", "#harmonyContainer", 
-                "#news_body_area", "#news_body", ".news_body", ".article_body", ".article-body", 
-                ".article_content", ".view_content", "article", "[itemprop=articleBody]", 
+                "#news_body_area", "#news_body", ".news_body", ".article_body", ".article_content", 
+                ".view_content", "article", "[itemprop=articleBody]", 
                 ".article_view", "#article_view", "#article_content", ".article_txt",
-                "#article_txt", ".content_area", ".post-content", ".par", ".story-content",
+                "#article_txt", ".content_area", ".post-content", ".story-content",
                 ".article_view_body", ".news_view_body", ".text_area"
             )
 
             for (selector in contentSelectors) {
                 val elements = doc.select(selector)
                 if (elements.isNotEmpty()) {
-                    // 모든 매칭 요소의 텍스트를 합침 (나눠진 본문 대응)
+                    // 이미지 절대 경로 변환
+                    elements.select("img").forEach { img ->
+                        val absUrl = img.absUrl("src")
+                        if (absUrl.isNotBlank()) img.attr("src", absUrl)
+                        // 불필요한 속성 제거
+                        img.removeAttr("srcset")
+                        img.removeAttr("sizes")
+                        img.removeAttr("loading")
+                    }
+
+                    // 모든 매칭 요소의 텍스트와 HTML을 합침
                     val joinedText = elements.joinToString("\n\n") { it.text() }
-                    val cleaned = cleanFinalText(joinedText)
+                    val joinedHtml = elements.joinToString("<br><br>") { it.outerHtml() }
                     
-                    if (isLikelyContent(cleaned)) {
-                        return if (cleaned.length > 5000) cleaned.take(5000) else cleaned
+                    val cleanedText = cleanFinalText(joinedText)
+                    
+                    if (isLikelyContent(cleanedText)) {
+                        val finalHtml = sanitizeHtml(joinedHtml)
+                        return Pair(
+                            if (cleanedText.length > 5000) cleanedText.take(5000) else cleanedText,
+                            finalHtml
+                        )
                     }
                 }
             }
 
             // 3. 셀렉터 매칭 실패 시: 가장 긴 텍스트 덩어리를 가진 태그 탐색
-            var bestText = ""
-            // div, section, article 등의 태그에서 '하위 텍스트 포함' 전체 길이를 확인
+            var bestElement: org.jsoup.nodes.Element? = null
+            var bestLength = 0
             doc.select("div, section, article").forEach { el ->
                 val text = cleanFinalText(el.text())
-                if (text.length > bestText.length && isLikelyContent(text)) {
-                    bestText = text
+                if (text.length > bestLength && isLikelyContent(text)) {
+                    bestLength = text.length
+                    bestElement = el
                 }
             }
             
-            if (bestText.length > 200) return bestText
+            bestElement?.let { el ->
+                if (bestLength > 200) {
+                    el.select("img").forEach { img ->
+                        val absUrl = img.absUrl("src")
+                        if (absUrl.isNotBlank()) img.attr("src", absUrl)
+                    }
+                    return Pair(cleanFinalText(el.text()), sanitizeHtml(el.outerHtml()))
+                }
+            }
 
-            // 4. 최종 폴백: 전체 Body 텍스트
-            val fallbackText = cleanFinalText(doc.body()?.text() ?: "")
-            if (isLikelyContent(fallbackText) && fallbackText.length > 200) {
-                return if (fallbackText.length > 5000) fallbackText.take(5000) else fallbackText
+            // 4. 최종 폴백: 전체 Body
+            val body = doc.body()
+            if (body != null) {
+                // 폴백 시에도 최소한의 노이즈 제거 재수행 (이스케이프 해제 후 다시 파싱된 경우 대비)
+                body.select("script, style, iframe, .ads, #ads").remove()
+                
+                val text = cleanFinalText(body.text())
+                if (isLikelyContent(text) && text.length > 200) {
+                    body.select("img").forEach { img ->
+                        val absUrl = img.absUrl("src")
+                        if (absUrl.isNotBlank()) img.attr("src", absUrl)
+                    }
+                    return Pair(text, sanitizeHtml(body.outerHtml()))
+                }
             }
 
         } catch (e: Exception) {
             Log.e(TAG, "Error in extractFromBody: ${e.message}")
         }
         return null
+    }
+
+    /**
+     * HTML에서 광고성 태그 등을 추가로 정리
+     */
+    private fun sanitizeHtml(html: String): String {
+        val doc = Jsoup.parse(html)
+        // 본문 내부에 남아있을 수 있는 불필요 요소 제거
+        val extraNoise = listOf(".adsbygoogle", "script", "style", "iframe", ".ad-container", ".social-share")
+        doc.select(extraNoise.joinToString(", ")).remove()
+        
+        // 이미지 태그 스타일 조정 (화면에 꽉 차게)
+        doc.select("img").forEach { 
+            it.attr("style", "max-width: 100%; height: auto; display: block; margin: 10px auto;") 
+        }
+        
+        return doc.body().html()
     }
 
     /**
@@ -358,21 +414,25 @@ class NewsRepository(private val context: Context? = null) {
             null
         }
 
-        if (jsoupResult != null) return@withContext jsoupResult
+        if (jsoupResult != null) {
+            return@withContext jsoupResult.first.also { item.fullContentHtml = jsoupResult.second }
+        }
 
-        // Tier 2: Jsoup 실패 시 WebView로 렌더링 후 시도 (조선일보 등 차단 사이트 대응)
+        // Tier 2: Jsoup 실패 시 WebView로 렌더링 후 시도
         Log.d(TAG, "🌐 Tier 2: Falling back to WebView for content extraction")
         val webViewHtml = fetchHtmlWithWebView(finalUrl)
         if (webViewHtml != null) {
-            val doc = Jsoup.parse(webViewHtml)
+            val doc = Jsoup.parse(webViewHtml, finalUrl)
             val webViewResult = extractFromBody(doc)
             if (webViewResult != null) {
                 Log.d(TAG, "✅ Success! Content extracted via WebView")
-                return@withContext webViewResult
+                item.fullContentHtml = webViewResult.second
+                return@withContext webViewResult.first
             }
         }
 
         Log.w(TAG, "❌ All content extraction strategies failed. Returning description.")
+        item.fullContentHtml = item.description 
         return@withContext item.description ?: ""
     }
 
@@ -491,4 +551,5 @@ class NewsRepository(private val context: Context? = null) {
             getNewsByKeyword(keyword, (limit / editorialKeywords.size) + 1)
         }.take(limit)
     }
+    
 }

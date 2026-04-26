@@ -38,13 +38,8 @@ class GeminiManager(private val apiKey: String?) {
                  newsItems.joinToString("\n") { "- ${it.title}: ${it.description}" })
         }
 
-        try {
-            val response = generativeModel?.generateContent(prompt)
-            response?.text ?: "요약을 생성할 수 없습니다."
-        } catch (e: Exception) {
-            e.printStackTrace()
-            "요약 중 오류가 발생했습니다: ${e.message}"
-        }
+        val response = generativeModel?.generateContent(prompt)
+        response?.text ?: "요약을 생성할 수 없습니다."
     }
 
     /**
@@ -62,13 +57,8 @@ class GeminiManager(private val apiKey: String?) {
                  "데이터:\n$htmlSnippet")
         }
 
-        try {
-            val response = generativeModel?.generateContent(prompt)
-            response?.text ?: ""
-        } catch (e: Exception) {
-            e.printStackTrace()
-            ""
-        }
+        val response = generativeModel?.generateContent(prompt)
+        response?.text ?: ""
     }
 
     /**
@@ -93,12 +83,7 @@ class GeminiManager(private val apiKey: String?) {
                  "4. 결과가 너무 길지 않게(5-7문장 내외) 핵심 위주로 작성해 주세요.")
         }
 
-        try {
-            val response = generativeModel?.generateContent(prompt)
-            response?.text ?: "분석 결과를 생성할 수 없습니다."
-        } catch (e: Exception) {
-            e.printStackTrace()
-            "분석 중 오류 발생: ${e.message}"
-        }
+        val response = generativeModel?.generateContent(prompt)
+        response?.text ?: "분석 결과를 생성할 수 없습니다."
     }
 }

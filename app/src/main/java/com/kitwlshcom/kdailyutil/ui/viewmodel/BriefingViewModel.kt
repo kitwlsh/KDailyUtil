@@ -13,7 +13,9 @@ import com.kitwlshcom.kdailyutil.data.repository.SettingsRepository
 import com.kitwlshcom.kdailyutil.domain.util.SttManager
 import com.kitwlshcom.kdailyutil.scheduler.BriefingScheduler
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class BriefingViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -67,6 +69,9 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     // STT 실시간 피드백 및 타이핑 최적화용
     private val _sttPartialText = MutableStateFlow("")
     val sttPartialText: StateFlow<String> = _sttPartialText.asStateFlow()
+    
+    private val _apiKeyStatus = MutableStateFlow<ApiKeyStatus>(ApiKeyStatus.Idle)
+    val apiKeyStatus: StateFlow<ApiKeyStatus> = _apiKeyStatus.asStateFlow()
 
     private val _isLoadingDetail = MutableStateFlow(false)
     val isLoadingDetail: StateFlow<Boolean> = _isLoadingDetail.asStateFlow()
@@ -96,7 +101,39 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun updateApiKey(key: String) {
-        viewModelScope.launch { settingsRepository.updateGeminiApiKey(key) }
+        viewModelScope.launch {
+            val trimmedKey = key.trim()
+            settingsRepository.updateGeminiApiKey(trimmedKey)
+            _apiKeyStatus.value = ApiKeyStatus.Idle // 키 변경 시 상태 초기화
+        }
+    }
+
+    fun validateApiKey() {
+        val key = geminiApiKey.value
+        if (key.isNullOrBlank()) {
+            _apiKeyStatus.value = ApiKeyStatus.Invalid("API 키를 먼저 입력해 주세요.")
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.Main) {
+            _apiKeyStatus.value = ApiKeyStatus.Validating
+            try {
+                // 사용자 제안 코드 적용: "Say Hello" 테스트
+                val gemini = GeminiManager(key)
+                val response = withContext(Dispatchers.IO) {
+                    gemini.processAiCustomBriefing("Say 'Hello' briefly.", emptyList())
+                }
+                
+                if (response.isNotBlank() && !response.contains("오류")) {
+                    _apiKeyStatus.value = ApiKeyStatus.Valid("✅ API 키가 유효합니다! 응답: $response")
+                } else {
+                    _apiKeyStatus.value = ApiKeyStatus.Invalid("⚠️ 응답이 비어있거나 올바르지 않습니다.")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ API Key Validation Fail: ${e.message}", e)
+                _apiKeyStatus.value = ApiKeyStatus.Invalid("❌ 문제가 있습니다: ${e.message}")
+            }
+        }
     }
 
     fun updateCategories(newCategories: Set<String>) {
@@ -115,21 +152,29 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     fun fetchNews() {
         viewModelScope.launch {
             _isRefreshing.value = true
-            val currentCategory = _selectedCategory.value
-            
-            if (currentCategory == "AI") {
-                generateAiCustomBriefing()
-            } else {
-                val allNews = if (currentCategory == "전체") {
-                    val topNews = newsRepository.getTopNews(10)
-                    val keywordNews = newsRepository.getAllNews(keywords.value)
-                    (topNews + keywordNews).distinctBy { it.link }
+            try {
+                val currentCategory = _selectedCategory.value
+                
+                if (currentCategory == "AI") {
+                    generateAiCustomBriefing()
                 } else {
-                    newsRepository.getNewsByKeyword(currentCategory, 20)
+                    val allNews = if (currentCategory == "전체") {
+                        val topNews = newsRepository.getTopNews(10)
+                        val keywordNews = newsRepository.getAllNews(keywords.value)
+                        (topNews + keywordNews).distinctBy { it.link }
+                    } else {
+                        newsRepository.getNewsByKeyword(currentCategory, 20)
+                    }
+                    _newsItems.value = allNews
                 }
-                _newsItems.value = allNews
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error fetching news: ${e.message}", e)
+                _newsItems.value = listOf(
+                    NewsItem("뉴스 로드 오류", "", "뉴스를 불러오는 중 오류가 발생했습니다: ${e.message}", "-", "Error")
+                )
+            } finally {
+                _isRefreshing.value = false
             }
-            _isRefreshing.value = false
         }
     }
 
@@ -161,18 +206,21 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 NewsItem(
                     title = "✨ AI 맞춤 분석: $command",
                     link = "ai_analysis",
-                    description = analysis,
+                    description = analysis.take(200) + "...",
                     pubDate = "현재",
                     source = "Gemini AI",
-                    fullContent = analysis
+                    fullContent = analysis,
+                    fullContentHtml = "<div>${analysis.replace("\n", "<br>")}</div>"
                 )
             )
+            Log.d(TAG, "✅ AI Analysis successful")
         } catch (e: Exception) {
+            Log.e(TAG, "❌ AI Analysis Error: ${e.message}", e)
             _newsItems.value = listOf(
                 NewsItem(
                     title = "분석 오류",
                     link = "error",
-                    description = "AI 분석 중 오류가 발생했습니다: ${e.message}",
+                    description = "AI 분석 중 오류가 발생했습니다. API 키가 정확한지, 인터넷 연결이 되어 있는지 확인해 주세요.\n(상세: ${e.message})",
                     pubDate = "-",
                     source = "Error"
                 )
@@ -316,4 +364,11 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         recordingManager.stopPlayback()
         sttManager.destroy()
     }
+}
+
+sealed class ApiKeyStatus {
+    object Idle : ApiKeyStatus()
+    object Validating : ApiKeyStatus()
+    data class Valid(val message: String) : ApiKeyStatus()
+    data class Invalid(val error: String) : ApiKeyStatus()
 }
