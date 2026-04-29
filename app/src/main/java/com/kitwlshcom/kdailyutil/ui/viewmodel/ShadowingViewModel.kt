@@ -39,10 +39,11 @@ class ShadowingViewModel(application: Application) : AndroidViewModel(applicatio
     private val _isRecording = MutableStateFlow(false)
     val isRecording = _isRecording.asStateFlow()
 
+    private val _isAiSpeaking = MutableStateFlow(false)
+    val isAiSpeaking = _isAiSpeaking.asStateFlow()
+
     private val _currentTitle = MutableStateFlow("")
     val currentTitle = _currentTitle.asStateFlow()
-
-    private var shadowingJob: Job? = null
 
     fun loadEditorials() {
         viewModelScope.launch {
@@ -91,87 +92,75 @@ class ShadowingViewModel(application: Application) : AndroidViewModel(applicatio
         _isShadowingActive.value = true
         _isPaused.value = false
         
-        shadowingJob?.cancel()
-        shadowingJob = viewModelScope.launch {
-            while (_currentIndex.value < _currentSentences.value.size && _isShadowingActive.value) {
-                if (_isPaused.value) {
-                    delay(500)
-                    continue
-                }
-
-                // 안전한 인덱스 체크
-                val sentences = _currentSentences.value
-                if (_currentIndex.value >= sentences.size) break
-                val sentence = sentences[_currentIndex.value]
-                
-                // 1. TTS로 문장 읽기
-                ttsManager.speak(sentence, playBgm = false)
-                
-                // 음성 재생 대기 (단축된 체크 루프)
-                val speakDuration = (sentence.length * 200L).coerceAtLeast(1500L)
-                waitForPeriod(speakDuration)
-                if (!_isShadowingActive.value || _isPaused.value) continue
-
-                // 2. 대기 시간 시작 및 녹음 시작
-                val waitTime = textSplitter.calculateWaitTime(sentence)
-                _isRecording.value = true
-                val fileName = "${_currentTitle.value}_문장${_currentIndex.value + 1}"
-                
-                // 녹음 시작 시 예외가 발생하더라도 루프가 멈추지 않게 함
-                try {
-                    recordingManager.startRecording(fileName)
-                } catch (e: Exception) {
-                    android.util.Log.e("ShadowingViewModel", "Failed to start recording for $fileName", e)
-                }
-                
-                waitForPeriod(waitTime)
-                
-                // 3. 녹음 중단
-                recordingManager.stopRecording()
-                _isRecording.value = false
-                
-                if (_isShadowingActive.value && !_isPaused.value) {
-                    _currentIndex.value++
-                }
-            }
-            if (_currentIndex.value >= _currentSentences.value.size) {
-                _isShadowingActive.value = false
-            }
-        }
+        recordingManager.stopRecording()
+        val fileName = "${_currentTitle.value}_전체"
+        recordingManager.startRecording(fileName)
+        recordingManager.pauseRecording() // AI가 먼저 읽어야 하므로 마이크 일시정지
+        
+        playCurrentSentence()
     }
 
-    private suspend fun waitForPeriod(duration: Long) {
-        val startTime = System.currentTimeMillis()
-        while (System.currentTimeMillis() - startTime < duration) {
-            if (!_isShadowingActive.value || _isPaused.value) break
-            delay(100)
+    private fun playCurrentSentence() {
+        if (!_isShadowingActive.value || _isPaused.value) return
+        
+        val sentences = _currentSentences.value
+        if (_currentIndex.value >= sentences.size) {
+            stopShadowing()
+            return
+        }
+        val sentence = sentences[_currentIndex.value]
+
+        // 1. 사용자 녹음 일시정지 및 AI 읽기 상태
+        recordingManager.pauseRecording()
+        _isRecording.value = false
+        _isAiSpeaking.value = true
+
+        // 2. TTS 낭독 시작
+        ttsManager.speak(sentence, playBgm = false) {
+            viewModelScope.launch {
+                // 완료되었을 때 여전히 활성화 상태이고 일시정지가 아니면 사용자 녹음 모드로 전환
+                if (_isShadowingActive.value && !_isPaused.value) {
+                    _isAiSpeaking.value = false
+                    _isRecording.value = true
+                    recordingManager.resumeRecording()
+                } else {
+                    _isAiSpeaking.value = false
+                }
+            }
         }
     }
 
     fun pauseShadowing() {
         _isPaused.value = true
+        _isAiSpeaking.value = false
         ttsManager.stop()
-        recordingManager.stopRecording()
+        recordingManager.pauseRecording()
         _isRecording.value = false
     }
 
     fun resumeShadowing() {
         _isPaused.value = false
-        // 현재 문장부터 다시 시작
-        startShadowing()
+        // 현재 문장부터 다시 재생
+        playCurrentSentence()
     }
 
     fun skipToNext() {
         if (_currentIndex.value < _currentSentences.value.size - 1) {
             _currentIndex.value++
-            if (_isShadowingActive.value) startShadowing()
+            if (_isShadowingActive.value) {
+                playCurrentSentence()
+            }
+        } else {
+            stopShadowing()
         }
     }
 
     fun skipToPrevious() {
         if (_currentIndex.value > 0) {
             _currentIndex.value--
-            if (_isShadowingActive.value) startShadowing()
+            if (_isShadowingActive.value) {
+                playCurrentSentence()
+            }
         }
     }
 
@@ -179,7 +168,7 @@ class ShadowingViewModel(application: Application) : AndroidViewModel(applicatio
         _isShadowingActive.value = false
         _isPaused.value = false
         _isRecording.value = false
-        shadowingJob?.cancel()
+        _isAiSpeaking.value = false
         ttsManager.stop()
         recordingManager.stopRecording()
     }

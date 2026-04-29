@@ -319,7 +319,13 @@ class NewsRepository(private val context: Context? = null) {
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             try {
                 var isResolved = false
-                val webView = android.webkit.WebView(safeContext)
+                val webView = try {
+                    android.webkit.WebView(safeContext)
+                } catch (t: Throwable) {
+                    Log.e(TAG, "WebView instantiation failed: ${t.message}")
+                    continuation.resume(null)
+                    return@post
+                }
                 activeWebViews.add(webView) // GC 방지
 
                 webView.settings.apply {
@@ -448,7 +454,13 @@ class NewsRepository(private val context: Context? = null) {
         Handler(Looper.getMainLooper()).post {
             try {
                 var isFinished = false
-                val webView = WebView(safeContext)
+                val webView = try {
+                    WebView(safeContext)
+                } catch (t: Throwable) {
+                    Log.e(TAG, "WebView instantiation failed: ${t.message}")
+                    continuation.resume(null)
+                    return@post
+                }
                 activeWebViews.add(webView) // GC 방지
 
                 webView.settings.apply {

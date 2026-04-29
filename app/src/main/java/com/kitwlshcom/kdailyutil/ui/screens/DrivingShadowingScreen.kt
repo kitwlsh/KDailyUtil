@@ -33,6 +33,7 @@ fun DrivingShadowingScreen(
     val isActive by viewModel.isShadowingActive.collectAsState()
     val isPaused by viewModel.isPaused.collectAsState()
     val isRecording by viewModel.isRecording.collectAsState()
+    val isAiSpeaking by viewModel.isAiSpeaking.collectAsState()
     val currentTitle by viewModel.currentTitle.collectAsState()
 
     val listState = rememberLazyListState()
@@ -140,23 +141,32 @@ fun DrivingShadowingScreen(
         }
 
         // 3. 상태 알림 (따라 읽기 표시)
-        if (isRecording) {
+        if (isActive) {
             Box(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                Surface(
-                    color = Color(0xFFFF5252),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.padding(bottom = 16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                val (bgColor, icon, text) = when {
+                    isPaused -> Triple(Color.DarkGray, Icons.Default.Pause, "일시 정지됨")
+                    isAiSpeaking -> Triple(Color(0xFF673AB7), Icons.Default.VolumeUp, "AI 낭독 중...")
+                    isRecording -> Triple(Color(0xFFFF5252), Icons.Default.Mic, "지금 따라 읽고 Next를 누르세요!")
+                    else -> Triple(Color.Transparent, Icons.Default.Circle, "")
+                }
+                
+                if (bgColor != Color.Transparent) {
+                    Surface(
+                        color = bgColor,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.padding(bottom = 16.dp)
                     ) {
-                        Icon(Icons.Default.Mic, contentDescription = null, tint = Color.White)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("지금 따라 읽으세요!", color = Color.White, fontWeight = FontWeight.Bold)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(icon, contentDescription = null, tint = Color.White)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text, color = Color.White, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }

@@ -293,17 +293,22 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
             
             if (!apiKey.isNullOrBlank() && needsAi) {
                 Log.d(TAG, "🤖 Requesting Gemini AI to extract content for: ${item.title}")
-                val gemini = GeminiManager(apiKey)
-                // 덤프 데이터일 경우 더 명확하게 요청
-                val promptPrefix = if (isRawDump) "[전체 텍스트 덤프 분석] " else ""
-                val aiExtracted = gemini.extractArticleContent("$promptPrefix$fullText".take(10000))
-                
-                if (aiExtracted.isNotBlank() && aiExtracted.length > 50) {
-                    Log.d(TAG, "✨ Gemini AI extraction successful! (Length: ${aiExtracted.length})")
-                    fullText = aiExtracted
-                } else {
-                    Log.w(TAG, "❌ Gemini AI failed to extract content.")
-                    if (isRawDump) fullText = "" // 덤프 데이터를 그대로 보여주지 않음
+                try {
+                    val gemini = GeminiManager(apiKey)
+                    // 덤프 데이터일 경우 더 명확하게 요청
+                    val promptPrefix = if (isRawDump) "[전체 텍스트 덤프 분석] " else ""
+                    val aiExtracted = gemini.extractArticleContent("$promptPrefix$fullText".take(10000))
+                    
+                    if (aiExtracted.isNotBlank() && aiExtracted.length > 50) {
+                        Log.d(TAG, "✨ Gemini AI extraction successful! (Length: ${aiExtracted.length})")
+                        fullText = aiExtracted
+                    } else {
+                        Log.w(TAG, "❌ Gemini AI failed to extract content.")
+                        if (isRawDump) fullText = "" // 덤프 데이터를 그대로 보여주지 않음
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ Gemini AI Extraction Error: ${e.message}", e)
+                    if (isRawDump) fullText = ""
                 }
             }
 

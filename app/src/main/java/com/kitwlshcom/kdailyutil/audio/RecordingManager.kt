@@ -93,6 +93,9 @@ class RecordingManager(private val context: Context) {
     fun stopRecording() {
         try {
             recorder?.apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    resume() // 이전에 pause 상태였으면 stop 시 예외 발생 방지를 위해 resume 호출 (일부 기기)
+                }
                 stop()
                 release()
             }
@@ -101,6 +104,26 @@ class RecordingManager(private val context: Context) {
             recorder?.release()
         }
         recorder = null
+    }
+
+    fun pauseRecording() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                recorder?.pause()
+            } catch (e: Exception) {
+                android.util.Log.e("RecordingManager", "Error pausing recording", e)
+            }
+        }
+    }
+
+    fun resumeRecording() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                recorder?.resume()
+            } catch (e: Exception) {
+                android.util.Log.e("RecordingManager", "Error resuming recording", e)
+            }
+        }
     }
 
     /**
