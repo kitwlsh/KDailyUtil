@@ -21,6 +21,36 @@ enum class QuizState {
 class QuizViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = QuizRepository()
 
+    private val soundPool: android.media.SoundPool
+    private var correctSoundId: Int = 0
+    private var wrongSoundId: Int = 0
+    private var finishSoundId: Int = 0
+
+    init {
+        val audioAttributes = android.media.AudioAttributes.Builder()
+            .setUsage(android.media.AudioAttributes.USAGE_GAME)
+            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        soundPool = android.media.SoundPool.Builder()
+            .setMaxStreams(3)
+            .setAudioAttributes(audioAttributes)
+            .build()
+
+        val context = application.applicationContext
+        try {
+            correctSoundId = soundPool.load(context, com.kitwlshcom.kdailyutil.R.raw.quiz_correct, 1)
+            wrongSoundId = soundPool.load(context, com.kitwlshcom.kdailyutil.R.raw.quiz_wrong, 1)
+            finishSoundId = soundPool.load(context, com.kitwlshcom.kdailyutil.R.raw.quiz_finish, 1)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        soundPool.release()
+    }
+
     private val _questions = MutableStateFlow<List<QuizQuestion>>(emptyList())
     val questions: StateFlow<List<QuizQuestion>> = _questions.asStateFlow()
 
@@ -103,7 +133,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             }
         } else {
             // 주관식 힌트 로직
-            val answer = currentQ.answer
+            val answer = currentQ.answer.replace(Regex("\\(.*?\\)"), "").trim()
             when (level) {
                 1 -> _currentHintText.value = "글자 수: ${answer.length}글자\n(의미: ${currentQ.semanticHint ?: ""})"
                 2 -> {
@@ -141,14 +171,19 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         if (_quizState.value != QuizState.PLAYING) return
 
         val currentQuestion = _questions.value[_currentIndex.value]
-        val userAnswer = _currentInput.value.trim()
-        val correctAnswer = currentQuestion.answer.trim()
+        
+        // 주관식일 경우 괄호 안의 내용(한자 등)을 제거하고 비교
+        val cleanUserAnswer = _currentInput.value.replace(Regex("\\(.*?\\)"), "").trim()
+        val cleanCorrectAnswer = currentQuestion.answer.replace(Regex("\\(.*?\\)"), "").trim()
 
-        val correct = userAnswer.equals(correctAnswer, ignoreCase = true)
+        val correct = cleanUserAnswer.equals(cleanCorrectAnswer, ignoreCase = true)
         _isCorrect.value = correct
         
         if (correct) {
             _score.value += 1
+            if (correctSoundId != 0) soundPool.play(correctSoundId, 1f, 1f, 0, 0, 1f)
+        } else {
+            if (wrongSoundId != 0) soundPool.play(wrongSoundId, 1f, 1f, 0, 0, 1f)
         }
         
         _quizState.value = QuizState.ANSWER_CHECKED
@@ -163,6 +198,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             resetHintState()
         } else {
             _quizState.value = QuizState.FINISHED
+            if (finishSoundId != 0) soundPool.play(finishSoundId, 1f, 1f, 0, 0, 1f)
         }
     }
 
