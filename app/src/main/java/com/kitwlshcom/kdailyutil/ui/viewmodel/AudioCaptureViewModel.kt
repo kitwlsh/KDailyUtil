@@ -77,6 +77,12 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
     private val _filterMode = MutableStateFlow("ALL")
     val filterMode: StateFlow<String> = _filterMode.asStateFlow()
 
+    private val _isSelectionMode = MutableStateFlow(false)
+    val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
+
+    private val _selectedPaths = MutableStateFlow<Set<String>>(emptySet())
+    val selectedPaths: StateFlow<Set<String>> = _selectedPaths.asStateFlow()
+
     val displayFiles: StateFlow<List<AudioItem>> = combine(
         allRootFiles, hiddenRecordings, trashRecordings, _filterMode
     ) { all, hidden, trash, mode ->
@@ -162,8 +168,20 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun hideRecording(item: AudioItem) {
-        if (repository.hideFile(item)) {
-            loadRecordings()
+        val isPlaying = _currentlyPlaying.value?.path == item.path
+        if (isPlaying) {
+            stopPlayback()
+            _currentlyPlaying.value = null // 즉시 상태 제거
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(500) // MediaPlayer 파일 락 해제 대기 시간을 조금 더 늘림
+                if (repository.hideFile(item)) {
+                    loadRecordings()
+                }
+            }
+        } else {
+            if (repository.hideFile(item)) {
+                loadRecordings()
+            }
         }
     }
 
@@ -304,8 +322,20 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun deleteRecording(item: AudioItem) {
-        if (repository.deleteFile(item)) {
-            loadRecordings()
+        val isPlaying = _currentlyPlaying.value?.path == item.path
+        if (isPlaying) {
+            stopPlayback()
+            _currentlyPlaying.value = null // 즉시 상태 제거
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(500) // MediaPlayer 파일 락 해제 대기 시간을 조금 더 늘림
+                if (repository.deleteFile(item)) {
+                    loadRecordings()
+                }
+            }
+        } else {
+            if (repository.deleteFile(item)) {
+                loadRecordings()
+            }
         }
     }
 
@@ -316,7 +346,75 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun permanentlyDelete(item: AudioItem) {
-        if (repository.permanentlyDelete(item)) {
+        val isPlaying = _currentlyPlaying.value?.path == item.path
+        if (isPlaying) {
+            stopPlayback()
+            _currentlyPlaying.value = null // 즉시 상태 제거
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(500) // MediaPlayer 파일 락 해제 대기 시간을 조금 더 늘림
+                if (repository.permanentlyDelete(item)) {
+                    loadRecordings()
+                }
+            }
+        } else {
+            if (repository.permanentlyDelete(item)) {
+                loadRecordings()
+            }
+        }
+    }
+
+    // --- Selection Mode Methods ---
+    
+    fun toggleSelection(item: AudioItem) {
+        val current = _selectedPaths.value
+        if (current.contains(item.path)) {
+            _selectedPaths.value = current - item.path
+            if (_selectedPaths.value.isEmpty()) {
+                _isSelectionMode.value = false
+            }
+        } else {
+            _selectedPaths.value = current + item.path
+            _isSelectionMode.value = true
+        }
+    }
+
+    fun enterSelectionMode(item: AudioItem) {
+        _isSelectionMode.value = true
+        _selectedPaths.value = setOf(item.path)
+    }
+
+    fun exitSelectionMode() {
+        _isSelectionMode.value = false
+        _selectedPaths.value = emptySet()
+    }
+
+    fun deleteSelectedItems() {
+        val pathsToDelete = _selectedPaths.value
+        if (pathsToDelete.isEmpty()) return
+
+        viewModelScope.launch {
+            var anyPlaying = false
+            val itemsToDelete = displayFiles.value.filter { it.path in pathsToDelete }
+            
+            itemsToDelete.forEach { item ->
+                if (_currentlyPlaying.value?.path == item.path) {
+                    stopPlayback()
+                    _currentlyPlaying.value = null
+                    anyPlaying = true
+                }
+            }
+            
+            if (anyPlaying) kotlinx.coroutines.delay(500)
+
+            itemsToDelete.forEach { item ->
+                if (_filterMode.value == "TRASH") {
+                    repository.permanentlyDelete(item)
+                } else {
+                    repository.deleteFile(item)
+                }
+            }
+            
+            exitSelectionMode()
             loadRecordings()
         }
     }

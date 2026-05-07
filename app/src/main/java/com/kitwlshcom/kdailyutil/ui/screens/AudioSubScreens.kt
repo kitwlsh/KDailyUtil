@@ -3,7 +3,9 @@ package com.kitwlshcom.kdailyutil.ui.screens
 import android.content.Intent
 import androidx.compose.ui.platform.LocalContext
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -286,6 +288,8 @@ fun FileManagerTabContent(
     val isEditLocked by viewModel.isEditLocked.collectAsState()
     val filterMode by viewModel.filterMode.collectAsState()
     val displayFiles by viewModel.displayFiles.collectAsState()
+    val isSelectionMode by viewModel.isSelectionMode.collectAsState()
+    val selectedPaths by viewModel.selectedPaths.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -350,7 +354,13 @@ fun FileManagerTabContent(
                         item = item,
                         isPlaying = currentlyPlaying == item,
                         isEditLocked = isEditLocked,
-                        onPlay = { viewModel.playAudio(item) },
+                        isSelected = selectedPaths.contains(item.path),
+                        isSelectionMode = isSelectionMode,
+                        onPlay = { 
+                            if (isSelectionMode) viewModel.toggleSelection(item)
+                            else viewModel.playAudio(item) 
+                        },
+                        onLongClick = { viewModel.enterSelectionMode(item) },
                         onDelete = { 
                             if (filterMode == "TRASH") viewModel.permanentlyDelete(item)
                             else onDeleteClick(item) 
@@ -384,6 +394,8 @@ fun PlaylistTabContent(
     val currentlyPlaying by viewModel.currentlyPlaying.collectAsState()
     val isEditLocked by viewModel.isEditLocked.collectAsState()
     val recordings by viewModel.recordings.collectAsState()
+    val isSelectionMode by viewModel.isSelectionMode.collectAsState()
+    val selectedPaths by viewModel.selectedPaths.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         if (selectedPlaylist == null) {
@@ -464,7 +476,13 @@ fun PlaylistTabContent(
                             item = item,
                             isPlaying = currentlyPlaying == item,
                             isEditLocked = isEditLocked,
-                            onPlay = { viewModel.playAudio(item) },
+                            isSelected = selectedPaths.contains(item.path),
+                            isSelectionMode = isSelectionMode,
+                            onPlay = { 
+                                if (isSelectionMode) viewModel.toggleSelection(item)
+                                else viewModel.playAudio(item) 
+                            },
+                            onLongClick = { viewModel.enterSelectionMode(item) },
                             onDelete = { viewModel.removeItemFromPlaylist(item, selectedPlaylist!!) },
                             onHide = { viewModel.hideRecording(item) },
                             onRename = { /* Use main rename dialog */ },
@@ -481,12 +499,16 @@ fun PlaylistTabContent(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AudioListItem(
     item: AudioItem,
     isPlaying: Boolean,
     isEditLocked: Boolean,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false,
     onPlay: () -> Unit,
+    onLongClick: () -> Unit,
     onDelete: () -> Unit,
     onHide: () -> Unit,
     onRename: () -> Unit,
@@ -500,19 +522,36 @@ fun AudioListItem(
     var showMenu by remember { mutableStateOf(false) }
     
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { onPlay() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onPlay,
+                onLongClick = onLongClick
+            ),
         colors = CardDefaults.cardColors(
-            containerColor = if (isPlaying) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
-        )
+            containerColor = when {
+                isSelected -> MaterialTheme.colorScheme.secondaryContainer
+                isPlaying -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                else -> MaterialTheme.colorScheme.surface
+            }
+        ),
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
     ) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                if (isPlaying) Icons.AutoMirrored.Filled.VolumeUp else Icons.Default.Audiotrack,
+                imageVector = when {
+                    isSelected -> Icons.Default.CheckCircle
+                    isPlaying -> Icons.AutoMirrored.Filled.VolumeUp
+                    else -> Icons.Default.Audiotrack
+                },
                 contentDescription = null,
-                tint = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                tint = when {
+                    isSelected || isPlaying -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {

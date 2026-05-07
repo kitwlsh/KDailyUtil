@@ -61,6 +61,8 @@ fun AudioCaptureScreen(
     val playlists by viewModel.playlists.collectAsState()
     val selectedPlaylist by viewModel.selectedPlaylist.collectAsState()
     val activeTab by viewModel.activeTab.collectAsState()
+    val isSelectionMode by viewModel.isSelectionMode.collectAsState()
+    val selectedPaths by viewModel.selectedPaths.collectAsState()
 
     var showPlayerSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
@@ -436,6 +438,32 @@ fun AudioCaptureScreen(
             // 메인 콘텐츠 영역
             Box(modifier = Modifier.weight(1f)) {
                 Column(modifier = Modifier.fillMaxSize()) {
+                    // 선택 모드 헤더
+                    if (isSelectionMode) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            tonalElevation = 4.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(onClick = { viewModel.exitSelectionMode() }) {
+                                        Icon(Icons.Default.Close, contentDescription = "취소")
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("${selectedPaths.size}개 선택됨", fontWeight = FontWeight.Bold)
+                                }
+                                IconButton(onClick = { viewModel.deleteSelectedItems() }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "삭제", tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+                    }
+
                     Box(modifier = Modifier.weight(1f)) {
                         Crossfade(targetState = activeTab, animationSpec = tween(300), label = "tabTransition") { tab ->
                             when (tab) {

@@ -31,8 +31,18 @@ import com.kitwlshcom.kdailyutil.ui.viewmodel.AudioCaptureViewModel
 import com.kitwlshcom.kdailyutil.ui.viewmodel.AudioTab
 import com.kitwlshcom.kdailyutil.ui.components.BottomPlayerBar
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+
 @Composable
-fun MainScreen(audioViewModel: AudioCaptureViewModel = viewModel()) {
+fun MainScreen(
+    audioViewModel: AudioCaptureViewModel = viewModel(),
+    startAutoBriefing: Boolean = false,
+    onAutoBriefingHandled: () -> Unit = {}
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -40,6 +50,36 @@ fun MainScreen(audioViewModel: AudioCaptureViewModel = viewModel()) {
     // 뷰모델 생성 (전달받은 것 사용)
     val briefingViewModel: BriefingViewModel = viewModel()
     val shadowingViewModel: ShadowingViewModel = viewModel()
+
+    LaunchedEffect(startAutoBriefing) {
+        if (startAutoBriefing) {
+            navController.navigate(NavScreen.NewsBriefing.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+            
+            // 강제로 뉴스를 새로고침하도록 지시
+            briefingViewModel.fetchNews()
+            
+            // fetchNews 내부의 코루틴이 시작되어 isRefreshing이 true가 될 때까지 약간 대기
+            delay(300)
+            
+            // 로딩이 끝날 때까지 대기
+            while (briefingViewModel.isRefreshing.value) {
+                delay(200)
+            }
+            
+            // 화면 렌더링 안정화를 위해 잠시 대기
+            delay(500)
+            
+            // 로딩된 뉴스를 기반으로 브리핑 시작
+            briefingViewModel.startLiveBriefing()
+            onAutoBriefingHandled()
+        }
+    }
 
     // 재생 상태 구독
     val currentlyPlaying by audioViewModel.currentlyPlaying.collectAsState()

@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -54,17 +55,30 @@ fun NewsBriefingScreen(
     Scaffold(
         floatingActionButton = {
             if (newsItems.isNotEmpty()) {
-                ExtendedFloatingActionButton(
-                    onClick = { viewModel.startLiveBriefing() },
-                    icon = { 
-                        Icon(
-                            if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow, 
-                            contentDescription = null
-                        ) 
-                    },
-                    text = { Text(if (isPlaying) "브리핑 중지" else "전체 브리핑 시작") },
-                    containerColor = if (isPlaying) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isPlaying) {
+                        FloatingActionButton(
+                            onClick = { viewModel.skipToNextNews() },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        ) {
+                            Icon(Icons.Default.SkipNext, contentDescription = "다음 뉴스 건너뛰기")
+                        }
+                    }
+                    ExtendedFloatingActionButton(
+                        onClick = { viewModel.startLiveBriefing() },
+                        icon = { 
+                            Icon(
+                                if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow, 
+                                contentDescription = null
+                            ) 
+                        },
+                        text = { Text(if (isPlaying) "브리핑 중지" else "전체 브리핑 시작") },
+                        containerColor = if (isPlaying) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
+                    )
+                }
             }
         }
     ) { innerPadding ->

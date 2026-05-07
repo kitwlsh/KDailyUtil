@@ -321,25 +321,62 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    private var currentBriefingIndex = -1
+
     fun startLiveBriefing() {
         if (_isBriefingPlaying.value) {
             stopBriefing()
             return
         }
 
-        viewModelScope.launch {
-            _isBriefingPlaying.value = true
-            val briefingText = StringBuilder("오늘의 주요 뉴스 브리핑을 시작합니다.\n\n")
-            newsItems.value.forEachIndexed { index, item ->
-                briefingText.append("${index + 1}번 뉴스, ${item.title}입니다.\n")
-                val content = item.fullContent.ifBlank { item.summary.ifBlank { item.description } }
-                briefingText.append("$content\n\n")
+        _isBriefingPlaying.value = true
+        currentBriefingIndex = -1
+        playNextBriefingPart()
+    }
+
+    private fun playNextBriefingPart() {
+        if (!_isBriefingPlaying.value) return
+
+        val items = newsItems.value
+
+        when {
+            currentBriefingIndex == -1 -> {
+                ttsManager.speak("오늘의 주요 뉴스 브리핑을 시작합니다.") {
+                    if (_isBriefingPlaying.value) {
+                        currentBriefingIndex++
+                        playNextBriefingPart()
+                    }
+                }
             }
-            briefingText.append("이상으로 오늘의 뉴스를 모두 마치겠습니다. 감사합니다.")
-            ttsManager.speak(briefingText.toString()) {
-                _isBriefingPlaying.value = false
+            currentBriefingIndex < items.size -> {
+                val item = items[currentBriefingIndex]
+                val content = item.fullContent.ifBlank { item.summary.ifBlank { item.description } }
+                val text = "${currentBriefingIndex + 1}번 뉴스, ${item.title}입니다.\n\n$content"
+                
+                ttsManager.speak(text) {
+                    if (_isBriefingPlaying.value) {
+                        currentBriefingIndex++
+                        playNextBriefingPart()
+                    }
+                }
+            }
+            else -> {
+                ttsManager.speak("이상으로 오늘의 뉴스를 모두 마치겠습니다. 감사합니다.") {
+                    _isBriefingPlaying.value = false
+                }
             }
         }
+    }
+
+    fun skipToNextNews() {
+        if (!_isBriefingPlaying.value) return
+        
+        ttsManager.stop()
+        
+        if (currentBriefingIndex < newsItems.value.size) {
+            currentBriefingIndex++
+        }
+        playNextBriefingPart()
     }
 
     fun startSingleNewsBriefing(item: NewsItem) {

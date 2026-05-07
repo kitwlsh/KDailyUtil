@@ -13,20 +13,29 @@ import com.kitwlshcom.kdailyutil.audio.AudioCaptureService
 import android.content.Intent
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitwlshcom.kdailyutil.ui.viewmodel.AudioCaptureViewModel
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
     private lateinit var audioViewModel: AudioCaptureViewModel
+    private var startAutoBriefing by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
         checkAndRequestPermissions()
+        startAutoBriefing = intent.getBooleanExtra("START_AUTO_BRIEFING", false)
         
         enableEdgeToEdge()
         setContent {
             audioViewModel = viewModel()
             KDailyUtilTheme {
-                MainScreen(audioViewModel)
+                MainScreen(
+                    audioViewModel = audioViewModel,
+                    startAutoBriefing = startAutoBriefing,
+                    onAutoBriefingHandled = { startAutoBriefing = false }
+                )
             }
         }
 
@@ -47,6 +56,12 @@ class MainActivity : ComponentActivity() {
                 else -> {}
             }
         })
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        startAutoBriefing = intent.getBooleanExtra("START_AUTO_BRIEFING", false)
     }
 
     private fun checkAndRequestPermissions() {
