@@ -24,7 +24,7 @@ import com.kitwlshcom.kdailyutil.ui.screens.DrivingShadowingScreen
 import com.kitwlshcom.kdailyutil.ui.screens.MorningBriefingSettingsScreen
 import com.kitwlshcom.kdailyutil.ui.screens.NewsBriefingScreen
 import com.kitwlshcom.kdailyutil.ui.screens.NewsDetailScreen
-import com.kitwlshcom.kdailyutil.ui.screens.PlaceholderScreen
+import com.kitwlshcom.kdailyutil.ui.screens.LearningHubScreen
 import com.kitwlshcom.kdailyutil.ui.viewmodel.BriefingViewModel
 import com.kitwlshcom.kdailyutil.ui.viewmodel.ShadowingViewModel
 import com.kitwlshcom.kdailyutil.ui.viewmodel.AudioCaptureViewModel
@@ -91,7 +91,7 @@ fun MainScreen(audioViewModel: AudioCaptureViewModel = viewModel()) {
             composable(NavScreen.MorningSettings.route) { 
                 MorningBriefingSettingsScreen(viewModel = briefingViewModel) 
             }
-            composable(NavScreen.Placeholder.route) { PlaceholderScreen() }
+            composable(NavScreen.LearningHub.route) { LearningHubScreen() }
             composable(NavScreen.NewsDetail.route) { 
                 NewsDetailScreen(onBack = { navController.popBackStack() }, viewModel = briefingViewModel) 
             }

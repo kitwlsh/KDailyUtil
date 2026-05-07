@@ -3,6 +3,7 @@ package com.kitwlshcom.kdailyutil.ui.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.DriveEta
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Settings
@@ -18,7 +19,7 @@ sealed class NavScreen(
     object DrivingShadowing : NavScreen("driving_shadowing", "뉴스 쉐도잉", Icons.Default.DriveEta)
     object AudioCapture : NavScreen("audio_capture", "오디오 캡처", Icons.Default.Audiotrack)
     object MorningSettings : NavScreen("morning_settings", "설정", Icons.Default.Settings)
-    object Placeholder : NavScreen("placeholder", "더보기", Icons.Default.MoreHoriz)
+    object LearningHub : NavScreen("learning_hub", "배움터", Icons.Default.MenuBook)
     object NewsDetail : NavScreen("news_detail", "뉴스 상세", Icons.Default.Newspaper)
 
     companion object {
@@ -26,8 +27,8 @@ sealed class NavScreen(
             NewsBriefing,
             DrivingShadowing,
             AudioCapture,
-            MorningSettings,
-            Placeholder
+            LearningHub,
+            MorningSettings
         )
     }
 }

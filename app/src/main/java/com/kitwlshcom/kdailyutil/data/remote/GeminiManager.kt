@@ -11,7 +11,7 @@ class GeminiManager(private val apiKey: String?) {
     private val generativeModel by lazy {
         apiKey?.let {
             GenerativeModel(
-                modelName = "gemini-1.5-flash",
+                modelName = "gemini-2.5-flash",
                 apiKey = it
             )
         }
