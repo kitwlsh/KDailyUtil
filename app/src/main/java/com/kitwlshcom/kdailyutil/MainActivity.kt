@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.kitwlshcom.kdailyutil.ui.MainScreen
+import com.kitwlshcom.kdailyutil.ui.screens.SplashScreen
 import com.kitwlshcom.kdailyutil.ui.theme.KDailyUtilTheme
 
 import androidx.lifecycle.Lifecycle
@@ -20,6 +21,7 @@ import androidx.compose.runtime.setValue
 class MainActivity : ComponentActivity() {
     private lateinit var audioViewModel: AudioCaptureViewModel
     private var startAutoBriefing by mutableStateOf(false)
+    private var showSplash by mutableStateOf(true)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,11 +33,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             audioViewModel = viewModel()
             KDailyUtilTheme {
-                MainScreen(
-                    audioViewModel = audioViewModel,
-                    startAutoBriefing = startAutoBriefing,
-                    onAutoBriefingHandled = { startAutoBriefing = false }
-                )
+                if (showSplash) {
+                    SplashScreen(onFinished = { showSplash = false })
+                } else {
+                    MainScreen(
+                        audioViewModel = audioViewModel,
+                        startAutoBriefing = startAutoBriefing,
+                        onAutoBriefingHandled = { startAutoBriefing = false }
+                    )
+                }
             }
         }
 
