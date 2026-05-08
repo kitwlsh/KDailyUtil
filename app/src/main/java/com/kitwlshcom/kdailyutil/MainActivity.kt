@@ -1,22 +1,26 @@
 package com.kitwlshcom.kdailyutil
 
 import android.os.Bundle
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.kitwlshcom.kdailyutil.ui.MainScreen
-import com.kitwlshcom.kdailyutil.ui.screens.SplashScreen
-import com.kitwlshcom.kdailyutil.ui.theme.KDailyUtilTheme
-
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import com.kitwlshcom.kdailyutil.audio.AudioCaptureService
-import android.content.Intent
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.kitwlshcom.kdailyutil.ui.viewmodel.AudioCaptureViewModel
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kitwlshcom.kdailyutil.audio.AudioCaptureService
+import com.kitwlshcom.kdailyutil.ui.MainScreen
+import com.kitwlshcom.kdailyutil.ui.screens.SplashScreen
+import com.kitwlshcom.kdailyutil.ui.theme.KDailyUtilTheme
+import com.kitwlshcom.kdailyutil.ui.viewmodel.AudioCaptureViewModel
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class MainActivity : ComponentActivity() {
     private lateinit var audioViewModel: AudioCaptureViewModel
@@ -24,6 +28,7 @@ class MainActivity : ComponentActivity() {
     private var showSplash by mutableStateOf(true)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         
         checkAndRequestPermissions()
@@ -33,19 +38,24 @@ class MainActivity : ComponentActivity() {
         setContent {
             audioViewModel = viewModel()
             KDailyUtilTheme {
-                if (showSplash) {
-                    SplashScreen(onFinished = { showSplash = false })
-                } else {
-                    MainScreen(
-                        audioViewModel = audioViewModel,
-                        startAutoBriefing = startAutoBriefing,
-                        onAutoBriefingHandled = { startAutoBriefing = false }
-                    )
+                // Surface를 사용하여 테마 배경색(DeepCharcoal)을 전체 화면에 적용
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    if (showSplash) {
+                        SplashScreen(onFinished = { showSplash = false })
+                    } else {
+                        MainScreen(
+                            audioViewModel = audioViewModel,
+                            startAutoBriefing = startAutoBriefing,
+                            onAutoBriefingHandled = { startAutoBriefing = false }
+                        )
+                    }
                 }
             }
         }
 
-        // 전역 라이프사이클 관찰자 추가 (플로팅 아이콘 제어)
         lifecycle.addObserver(LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
@@ -71,26 +81,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkAndRequestPermissions() {
-        val permissions = mutableListOf(
-            android.Manifest.permission.RECORD_AUDIO,
-        )
-        
-        // Android 10 (Q) 이하에서만 공용 저장소 쓰기 권한이 필수적일 수 있음
+        val permissions = mutableListOf(android.Manifest.permission.RECORD_AUDIO)
         if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.Q) {
             permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
             permissions.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
         }
-        // Android 13 이상 미디어 권한
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
             permissions.add(android.Manifest.permission.READ_MEDIA_AUDIO)
             permissions.add(android.Manifest.permission.READ_MEDIA_VIDEO)
         }
-
         val needed = permissions.filter {
             androidx.core.content.ContextCompat.checkSelfPermission(this, it) != android.content.pm.PackageManager.PERMISSION_GRANTED
         }
-
         if (needed.isNotEmpty()) {
             androidx.core.app.ActivityCompat.requestPermissions(this, needed.toTypedArray(), 100)
         }

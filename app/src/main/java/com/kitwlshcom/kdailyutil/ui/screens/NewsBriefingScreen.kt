@@ -53,6 +53,7 @@ fun NewsBriefingScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         floatingActionButton = {
             if (newsItems.isNotEmpty()) {
                 Row(
@@ -87,20 +88,19 @@ fun NewsBriefingScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // 사이드 카테고리 탭
             Column(
                 modifier = Modifier
-                    .width(80.dp)
+                    .width(84.dp) // 너비 살짝 확대
                     .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    .background(Color.Black.copy(alpha = 0.4f)) // 더 어두운 배경으로 텍스트 보호
                     .padding(vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     "주제", 
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                    modifier = Modifier.padding(bottom = 12.dp)
                 )
                 
                 LazyColumn(
@@ -134,10 +134,15 @@ fun NewsBriefingScreen(
                     Text(
                         selectedCategory, 
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                     IconButton(onClick = { viewModel.fetchNews() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "새로고침")
+                        Icon(
+                            Icons.Default.Refresh, 
+                            contentDescription = "새로고침",
+                            tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+                        )
                     }
                 }
 
@@ -203,8 +208,8 @@ fun CategoryTabItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
-    val contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    val backgroundColor = if (isSelected) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.05f)
+    val contentColor = if (isSelected) Color.Black else Color.White.copy(alpha = 0.8f)
 
     Box(
         modifier = Modifier
@@ -240,9 +245,13 @@ fun NewsCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = com.kitwlshcom.kdailyutil.ui.theme.DeepCharcoal.copy(alpha = 0.85f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            0.5.dp, 
+            com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.2f)
+        )
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp)) {
@@ -250,6 +259,7 @@ fun NewsCard(
                     text = item.title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
+                    color = Color.White,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -261,12 +271,12 @@ fun NewsCard(
                     Text(
                         text = item.source,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
+                        color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
                     )
                     Text(
                         text = item.pubDate,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
+                        color = Color.White.copy(alpha = 0.5f)
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -276,7 +286,7 @@ fun NewsCard(
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color.White.copy(alpha = 0.7f)
                 )
             }
             

@@ -384,6 +384,7 @@ fun AudioCaptureScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Row(
@@ -393,30 +394,75 @@ fun AudioCaptureScreen(
         ) {
             // 사이드 탭 (NavigationRail)
             NavigationRail(
-                modifier = Modifier.width(80.dp),
-                containerColor = MaterialTheme.colorScheme.surface
+                modifier = Modifier.width(84.dp),
+                containerColor = Color.Black.copy(alpha = 0.4f) // 사이드 배경 확보
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 NavigationRailItem(
                     selected = activeTab == AudioTab.CAPTURE,
                     onClick = { viewModel.setActiveTab(AudioTab.CAPTURE) },
-                    icon = { Icon(Icons.Default.Mic, contentDescription = "녹음") },
-                    label = { Text("녹음", fontSize = 10.sp) }
+                    icon = { 
+                        Icon(
+                            Icons.Default.Mic, 
+                            contentDescription = "녹음",
+                            tint = if (activeTab == AudioTab.CAPTURE) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.6f)
+                        ) 
+                    },
+                    label = { 
+                        Text(
+                            "녹음", 
+                            fontSize = 11.sp,
+                            color = if (activeTab == AudioTab.CAPTURE) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.6f)
+                        ) 
+                    },
+                    colors = NavigationRailItemDefaults.colors(
+                        indicatorColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.15f)
+                    )
                 )
                 
                 NavigationRailItem(
                     selected = activeTab == AudioTab.FILES,
                     onClick = { viewModel.setActiveTab(AudioTab.FILES) },
-                    icon = { Icon(Icons.Default.Folder, contentDescription = "파일") },
-                    label = { Text("파일", fontSize = 10.sp) }
+                    icon = { 
+                        Icon(
+                            Icons.Default.Folder, 
+                            contentDescription = "파일",
+                            tint = if (activeTab == AudioTab.FILES) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.6f)
+                        ) 
+                    },
+                    label = { 
+                        Text(
+                            "파일", 
+                            fontSize = 11.sp,
+                            color = if (activeTab == AudioTab.FILES) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.6f)
+                        ) 
+                    },
+                    colors = NavigationRailItemDefaults.colors(
+                        indicatorColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.15f)
+                    )
                 )
                 
                 NavigationRailItem(
                     selected = activeTab == AudioTab.PLAYLISTS,
                     onClick = { viewModel.setActiveTab(AudioTab.PLAYLISTS) },
-                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "목록") },
-                    label = { Text("목록", fontSize = 10.sp) }
+                    icon = { 
+                        Icon(
+                            Icons.AutoMirrored.Filled.List, 
+                            contentDescription = "목록",
+                            tint = if (activeTab == AudioTab.PLAYLISTS) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.6f)
+                        ) 
+                    },
+                    label = { 
+                        Text(
+                            "목록", 
+                            fontSize = 11.sp,
+                            color = if (activeTab == AudioTab.PLAYLISTS) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.6f)
+                        ) 
+                    },
+                    colors = NavigationRailItemDefaults.colors(
+                        indicatorColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.15f)
+                    )
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -426,7 +472,8 @@ fun AudioCaptureScreen(
                     IconButton(onClick = { viewModel.toggleRecordingSource() }) {
                         Icon(
                             if (recordingSource == RecordingSource.MIC) Icons.Default.Mic else Icons.Default.GraphicEq, 
-                            contentDescription = "소스"
+                            contentDescription = "소스",
+                            tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
                         )
                     }
                     Spacer(modifier = Modifier.height(16.dp))
