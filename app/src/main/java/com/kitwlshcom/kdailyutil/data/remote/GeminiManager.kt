@@ -60,30 +60,70 @@ class GeminiManager(private val apiKey: String?) {
         val response = generativeModel?.generateContent(prompt)
         response?.text ?: ""
     }
-
+    
     /**
-     * 사용자의 특정 명령(커스텀 브리핑)을 처리합니다.
-     * @param command 사용자의 요청 (예: "나스닥 상황을 보고 코스닥 전망해줘")
-     * @param referenceNews 분석에 참고할 최신 뉴스 목록
+     * 사용자의 맞춤형 뉴스 브리핑 명령을 처리합니다.
      */
     suspend fun processAiCustomBriefing(command: String, referenceNews: List<NewsItem>): String = withContext(Dispatchers.IO) {
         if (generativeModel == null || apiKey.isNullOrBlank()) {
-            return@withContext "AI 분석을 위해 Gemini API 키가 필요합니다."
+            return@withContext "API 키가 설정되지 않았습니다."
         }
 
         val prompt = content {
-            text("당신은 전문 뉴스 분석가이자 일상 비서입니다. 사용자의 다음 요청에 대해 수집된 뉴스 데이터를 바탕으로 심도 있는 브리핑을 작성해 주세요.\n\n" +
+            text("당신은 개인 비서입니다. 사용자의 다음 요청 사항에 맞춰 최신 뉴스를 분석하고 브리핑해 주세요.\n\n" +
                  "사용자 요청: \"$command\"\n\n" +
-                 "참고 뉴스 데이터:\n" +
-                 referenceNews.joinToString("\n") { "- ${it.title}: ${it.description}" } + "\n\n" +
-                 "요청 사항:\n" +
-                 "1. 제공된 뉴스 데이터를 최대한 활용하여 요청에 답변하세요.\n" +
-                 "2. 질문이 구체적이라면(예: 전망, 비교) 가능한 한 논리적인 분석을 포함하세요.\n" +
-                 "3. 말투는 친절하고 전문적인 대화체로 작성해 주세요.\n" +
-                 "4. 결과가 너무 길지 않게(5-7문장 내외) 핵심 위주로 작성해 주세요.")
+                 "참고할 뉴스 목록:\n" +
+                 referenceNews.joinToString("\n") { "- ${it.title}: ${it.description}" } +
+                 "\n\n위 뉴스들을 바탕으로 사용자 요청에 가장 부합하는 내용을 정리해 주세요. " +
+                 "친절한 대화체로 작성해 주시고, 너무 길지 않게 핵심 위주로 요약해 주세요.")
         }
 
         val response = generativeModel?.generateContent(prompt)
-        response?.text ?: "분석 결과를 생성할 수 없습니다."
+        response?.text ?: "응답을 생성할 수 없습니다."
+    }
+
+    /**
+     * 특정 텍스트나 주제를 바탕으로 AI 퀴즈를 생성합니다.
+     * @param topic 주제 또는 본문 텍스트
+     * @param count 생성할 문제 수
+     */
+    suspend fun generateQuizFromText(topic: String, count: Int = 5): String = withContext(Dispatchers.IO) {
+        if (generativeModel == null || apiKey.isNullOrBlank()) {
+            return@withContext ""
+        }
+
+        val prompt = content {
+            text("당신은 전문 교육용 퀴즈 출제 위원입니다. 다음 주제나 텍스트를 바탕으로 객관식 및 주관식 퀴즈를 ${count}개 생성해 주세요.\n\n" +
+                 "주제/텍스트: \"$topic\"\n\n" +
+                 "제약 사항:\n" +
+                 "1. 반드시 다음 JSON 형식의 배열로만 응답하세요. 다른 설명은 포함하지 마세요.\n" +
+                 "2. JSON 구조: [\n" +
+                 "  {\n" +
+                 "    \"id\": 숫자,\n" +
+                 "    \"type\": \"MULTIPLE_CHOICE\" 또는 \"SUBJECTIVE\",\n" +
+                 "    \"category\": \"AI 자동 생성\",\n" +
+                 "    \"subCategory\": \"$topic\",\n" +
+                 "    \"question\": \"문제 내용\",\n" +
+                 "    \"options\": [\"보기1\", \"보기2\", \"보기3\", \"보기4\"] (주관식인 경우 null),\n" +
+                 "    \"answer\": \"정답\",\n" +
+                 "    \"explanation\": \"상세 해설\",\n" +
+                 "    \"semanticHint\": \"힌트\"\n" +
+                 "  }\n" +
+                 "]\n" +
+                 "3. 정답은 명확해야 하며, 해설은 친절하게 작성해 주세요.")
+        }
+
+        val response = generativeModel?.generateContent(prompt)
+        val result = response?.text ?: ""
+        
+        // JSON 부분만 추출 (마크다운 코드 블록 및 기타 텍스트 제거)
+        val startIdx = result.indexOf("[")
+        val endIdx = result.lastIndexOf("]") + 1
+        
+        if (startIdx != -1 && endIdx > startIdx) {
+            result.substring(startIdx, endIdx).trim()
+        } else {
+            ""
+        }
     }
 }

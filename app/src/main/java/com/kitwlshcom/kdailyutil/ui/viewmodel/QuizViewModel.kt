@@ -1,25 +1,33 @@
 package com.kitwlshcom.kdailyutil.ui.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitwlshcom.kdailyutil.data.model.QuizQuestion
 import com.kitwlshcom.kdailyutil.data.model.QuizType
 import com.kitwlshcom.kdailyutil.data.repository.QuizRepository
+import com.kitwlshcom.kdailyutil.data.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
 
 enum class QuizState {
     IDLE,
     PLAYING,
     ANSWER_CHECKED,
-    FINISHED
+    FINISHED,
+    CATEGORY_SELECTION,
+    GENERATING // AI 생성 중 상태
 }
 
 class QuizViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = QuizRepository()
+    private val settingsRepository = SettingsRepository(application)
 
     private val soundPool: android.media.SoundPool
     private var correctSoundId: Int = 0
@@ -63,6 +71,12 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     private val _score = MutableStateFlow(0)
     val score: StateFlow<Int> = _score.asStateFlow()
 
+    private val _selectedCategory = MutableStateFlow<String?>(null)
+    val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
+
+    private val _availableCategories = MutableStateFlow<List<String>>(listOf("우리말 겨루기", "트렌드 말하기", "상식 백과", "세계 여행", "AI 자동 생성 (KuizGenius)"))
+    val availableCategories: StateFlow<List<String>> = _availableCategories.asStateFlow()
+
     private val _currentInput = MutableStateFlow("")
     val currentInput: StateFlow<String> = _currentInput.asStateFlow()
 
@@ -85,9 +99,18 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun selectCategory(category: String?) {
+        _selectedCategory.value = category
+        if (category == null) {
+            _quizState.value = QuizState.CATEGORY_SELECTION
+        } else if (category != "AI 자동 생성 (KuizGenius)") {
+            startQuiz()
+        }
+    }
+
     fun startQuiz() {
         viewModelScope.launch {
-            val allQuestions = repository.getQuizzes(getApplication())
+            val allQuestions = repository.getQuizzes(getApplication(), _selectedCategory.value)
             _questions.value = allQuestions.take(10)
             _currentIndex.value = 0
             _score.value = 0
@@ -95,6 +118,59 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             _currentInput.value = ""
             _isCorrect.value = false
             resetHintState()
+        }
+    }
+
+    fun generateAiQuiz(topic: String) {
+        viewModelScope.launch {
+            _quizState.value = QuizState.GENERATING
+            val apiKey = settingsRepository.geminiApiKeyFlow.first()
+            if (apiKey.isNullOrBlank()) {
+                // 에러 처리 (임시로 기존 퀴즈 시작)
+                startQuiz()
+                return@launch
+            }
+
+            try {
+                val gemini = GeminiManager(apiKey)
+                val jsonString = gemini.generateQuizFromText(topic)
+                val jsonArray = JSONArray(jsonString)
+                val aiQuestions = mutableListOf<QuizQuestion>()
+
+                for (i in 0 until jsonArray.length()) {
+                    val obj = jsonArray.getJSONObject(i)
+                    val optionsArray = obj.optJSONArray("options")
+                    val optionsList = if (optionsArray != null) {
+                        List(optionsArray.length()) { idx -> optionsArray.getString(idx) }
+                    } else null
+
+                    aiQuestions.add(
+                        QuizQuestion(
+                            id = 1000 + i,
+                            type = QuizType.valueOf(obj.getString("type")),
+                            category = "AI 자동 생성",
+                            subCategory = topic,
+                            question = obj.getString("question"),
+                            options = optionsList,
+                            answer = obj.getString("answer"),
+                            explanation = obj.getString("explanation"),
+                            semanticHint = obj.optString("semanticHint", null)
+                        )
+                    )
+                }
+                
+                _questions.value = aiQuestions
+                _currentIndex.value = 0
+                _score.value = 0
+                _quizState.value = QuizState.PLAYING
+                _currentInput.value = ""
+                _isCorrect.value = false
+                resetHintState()
+            } catch (e: Exception) {
+                Log.e("QuizViewModel", "❌ AI Quiz Generation Failed: ${e.message}", e)
+                // 에러 발생 시 초기 화면으로
+                _quizState.value = QuizState.CATEGORY_SELECTION
+            }
         }
     }
 
@@ -203,6 +279,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun exitQuiz() {
-        _quizState.value = QuizState.IDLE
+        _quizState.value = QuizState.CATEGORY_SELECTION
+        _selectedCategory.value = null
     }
 }

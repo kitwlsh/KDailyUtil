@@ -25,6 +25,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.graphics.toArgb
+import android.widget.Toast
+import android.util.Log
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,13 +56,21 @@ fun NewsDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        selectedNewsItem?.let {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(it.link))
-                            context.startActivity(intent)
+                    val isWebUrl = selectedNewsItem?.link?.startsWith("http") == true
+                    if (isWebUrl) {
+                        IconButton(onClick = {
+                            selectedNewsItem?.let {
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(it.link))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Log.e("NewsDetailScreen", "Failed to open link: ${it.link}", e)
+                                    Toast.makeText(context, "링크를 열 수 있는 앱이 없습니다.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }) {
+                            Icon(Icons.Default.Public, contentDescription = "브라우저에서 열기")
                         }
-                    }) {
-                        Icon(Icons.Default.Public, contentDescription = "브라우저에서 열기")
                     }
                     
                     Button(

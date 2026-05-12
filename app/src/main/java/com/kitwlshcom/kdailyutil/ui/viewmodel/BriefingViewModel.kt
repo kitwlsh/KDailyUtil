@@ -121,7 +121,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 // 사용자 제안 코드 적용: "Say Hello" 테스트
                 val gemini = GeminiManager(key)
                 val response = withContext(Dispatchers.IO) {
-                    gemini.processAiCustomBriefing("Say 'Hello' briefly.", emptyList())
+                    gemini.processAiCustomBriefing("Say 'Hello' briefly.", emptyList<NewsItem>())
                 }
                 
                 if (response.isNotBlank() && !response.contains("오류")) {
@@ -206,7 +206,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 NewsItem(
                     title = "✨ AI 맞춤 분석: $command",
                     link = "ai_analysis",
-                    description = analysis.take(200) + "...",
+                    description = analysis,
                     pubDate = "현재",
                     source = "Gemini AI",
                     fullContent = analysis,
@@ -276,6 +276,8 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun loadFullContent(item: NewsItem) {
+        if (!item.link.startsWith("http")) return // AI 분석 등 웹 링크가 아닌 경우 무시
+
         viewModelScope.launch {
             _isLoadingDetail.value = true
             

@@ -281,10 +281,11 @@ fun NewsCard(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 val displayContent = item.description
+                val isAiItem = item.source == "Gemini AI"
                 Text(
                     text = displayContent,
                     style = MaterialTheme.typography.bodySmall,
-                    maxLines = 3,
+                    maxLines = if (isAiItem) 10 else 3,
                     overflow = TextOverflow.Ellipsis,
                     color = Color.White.copy(alpha = 0.7f)
                 )

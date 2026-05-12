@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -15,6 +17,11 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,7 +49,9 @@ fun QuizScreen(
             .fillMaxSize()
     ) {
         when (quizState) {
-            QuizState.IDLE -> QuizIdleScreen(onStart = { viewModel.startQuiz() })
+            QuizState.IDLE -> QuizIdleScreen(onStart = { viewModel.selectCategory(null) })
+            QuizState.CATEGORY_SELECTION -> QuizCategorySelectionScreen(viewModel)
+            QuizState.GENERATING -> QuizGeneratingScreen()
             QuizState.PLAYING, QuizState.ANSWER_CHECKED -> QuizPlayScreen(viewModel)
             QuizState.FINISHED -> QuizFinishedScreen(viewModel)
         }
@@ -61,31 +70,193 @@ fun QuizIdleScreen(onStart: () -> Unit) {
         Icon(
             imageVector = Icons.Default.EmojiEvents,
             contentDescription = null,
-            modifier = Modifier.size(100.dp),
-            tint = MaterialTheme.colorScheme.primary
+            modifier = Modifier.size(120.dp),
+            tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+        Text(
+            text = "K-Quiz Hub",
+            fontSize = 32.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color.White
+        )
+        Text(
+            text = "지식의 가치를 높이는 시간",
+            fontSize = 16.sp,
+            color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.7f)
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "우리말 겨루기 퀴즈",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "맞춤법, 띄어쓰기, 사자성어 등 다양한 우리말 퀴즈에 도전해 보세요!\n(총 10문제)",
+            text = "우리말 겨루기부터 AI가 직접 출제하는\n커스텀 퀴즈까지 모두 즐겨보세요.",
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = Color.White.copy(alpha = 0.6f),
+            lineHeight = 22.sp
         )
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(64.dp))
         Button(
             onClick = onStart,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(12.dp)
+                .height(60.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                contentColor = Color.Black
+            )
         ) {
-            Text("퀴즈 시작하기", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("시작하기", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun QuizCategorySelectionScreen(viewModel: QuizViewModel) {
+    val categories by viewModel.availableCategories.collectAsState()
+    var showAiTopicDialog by remember { mutableStateOf(false) }
+    var aiTopic by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "퀴즈 분야 선택",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+            modifier = Modifier.padding(vertical = 24.dp)
+        )
+
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(categories) { category ->
+                val icon = when (category) {
+                    "우리말 겨루기" -> Icons.Default.Language
+                    "트렌드 말하기" -> Icons.Default.Psychology
+                    "상식 백과" -> Icons.Default.MenuBook
+                    "세계 여행" -> Icons.Default.Public
+                    else -> Icons.Default.AutoAwesome
+                }
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp)
+                        .clickable {
+                            if (category == "AI 자동 생성 (KuizGenius)") {
+                                showAiTopicDialog = true
+                            } else {
+                                viewModel.selectCategory(category)
+                            }
+                        },
+                    colors = CardDefaults.cardColors(
+                        containerColor = com.kitwlshcom.kdailyutil.ui.theme.DeepCharcoal.copy(alpha = 0.8f)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (category.contains("AI")) com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.5f)
+                        else Color.White.copy(alpha = 0.1f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = if (category.contains("AI")) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(20.dp))
+                        Column {
+                            Text(
+                                text = category,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            if (category.contains("AI")) {
+                                Text(
+                                    text = "Gemini AI가 즉석에서 퀴즈를 생성합니다",
+                                    fontSize = 12.sp,
+                                    color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAiTopicDialog) {
+        AlertDialog(
+            onDismissRequest = { showAiTopicDialog = false },
+            title = { Text("AI 퀴즈 주제 입력") },
+            text = {
+                Column {
+                    Text("어떤 주제로 퀴즈를 만들까요? (예: 파이썬 프로그래밍, 한국사, 오늘 읽은 뉴스 등)")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = aiTopic,
+                        onValueChange = { aiTopic = it },
+                        placeholder = { Text("주제를 입력하세요") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (aiTopic.isNotBlank()) {
+                            viewModel.generateAiQuiz(aiTopic)
+                            showAiTopicDialog = false
+                        }
+                    },
+                    enabled = aiTopic.isNotBlank()
+                ) {
+                    Text("생성하기")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAiTopicDialog = false }) {
+                    Text("취소")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun QuizGeneratingScreen() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+            Spacer(modifier = Modifier.height(24.dp))
+            Icon(
+                Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "KuizGenius가 문제를 출제 중입니다...",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White
+            )
+            Text(
+                "잠시만 기다려 주세요.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.6f)
+            )
         }
     }
 }
@@ -158,7 +329,7 @@ fun QuizPlayScreen(viewModel: QuizViewModel) {
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            text = currentQuestion.category,
+                            text = "${currentQuestion.category} > ${currentQuestion.subCategory}",
                             color = MaterialTheme.colorScheme.onTertiaryContainer,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -396,13 +567,13 @@ fun QuizFinishedScreen(viewModel: QuizViewModel) {
         Spacer(modifier = Modifier.height(48.dp))
         
         Button(
-            onClick = { viewModel.startQuiz() },
+            onClick = { viewModel.selectCategory(null) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("다시 도전하기", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("다른 분야 도전하기", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedButton(
