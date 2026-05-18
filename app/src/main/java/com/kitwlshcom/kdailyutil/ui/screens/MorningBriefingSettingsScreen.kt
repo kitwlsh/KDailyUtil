@@ -14,6 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitwlshcom.kdailyutil.ui.viewmodel.BriefingViewModel
 
@@ -54,6 +57,7 @@ fun MorningBriefingSettingsScreen(
     var newStockKeyword by remember { mutableStateOf("") }
     var newAiCommand by remember { mutableStateOf("") }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -232,7 +236,21 @@ fun MorningBriefingSettingsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Gemini API Key", style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Gemini API Key", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(
+                    onClick = { showHelpDialog = true },
+                    modifier = Modifier.size(20.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Help,
+                        contentDescription = "도움말",
+                        tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
             if (apiKeyStatus is com.kitwlshcom.kdailyutil.ui.viewmodel.ApiKeyStatus.Validating) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             } else {
@@ -394,6 +412,104 @@ fun MorningBriefingSettingsScreen(
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        val context = LocalContext.current
+        val versionName = remember {
+            try {
+                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                packageInfo.versionName
+            } catch (e: Exception) {
+                "1.0"
+            }
+        }
+
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "버전 $versionName (KDailyUtil)",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.3f)
+            )
+        }
+    }
+
+    if (showHelpDialog) {
+        val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+        AlertDialog(
+            onDismissRequest = { showHelpDialog = false },
+            title = {
+                Text(
+                    text = "🔑 Gemini API Key 무료 발급 가이드",
+                    fontWeight = FontWeight.Bold,
+                    color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "KDailyUtil의 스마트 AI 브리핑은 구글의 공식 Gemini AI를 사용하며, API 키를 등록하면 평생 무료로 분석 요약을 이용하실 수 있습니다.",
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 14.sp
+                    )
+                    
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.White.copy(alpha = 0.05f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            0.5.dp,
+                            com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.2f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                "💡 3단계 초간단 발급 방법:",
+                                fontWeight = FontWeight.Bold,
+                                color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                                fontSize = 13.sp
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text("1. 아래 [무료 발급 사이트 이동] 버튼을 클릭합니다.", fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f))
+                            Text("2. Google AI Studio에서 [Create API Key] 버튼을 누릅니다.", fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f))
+                            Text("3. 생성된 키(AIzaSy...)를 복사한 뒤, 설정창에 붙여넣고 [연결 테스트]를 진행하세요!", fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f))
+                        }
+                    }
+                    
+                    Text(
+                        "⚠️ 주의: 발급받으신 API 키는 개인 기기에만 안전하게 암호화되어 저장되며, 외부로 절대 유출되지 않습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 11.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        try {
+                            uriHandler.openUri("https://aistudio.google.com/app/apikey")
+                        } catch (e: Exception) {
+                            // fallback or error logging
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                        contentColor = Color.Black
+                    )
+                ) {
+                    Text("무료 발급 사이트 이동", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showHelpDialog = false }) {
+                    Text("닫기", color = Color.White)
+                }
+            }
+        )
     }
 
     if (showTimePicker) {
