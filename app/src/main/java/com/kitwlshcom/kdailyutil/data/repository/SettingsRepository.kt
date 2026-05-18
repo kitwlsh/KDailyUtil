@@ -22,8 +22,11 @@ class SettingsRepository(private val context: Context) {
         val BRIEFING_ENABLED = booleanPreferencesKey("briefing_enabled")
         val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
         val NEWS_CATEGORIES = stringSetPreferencesKey("news_categories")
-        val AI_BRIEFING_COMMAND = stringPreferencesKey("ai_briefing_command")
+        val AI_BRIEFING_COMMAND = stringPreferencesKey("ai_briefing_command") // 하위 호환용
+        val AI_BRIEFING_COMMANDS = stringSetPreferencesKey("ai_briefing_commands") // 다중 커맨드용
         val AI_COMMAND_AUDIO_PATH = stringPreferencesKey("ai_command_audio_path")
+        val IS_API_KEY_VALIDATED = booleanPreferencesKey("is_api_key_validated")
+        val STOCK_KEYWORDS = stringSetPreferencesKey("stock_keywords")
     }
 
     // 신규 오디오 설정
@@ -56,15 +59,27 @@ class SettingsRepository(private val context: Context) {
     }
 
     val categoriesFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
-        preferences[PreferencesKeys.NEWS_CATEGORIES] ?: setOf("전체", "정치", "경제", "사회", "IT/과학", "세계")
+        preferences[PreferencesKeys.NEWS_CATEGORIES] ?: setOf("전체", "정치", "경제", "증시", "사회", "IT/과학", "세계")
     }
 
     val aiBriefingCommandFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.AI_BRIEFING_COMMAND] ?: ""
     }
 
+    val aiBriefingCommandsFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.AI_BRIEFING_COMMANDS] ?: emptySet()
+    }
+
+    val stockKeywordsFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.STOCK_KEYWORDS] ?: setOf("나스닥", "코스피", "테슬라", "비트코인")
+    }
+
     val aiCommandAudioPathFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.AI_COMMAND_AUDIO_PATH] ?: ""
+    }
+
+    val isApiKeyValidatedFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.IS_API_KEY_VALIDATED] ?: false
     }
 
     // 저장 메서드들
@@ -103,7 +118,19 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it[PreferencesKeys.AI_BRIEFING_COMMAND] = command }
     }
 
+    suspend fun updateAiBriefingCommands(commands: Set<String>) {
+        context.dataStore.edit { it[PreferencesKeys.AI_BRIEFING_COMMANDS] = commands }
+    }
+
     suspend fun updateAiCommandAudioPath(path: String) {
         context.dataStore.edit { it[PreferencesKeys.AI_COMMAND_AUDIO_PATH] = path }
+    }
+
+    suspend fun setApiKeyValidated(isValidated: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.IS_API_KEY_VALIDATED] = isValidated }
+    }
+
+    suspend fun updateStockKeywords(keywords: Set<String>) {
+        context.dataStore.edit { it[PreferencesKeys.STOCK_KEYWORDS] = keywords }
     }
 }

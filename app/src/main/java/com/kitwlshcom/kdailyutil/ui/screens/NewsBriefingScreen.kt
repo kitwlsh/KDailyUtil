@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
@@ -45,6 +46,16 @@ fun NewsBriefingScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val isPlaying by viewModel.isBriefingPlaying.collectAsState()
     val isAiLoading by viewModel.isAiAnalysisLoading.collectAsState()
+    val aiCommands by viewModel.aiBriefingCommands.collectAsState()
+    val selectedAiCommand by viewModel.selectedAiCommand.collectAsState()
+    val stockKeywords by viewModel.stockKeywords.collectAsState()
+    val selectedStockKeyword by viewModel.selectedStockKeyword.collectAsState()
+
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(selectedCategory) {
+        listState.scrollToItem(0)
+    }
 
     LaunchedEffect(Unit) {
         if (newsItems.isEmpty()) {
@@ -137,12 +148,56 @@ fun NewsBriefingScreen(
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
-                    IconButton(onClick = { viewModel.fetchNews() }) {
+                    IconButton(onClick = { viewModel.fetchNews(forceRefresh = true) }) {
                         Icon(
                             Icons.Default.Refresh, 
                             contentDescription = "새로고침",
                             tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
                         )
+                    }
+                }
+
+                // AI 카테고리 선택 시 서브 탭 표시
+                if (selectedCategory == "AI" && aiCommands.isNotEmpty()) {
+                    val commandsList = aiCommands.toList()
+                    val selectedIndex = commandsList.indexOf(selectedAiCommand).takeIf { it >= 0 } ?: 0
+                    ScrollableTabRow(
+                        selectedTabIndex = selectedIndex,
+                        containerColor = Color.Transparent,
+                        contentColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                        edgePadding = 0.dp,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        commandsList.forEachIndexed { index, command ->
+                            val shortCommand = if (command.length > 10) command.take(10) + "..." else command
+                            Tab(
+                                selected = index == selectedIndex,
+                                onClick = { viewModel.selectAiCommand(command) },
+                                text = { Text(shortCommand, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                            )
+                        }
+                    }
+                }
+
+                // 증시 카테고리 선택 시 서브 탭 표시
+                if (selectedCategory == "증시" && stockKeywords.isNotEmpty()) {
+                    val keywordsList = stockKeywords.toList()
+                    val selectedIndex = keywordsList.indexOf(selectedStockKeyword).takeIf { it >= 0 } ?: 0
+                    ScrollableTabRow(
+                        selectedTabIndex = selectedIndex,
+                        containerColor = Color.Transparent,
+                        contentColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                        edgePadding = 0.dp,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        keywordsList.forEachIndexed { index, keyword ->
+                            val shortKeyword = if (keyword.length > 10) keyword.take(10) + "..." else keyword
+                            Tab(
+                                selected = index == selectedIndex,
+                                onClick = { viewModel.selectStockKeyword(keyword) },
+                                text = { Text(shortKeyword, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                            )
+                        }
                     }
                 }
 
@@ -167,11 +222,16 @@ fun NewsBriefingScreen(
                     }
                 } else if (newsItems.isEmpty() && !isRefreshing) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        val emptyMsg = if (selectedCategory == "AI") "AI 명령어를 먼저 등록해 주세요." else "불러온 뉴스가 없습니다."
+                        val emptyMsg = when (selectedCategory) {
+                            "AI" -> "AI 명령어를 먼저 등록해 주세요."
+                            "증시" -> "해당 키워드에 대한 증시 뉴스가 없습니다."
+                            else -> "불러온 뉴스가 없습니다."
+                        }
                         Text(emptyMsg, textAlign = TextAlign.Center)
                     }
                 } else {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 80.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -208,8 +268,17 @@ fun CategoryTabItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val backgroundColor = if (isSelected) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.05f)
-    val contentColor = if (isSelected) Color.Black else Color.White.copy(alpha = 0.8f)
+    val isFixed = category in setOf("전체", "증시", "AI")
+    val backgroundColor = when {
+        isSelected -> com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+        isFixed -> com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.15f)
+        else -> Color.White.copy(alpha = 0.05f)
+    }
+    val contentColor = when {
+        isSelected -> Color.Black
+        isFixed -> com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.85f)
+        else -> Color.White.copy(alpha = 0.8f)
+    }
 
     Box(
         modifier = Modifier
@@ -225,7 +294,7 @@ fun CategoryTabItem(
             text = category,
             style = MaterialTheme.typography.labelMedium,
             color = contentColor,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            fontWeight = if (isSelected || isFixed) FontWeight.Bold else FontWeight.Normal,
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,

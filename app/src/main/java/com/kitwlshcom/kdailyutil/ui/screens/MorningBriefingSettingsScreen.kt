@@ -27,7 +27,8 @@ fun MorningBriefingSettingsScreen(
     val briefingTime by viewModel.briefingTime.collectAsState()
     val isEnabled by viewModel.isBriefingEnabled.collectAsState()
     val apiKey by viewModel.geminiApiKey.collectAsState()
-    val aiCommand by viewModel.aiBriefingCommand.collectAsState()
+    val aiCommands by viewModel.aiBriefingCommands.collectAsState()
+    val stockKeywords by viewModel.stockKeywords.collectAsState()
     val aiAudioPath by viewModel.aiCommandAudioPath.collectAsState()
     val isRecording by viewModel.isRecordingCommand.collectAsState()
     val sttPartialText by viewModel.sttPartialText.collectAsState()
@@ -39,7 +40,6 @@ fun MorningBriefingSettingsScreen(
         else -> MaterialTheme.colorScheme.outline
     }
 
-    var localAiCommand by remember { mutableStateOf(aiCommand) }
     var localApiKey by remember { mutableStateOf(apiKey ?: "") }
     
     // 외부(DataStore)에서 값이 변경되었을 때만 로컬 동기화
@@ -48,16 +48,11 @@ fun MorningBriefingSettingsScreen(
             localApiKey = apiKey ?: ""
         }
     }
-    
-    // 외부(DataStore)에서 값이 변경되었을 때만 로컬 동기화 (초기화 등)
-    LaunchedEffect(aiCommand) {
-        if (!isRecording && localAiCommand != aiCommand) {
-            localAiCommand = aiCommand
-        }
-    }
 
     var newKeyword by remember { mutableStateOf("") }
     var newCategory by remember { mutableStateOf("") }
+    var newStockKeyword by remember { mutableStateOf("") }
+    var newAiCommand by remember { mutableStateOf("") }
     var showTimePicker by remember { mutableStateOf(false) }
 
     Column(
@@ -103,8 +98,10 @@ fun MorningBriefingSettingsScreen(
                 modifier = Modifier.weight(1f)
             )
             IconButton(onClick = {
-                if (newCategory.isNotBlank()) {
-                    viewModel.updateCategories(categories + newCategory)
+                val cleanedCategory = newCategory.trim()
+                val fixedCategories = setOf("전체", "증시", "AI")
+                if (cleanedCategory.isNotBlank() && cleanedCategory !in fixedCategories && cleanedCategory !in categories) {
+                    viewModel.updateCategories(categories + cleanedCategory)
                     newCategory = ""
                 }
             }) {
@@ -119,7 +116,7 @@ fun MorningBriefingSettingsScreen(
                     onClick = { },
                     label = { Text(category) },
                     trailingIcon = {
-                        if (category != "전체") {
+                        if (category !in setOf("전체", "증시", "AI")) {
                             IconButton(
                                 onClick = { viewModel.updateCategories(categories - category) },
                                 modifier = Modifier.size(16.dp)
@@ -182,6 +179,52 @@ fun MorningBriefingSettingsScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        // 증시 키워드 관리
+        Text("관심 증시/종목 (증시 서브 탭)", style = MaterialTheme.typography.titleMedium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = newStockKeyword,
+                onValueChange = { newStockKeyword = it },
+                label = { Text("키워드 추가 (예: 테슬라, 비트코인)") },
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = {
+                if (newStockKeyword.isNotBlank()) {
+                    viewModel.updateStockKeywords(stockKeywords + newStockKeyword)
+                    newStockKeyword = ""
+                }
+            }) {
+                Icon(Icons.Default.Add, contentDescription = "추가")
+            }
+        }
+
+        LazyRow(modifier = Modifier.padding(vertical = 8.dp)) {
+            items(stockKeywords.toList()) { keyword ->
+                InputChip(
+                    selected = true,
+                    onClick = { },
+                    label = { Text(keyword) },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = { viewModel.updateStockKeywords(stockKeywords - keyword) },
+                            modifier = Modifier.size(16.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "삭제",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    },
+                    modifier = Modifier.padding(end = 4.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Gemini API Key
         Row(
@@ -251,25 +294,45 @@ fun MorningBriefingSettingsScreen(
         
         Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(
-            value = localAiCommand,
-            onValueChange = { 
-                localAiCommand = it
-                viewModel.updateAiCommand(it) // 이미 뷰모델에서 최적화가 필요할 수도 있으나, 즉각적인 UI 반영을 위해 local 사용
-            },
-            label = { Text("예: 나스닥 상황 알려주고 코스닥 전망해줘") },
-            modifier = Modifier.fillMaxWidth(),
-            trailingIcon = {
-                if (localAiCommand.isNotBlank()) {
-                    IconButton(onClick = { 
-                        localAiCommand = ""
-                        viewModel.updateAiCommand("") 
-                    }) {
-                        Icon(Icons.Default.Clear, contentDescription = "지우기")
-                    }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = newAiCommand,
+                onValueChange = { newAiCommand = it },
+                label = { Text("예: 나스닥 시황 알려줘") },
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = {
+                if (newAiCommand.isNotBlank()) {
+                    viewModel.updateAiCommands(aiCommands + newAiCommand)
+                    newAiCommand = ""
                 }
+            }) {
+                Icon(Icons.Default.Add, contentDescription = "추가")
             }
-        )
+        }
+
+        LazyRow(modifier = Modifier.padding(vertical = 8.dp)) {
+            items(aiCommands.toList()) { command ->
+                InputChip(
+                    selected = true,
+                    onClick = { },
+                    label = { Text(command) },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = { viewModel.updateAiCommands(aiCommands - command) },
+                            modifier = Modifier.size(16.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "삭제",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    },
+                    modifier = Modifier.padding(end = 4.dp)
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 

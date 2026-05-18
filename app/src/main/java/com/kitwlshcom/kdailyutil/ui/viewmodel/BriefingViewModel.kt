@@ -36,14 +36,22 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     val geminiApiKey = settingsRepository.geminiApiKeyFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
     
     val aiBriefingCommand = settingsRepository.aiBriefingCommandFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    val aiBriefingCommands = settingsRepository.aiBriefingCommandsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
+    val stockKeywords = settingsRepository.stockKeywordsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
     val aiCommandAudioPath = settingsRepository.aiCommandAudioPathFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    val isApiKeyValidated = settingsRepository.isApiKeyValidatedFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
 
-    val categories = combine(
-        settingsRepository.categoriesFlow,
-        aiBriefingCommand
-    ) { cats, command ->
-        if (command.isNotBlank()) cats + "AI" else cats
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), setOf("전체"))
+    val categories = settingsRepository.categoriesFlow.map { cats ->
+        val fixed = listOf("전체", "증시", "AI")
+        val userCats = cats.filter { it !in fixed }
+        (fixed + userCats).toSet()
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), setOf("전체", "증시", "AI"))
+
+    private val _selectedAiCommand = MutableStateFlow<String?>(null)
+    val selectedAiCommand: StateFlow<String?> = _selectedAiCommand.asStateFlow()
+
+    private val _selectedStockKeyword = MutableStateFlow<String?>(null)
+    val selectedStockKeyword: StateFlow<String?> = _selectedStockKeyword.asStateFlow()
 
     private val _selectedCategory = MutableStateFlow("전체")
     val selectedCategory: StateFlow<String> = _selectedCategory.asStateFlow()
@@ -73,8 +81,25 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     private val _apiKeyStatus = MutableStateFlow<ApiKeyStatus>(ApiKeyStatus.Idle)
     val apiKeyStatus: StateFlow<ApiKeyStatus> = _apiKeyStatus.asStateFlow()
 
+    init {
+        // 앱 시작 시 API 키 검증 상태 복구
+        viewModelScope.launch {
+            combine(geminiApiKey, isApiKeyValidated) { key, isValidated ->
+                Pair(key, isValidated)
+            }.collect { (key, isValidated) ->
+                if (!key.isNullOrBlank() && isValidated) {
+                    _apiKeyStatus.value = ApiKeyStatus.Valid("✅ API 키가 유효합니다!")
+                } else if (_apiKeyStatus.value is ApiKeyStatus.Valid) {
+                    _apiKeyStatus.value = ApiKeyStatus.Idle
+                }
+            }
+        }
+    }
+
     private val _isLoadingDetail = MutableStateFlow(false)
     val isLoadingDetail: StateFlow<Boolean> = _isLoadingDetail.asStateFlow()
+
+    private val aiAnalysisCache = mutableMapOf<String, NewsItem>()
 
     fun updateKeywords(newKeywords: Set<String>) {
         viewModelScope.launch { settingsRepository.updateKeywords(newKeywords) }
@@ -104,6 +129,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val trimmedKey = key.trim()
             settingsRepository.updateGeminiApiKey(trimmedKey)
+            settingsRepository.setApiKeyValidated(false)
             _apiKeyStatus.value = ApiKeyStatus.Idle // 키 변경 시 상태 초기화
         }
     }
@@ -125,6 +151,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 }
                 
                 if (response.isNotBlank() && !response.contains("오류")) {
+                    settingsRepository.setApiKeyValidated(true)
                     _apiKeyStatus.value = ApiKeyStatus.Valid("✅ API 키가 유효합니다! 응답: $response")
                 } else {
                     _apiKeyStatus.value = ApiKeyStatus.Invalid("⚠️ 응답이 비어있거나 올바르지 않습니다.")
@@ -149,14 +176,31 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         _selectedNewsItem.value = item
     }
 
-    fun fetchNews() {
+    fun selectAiCommand(command: String?) {
+        _selectedAiCommand.value = command
+        if (_selectedCategory.value == "AI") {
+            fetchNews()
+        }
+    }
+
+    fun selectStockKeyword(keyword: String?) {
+        _selectedStockKeyword.value = keyword
+        if (_selectedCategory.value == "증시") {
+            fetchNews()
+        }
+    }
+
+    fun fetchNews(forceRefresh: Boolean = false) {
         viewModelScope.launch {
             _isRefreshing.value = true
             try {
                 val currentCategory = _selectedCategory.value
                 
                 if (currentCategory == "AI") {
-                    generateAiCustomBriefing()
+                    generateAiCustomBriefing(forceRefresh)
+                } else if (currentCategory == "증시") {
+                    val targetKeyword = selectedStockKeyword.value ?: stockKeywords.value.firstOrNull() ?: "증시"
+                    _newsItems.value = newsRepository.getNewsByKeyword(targetKeyword, 20)
                 } else {
                     val allNews = if (currentCategory == "전체") {
                         val topNews = newsRepository.getTopNews(10)
@@ -178,11 +222,16 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    private suspend fun generateAiCustomBriefing() {
-        val command = aiBriefingCommand.value
+    private suspend fun generateAiCustomBriefing(forceRefresh: Boolean) {
+        val commands = aiBriefingCommands.value
+        val fallbackCommand = aiBriefingCommand.value
+        
+        // 여러 개가 있으면 selectedAiCommand 혹은 첫 번째 선택, 없으면 하위 호환용 1개 사용
+        val targetCommand = selectedAiCommand.value ?: commands.firstOrNull() ?: fallbackCommand
+        
         val apiKey = geminiApiKey.value
         
-        if (command.isBlank() || apiKey.isNullOrBlank()) {
+        if (targetCommand.isBlank() || apiKey.isNullOrBlank()) {
             _newsItems.value = listOf(
                 NewsItem(
                     title = "AI 브리핑 안내",
@@ -195,24 +244,35 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
+        if (!forceRefresh && aiAnalysisCache.containsKey(targetCommand)) {
+            _newsItems.value = listOf(aiAnalysisCache[targetCommand]!!)
+            Log.d(TAG, "✅ Loaded AI Analysis from cache")
+            return
+        }
+
         _isAiAnalysisLoading.value = true
         try {
             // 분석을 위해 경제/종합 뉴스 20개 정도를 수집
             val referenceNews = newsRepository.getTopNews(20)
             val gemini = GeminiManager(apiKey)
-            val analysis = gemini.processAiCustomBriefing(command, referenceNews)
+            val analysis = gemini.processAiCustomBriefing(targetCommand, referenceNews)
             
-            _newsItems.value = listOf(
-                NewsItem(
-                    title = "✨ AI 맞춤 분석: $command",
-                    link = "ai_analysis",
-                    description = analysis,
-                    pubDate = "현재",
-                    source = "Gemini AI",
-                    fullContent = analysis,
-                    fullContentHtml = "<div>${analysis.replace("\n", "<br>")}</div>"
-                )
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+            val timeStr = sdf.format(java.util.Date())
+            
+            val aiNewsItem = NewsItem(
+                title = "✨ AI 맞춤 분석: $targetCommand",
+                link = "ai_analysis",
+                description = analysis,
+                pubDate = "분석 시각: $timeStr",
+                source = "Gemini AI",
+                fullContent = analysis,
+                fullContentHtml = "<div>${analysis.replace("\n", "<br>")}</div>"
             )
+            
+            aiAnalysisCache[targetCommand] = aiNewsItem
+            _newsItems.value = listOf(aiNewsItem)
+
             Log.d(TAG, "✅ AI Analysis successful")
         } catch (e: Exception) {
             Log.e(TAG, "❌ AI Analysis Error: ${e.message}", e)
@@ -238,7 +298,6 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
             sttManager.startListening(
                 onResult = { text ->
                     _sttPartialText.value = text
-                    updateAiCommand(text)
                     stopCommandRecording()
                 },
                 onError = { _ -> stopCommandRecording() },
@@ -256,7 +315,8 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         
         // 최종 텍스트가 있다면 저장
         if (_sttPartialText.value.isNotBlank()) {
-            updateAiCommand(_sttPartialText.value)
+            updateAiCommands(aiBriefingCommands.value + _sttPartialText.value)
+            _sttPartialText.value = "" // 중복 방지
         }
         
         // 오디오 경로 저장
@@ -273,6 +333,25 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
 
     fun updateAiCommand(command: String) {
         viewModelScope.launch { settingsRepository.updateAiBriefingCommand(command) }
+    }
+
+    fun updateAiCommands(commands: Set<String>) {
+        viewModelScope.launch {
+            settingsRepository.updateAiBriefingCommands(commands)
+            // 지워졌을 때 selectedAiCommand 갱신
+            if (_selectedAiCommand.value != null && !commands.contains(_selectedAiCommand.value)) {
+                _selectedAiCommand.value = commands.firstOrNull()
+            }
+        }
+    }
+
+    fun updateStockKeywords(keywords: Set<String>) {
+        viewModelScope.launch {
+            settingsRepository.updateStockKeywords(keywords)
+            if (_selectedStockKeyword.value != null && !keywords.contains(_selectedStockKeyword.value)) {
+                _selectedStockKeyword.value = keywords.firstOrNull()
+            }
+        }
     }
 
     fun loadFullContent(item: NewsItem) {

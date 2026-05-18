@@ -1,37 +1,43 @@
-# KDailyUtil Implementation Plan (Updated 2026-04-24)
+# KDailyUtil Implementation Plan (Updated 2026-05-18)
 
 ## Goal
-Build a professional-grade utility app featuring AI news briefing, driver-optimized news shadowing, and a sophisticated audio management system.
+Build a professional-grade utility app featuring AI news briefing, driver-optimized news shadowing, a sophisticated audio management system, and a premium stock/finance dashboard.
 
 ## Key Architectures
 
-### 1. Unified Audio Management (Revamped)
+### 1. Unified Audio Management
 - **Side-Tab Sub-menus**: Decoupled UI for Recording, Playing, File Management, and Playlists.
 - **Global Player State**: Shared ViewModel across the app for seamless media control.
 - **Smart System Integration**: 
     - Auto-pause on Bluetooth/Headphone disconnect.
     - Context-aware floating icons (background only).
-- **Modern Storage Strategy**: 
-    - Transition to Scoped Storage native paths to eliminate Permission Denied errors.
-    - Automatic data migration for legacy files.
+- **Scoped Storage**: Native storage path migration resolving Android 11+ permission errors.
 
 ### 2. News Shadowing & Learning
 - **Educational Content Focus**: Prioritizing high-quality editorials.
 - **Adaptive Practice Loop**: Intelligent waiting periods based on sentence length.
 - **Clean Extraction**: Advanced noise removal and redirect resolution for complex Korean media sites.
 
-### 3. AI Intelligence
-- **Gemini 1.5 Flash Integration**: Real-time summarization of collected news.
-- **Custom Briefing**: Voice/STT commanded analysis for specific user requests.
+### 3. AI Intelligence & Smart News Briefing (New)
+- **Multi-Command AI Analysis**: Dynamic input chip UI allowing registration of multiple AI instructions.
+- **Sub-Tab Navigation**: In-category horizontal scrolling tabs for swapping commands.
+- **Smart Caching**: In-memory caching for generated briefings with detailed generation timestamps.
+- **Persistent Key Validation**: Encrypted/saved API validation state in Preferences DataStore.
+
+### 4. Financial Dashboard Integration (Phased)
+- **Phase 1 (Completed)**: Custom stock/finance keyword sub-tabs added inside the [증시] category.
+- **Phase 2 (Upcoming)**: Fully decoupled Stock Menu integrating Yahoo Finance API for real-time tickers and custom Canvas-drawn sparkline charts.
 
 ## Technical Milestones
-- [x] Scoped Storage & Permission system (Android 10~14+).
+- [x] Scoped Storage & Permission system.
 - [x] Background-only floating recording control.
 - [x] Bluetooth-aware playback service.
 - [x] Side-navigation integrated Audio UI.
-- [x] Hybrid redirect resolution (Protobuf, Meta-refresh, WebView).
+- [x] Multi-Command AI Briefing & Caching system.
+- [x] Premium [전체, 증시, AI] fixed category accent styling.
+- [x] Phase 1 Stock Keywords setup and sub-tabs.
 
-## Future Roadmap
-- [ ] **Rich UI Components**: Markdown rendering for AI reports.
-- [ ] **Performance Tuning**: Memory optimization for long-running recording sessions.
-- [ ] **Visual Data**: Graphs showing daily news consumption and practice statistics.
+## Future Roadmap (Phase 2 & beyond)
+- [ ] **Stock Dashboard**: Fetching real-time global stock/indices/forex from Yahoo Finance.
+- [ ] **Visual Charts**: Custom Canvas-drawn sparkline curves reflecting stock indices.
+- [ ] **Rich Markdown**: In-app markdown viewer for beautifully structured AI news analysis.
