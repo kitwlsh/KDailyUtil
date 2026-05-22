@@ -14,10 +14,10 @@ import java.net.URL
 
 class QuizRepository {
 
-    // 향후 개발자님이 GitHub 등에 올린 원격 JSON 파일 주소를 여기에 적습니다.
     private val REMOTE_BASE_URL = "https://raw.githubusercontent.com/kitwlsh/korean_quiz_data/refs/heads/main/"
     private val QUIZ_FILES = listOf("korean.json", "trend.json", "knowledge.json", "travel.json", "quiz_updates.json")
     private val QUIZ_CACHE_FILE = "quizzes_v2.json"
+    private val CUSTOM_QUIZ_FILE = "custom_quizzes.json"
     private val TAG = "QuizRepository"
 
     // 기존의 하드코딩된 기본 문제들 (인터넷 안 될 때를 대비한 뼈대)
@@ -141,14 +141,146 @@ class QuizRepository {
                 Log.e(TAG, "로컬 캐시 퀴즈 파싱 오류: ${e.message}")
             }
         }
+
+        // 커스텀 퀴즈 합산
+        val customFile = File(context.filesDir, CUSTOM_QUIZ_FILE)
+        if (customFile.exists())
+        {
+            try
+            {
+                val customQuizzes = parseQuizzes(customFile.readText())
+                allQuizzes.addAll(customQuizzes)
+            }
+            catch (e: Exception)
+            {
+                Log.e(TAG, "로컬 커스텀 퀴즈 파싱 오류: ${e.message}")
+            }
+        }
         
         // 카테고리 필터링 적용
-        val filtered = if (category != null) {
+        val filtered = if (category != null)
+        {
             allQuizzes.filter { it.category == category }
-        } else {
+        }
+        else
+        {
             allQuizzes
         }
 
         return@withContext filtered.shuffled()
+    }
+
+    /**
+     * 커스텀 퀴즈를 로컬 custom_quizzes.json 파일에 저장합니다.
+     */
+    suspend fun saveCustomQuizzes(context: Context, quizzes: List<QuizQuestion>) = withContext(Dispatchers.IO)
+    {
+        val file = File(context.filesDir, CUSTOM_QUIZ_FILE)
+        try
+        {
+            val existing = if (file.exists())
+            {
+                parseQuizzes(file.readText()).toMutableList()
+            }
+            else
+            {
+                mutableListOf()
+            }
+            
+            // 기존 퀴즈와 새로 추가할 퀴즈를 ID 기준으로 병합 (중복 방지)
+            val mergedMap = existing.associateBy { it.id }.toMutableMap()
+            quizzes.forEach { q ->
+                mergedMap[q.id] = q
+            }
+            
+            val jsonArray = JSONArray()
+            mergedMap.values.forEach { q ->
+                val obj = JSONObject().apply {
+                    put("id", q.id)
+                    put("type", q.type.name)
+                    put("category", q.category)
+                    put("subCategory", q.subCategory)
+                    put("question", q.question)
+                    put("answer", q.answer)
+                    put("explanation", q.explanation)
+                    put("semanticHint", q.semanticHint ?: "")
+                    put("imageUrl", q.imageUrl ?: "")
+                    q.options?.let { opt ->
+                        put("options", JSONArray(opt))
+                    }
+                }
+                jsonArray.put(obj)
+            }
+            file.writeText(jsonArray.toString())
+            Log.d(TAG, "💾 Saved ${mergedMap.size} custom quizzes to local store.")
+        }
+        catch (e: Exception)
+        {
+            Log.e(TAG, "❌ Failed to save custom quizzes: ${e.message}")
+        }
+    }
+
+    /**
+     * 특정 커스텀 카테고리를 완전히 삭제합니다.
+     */
+    suspend fun deleteCustomCategory(context: Context, category: String) = withContext(Dispatchers.IO)
+    {
+        val file = File(context.filesDir, CUSTOM_QUIZ_FILE)
+        if (!file.exists())
+        {
+            return@withContext
+        }
+        try
+        {
+            val existing = parseQuizzes(file.readText())
+            val filtered = existing.filter { it.category != category }
+            
+            val jsonArray = JSONArray()
+            filtered.forEach { q ->
+                val obj = JSONObject().apply {
+                    put("id", q.id)
+                    put("type", q.type.name)
+                    put("category", q.category)
+                    put("subCategory", q.subCategory)
+                    put("question", q.question)
+                    put("answer", q.answer)
+                    put("explanation", q.explanation)
+                    put("semanticHint", q.semanticHint ?: "")
+                    put("imageUrl", q.imageUrl ?: "")
+                    q.options?.let { opt ->
+                        put("options", JSONArray(opt))
+                    }
+                }
+                jsonArray.put(obj)
+            }
+            file.writeText(jsonArray.toString())
+            Log.d(TAG, "🗑 Deleted custom category: $category. Remaining: ${filtered.size}")
+        }
+        catch (e: Exception)
+        {
+            Log.e(TAG, "❌ Failed to delete custom category: ${e.message}")
+        }
+    }
+
+    /**
+     * 로컬에 등록된 커스텀 퀴즈들의 유니크한 카테고리 목록을 반환합니다.
+     */
+    suspend fun getCustomCategories(context: Context): List<String> = withContext(Dispatchers.IO)
+    {
+        val file = File(context.filesDir, CUSTOM_QUIZ_FILE)
+        if (!file.exists())
+        {
+            return@withContext emptyList()
+        }
+        try
+        {
+            val quizzes = parseQuizzes(file.readText())
+            return@withContext quizzes.map { it.category }.distinct()
+        }
+        catch (e: Exception)
+        {
+            Log.e(TAG, "❌ Failed to parse custom categories: ${e.message}")
+            return@withContext emptyList()
+        }
     }
 }

@@ -87,8 +87,10 @@ class GeminiManager(private val apiKey: String?) {
      * @param topic 주제 또는 본문 텍스트
      * @param count 생성할 문제 수
      */
-    suspend fun generateQuizFromText(topic: String, count: Int = 5): String = withContext(Dispatchers.IO) {
-        if (generativeModel == null || apiKey.isNullOrBlank()) {
+    suspend fun generateQuizFromText(topic: String, count: Int = 5): String = withContext(Dispatchers.IO)
+    {
+        if (generativeModel == null || apiKey.isNullOrBlank())
+        {
             return@withContext ""
         }
 
@@ -116,13 +118,151 @@ class GeminiManager(private val apiKey: String?) {
         val response = generativeModel?.generateContent(prompt)
         val result = response?.text ?: ""
         
-        // JSON 부분만 추출 (마크다운 코드 블록 및 기타 텍스트 제거)
-        val startIdx = result.indexOf("[")
-        val endIdx = result.lastIndexOf("]") + 1
+        return@withContext cleanJsonString(result)
+    }
+
+    /**
+     * 마크다운 펜스 및 찌꺼기 문자들을 걸러내어 완전한 JSON 서브스트링만 파싱합니다.
+     */
+    private fun cleanJsonString(text: String): String
+    {
+        var cleaned = text.trim()
         
-        if (startIdx != -1 && endIdx > startIdx) {
-            result.substring(startIdx, endIdx).trim()
-        } else {
+        if (cleaned.startsWith("```"))
+        {
+            val nextNewLine = cleaned.indexOf("\n")
+            if (nextNewLine != -1)
+            {
+                cleaned = cleaned.substring(nextNewLine).trim()
+            }
+        }
+        
+        if (cleaned.endsWith("```"))
+        {
+            cleaned = cleaned.substring(0, cleaned.length - 3).trim()
+        }
+
+        val startIdx = cleaned.indexOf("[")
+        val endIdx = cleaned.lastIndexOf("]") + 1
+        if (startIdx != -1 && endIdx > startIdx)
+        {
+            return cleaned.substring(startIdx, endIdx).trim()
+        }
+
+        val startObjIdx = cleaned.indexOf("{")
+        val endObjIdx = cleaned.lastIndexOf("}") + 1
+        if (startObjIdx != -1 && endObjIdx > startObjIdx)
+        {
+            return cleaned.substring(startObjIdx, endObjIdx).trim()
+        }
+
+        return cleaned
+    }
+
+    /**
+     * 다중 이미지 스캔을 통해 지능형으로 맥락을 융합하고 중복 없는 취약점 표적 퀴즈를 생성합니다.
+     */
+    suspend fun generateQuizzesFromImages(
+        images: List<android.graphics.Bitmap>,
+        previousQuizzesJson: String,
+        errorStatsJson: String,
+        count: Int = 5
+    ): String = withContext(Dispatchers.IO)
+    {
+        if (generativeModel == null || apiKey.isNullOrBlank())
+        {
+            return@withContext ""
+        }
+
+        val prompt = content {
+            images.forEach { bmp ->
+                image(bmp)
+            }
+            
+            text(
+                "당신은 전문 교육용 퀴즈 출제 위원입니다. 제공된 이미지(교과서, 문제집 등)들을 정밀 스캔하여 고도의 완성도를 지닌 퀴즈를 ${count}개 생성해 주세요.\n\n" +
+                "이전 출제되었던 문제 목록(중복 방지용):\n$previousQuizzesJson\n\n" +
+                "사용자의 학습 분석 오답 기록(취약 영역 저격용):\n$errorStatsJson\n\n" +
+                "제약 사항 및 요구 조건:\n" +
+                "1. **저작권 보호 및 재창작(Paraphrasing) 의무**:\n" +
+                "   - 이미지 안의 본문 텍스트를 절대로 그대로 타이핑하여 복제(Verbatim Copy)하지 마세요.\n" +
+                "   - 반드시 이미지 안의 지식과 개념을 파악하여 질문과 보기, 해설을 **독창적으로 요약 및 변형 가공**하여 새로운 문제로 재창작해 주세요.\n" +
+                "2. **맥락 기반 중복 방지**:\n" +
+                "   - 제공된 '이전 출제되었던 문제 목록'에 있는 질문들과 유사하거나 중복되는 문제가 출제되지 않도록 완전히 새로운 문제를 설계하세요.\n" +
+                "3. **취약 단원 타겟팅**:\n" +
+                "   - 제공된 '오답 기록' 정보가 있다면, 사용자가 자주 틀렸던 주제와 개념에 관련된 복습/함정 질문을 1-2개 유도하여 성취도를 평가하세요.\n" +
+                "4. **완벽한 JSON 배열 형식 응답**:\n" +
+                "   - 반드시 다음 JSON 형식의 배열로만 응답하세요. 다른 본문 텍스트나 설명은 제외하세요.\n" +
+                "   - JSON 구조:\n" +
+                "     [\n" +
+                "       {\n" +
+                "         \"id\": 숫자,\n" +
+                "         \"type\": \"MULTIPLE_CHOICE\" 또는 \"SUBJECTIVE\",\n" +
+                "         \"category\": \"AI 스캔 퀴즈\",\n" +
+                "         \"subCategory\": \"이미지 분석 핵심 단원\",\n" +
+                "         \"question\": \"재창작된 질문 내용\",\n" +
+                "         \"options\": [\"보기1\", \"보기2\", \"보기3\", \"보기4\"] (주관식인 경우 null),\n" +
+                "         \"answer\": \"정답\",\n" +
+                "         \"explanation\": \"상세한 오답 해설 및 개념 설명\",\n" +
+                "         \"semanticHint\": \"힌트\"\n" +
+                "       }\n" +
+                "     ]\n" +
+                "5. 정답은 명확하고 반론의 여지가 없어야 하며, 오답 보기들도 상당히 설득력 있고 매끄럽게 구성되어야 합니다."
+            )
+        }
+
+        return@withContext try
+        {
+            val response = generativeModel?.generateContent(prompt)
+            val result = response?.text ?: ""
+            cleanJsonString(result)
+        }
+        catch (e: Exception)
+        {
+            android.util.Log.e("GeminiManager", "❌ generateQuizzesFromImages error: ${e.message}", e)
+            ""
+        }
+    }
+
+    /**
+     * 질문과 정답만을 사용하여 그럴싸한 오답 3개와 해설을 포함한 JSON을 생성합니다.
+     */
+    suspend fun generateOptionsForQuestion(
+        question: String,
+        answer: String
+    ): String = withContext(Dispatchers.IO)
+    {
+        if (generativeModel == null || apiKey.isNullOrBlank())
+        {
+            return@withContext ""
+        }
+
+        val prompt = content {
+            text(
+                "당신은 전문 교육용 퀴즈 출제 보조 장치입니다. 주어진 질문과 정답을 기반으로, 퀴즈를 사지선다(객관식)로 구성할 수 있게 3개의 매끄럽고 설득력 있는 '오답(틀린 보기)'과 퀴즈에 대한 상세한 '해설'을 자동 생성해 주세요.\n\n" +
+                "질문: \"$question\"\n" +
+                "정답: \"$answer\"\n\n" +
+                "요구 조건:\n" +
+                "1. 정답을 뺀 오답 보기 3개는 정답인 것처럼 그럴싸하고 혼동하기 쉬워야 합니다. 전혀 터무니없는 보기는 배제해 주세요.\n" +
+                "2. 반드시 다음 JSON 객체 형식으로만 응답하세요. 다른 부가적인 텍스트나 설명은 포함하지 마세요.\n" +
+                "   JSON 구조:\n" +
+                "   {\n" +
+                "     \"options\": [\"정답내용\", \"오답1\", \"오답2\", \"오답3\"] (4개의 보기가 셔플되지 않은 채 정답을 포함한 배열로 되어야 합니다. 정답은 무조건 첫 번째 요소로 넣어주세요),\n" +
+                "     \"explanation\": \"정답이 왜 정답이고 오답들이 왜 틀렸는지 설명해 주는 아주 명쾌하고 친절한 해설 내용\"\n" +
+                "   }\n" +
+                "3. 반드시 JSON 형식 문자열만 반환하세요."
+            )
+        }
+
+        return@withContext try
+        {
+            val response = generativeModel?.generateContent(prompt)
+            val result = response?.text ?: ""
+            cleanJsonString(result)
+        }
+        catch (e: Exception)
+        {
+            android.util.Log.e("GeminiManager", "❌ generateOptionsForQuestion error: ${e.message}", e)
             ""
         }
     }

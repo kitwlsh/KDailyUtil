@@ -14,15 +14,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.json.JSONArray
+import org.json.JSONObject
 import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
 
-enum class QuizState {
+enum class QuizState
+{
     IDLE,
     PLAYING,
     ANSWER_CHECKED,
     FINISHED,
     CATEGORY_SELECTION,
-    GENERATING // AI 생성 중 상태
+    GENERATING,
+    CREATOR
 }
 
 class QuizViewModel(application: Application) : AndroidViewModel(application) {
@@ -99,11 +102,16 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun selectCategory(category: String?) {
+    fun selectCategory(category: String?)
+    {
         _selectedCategory.value = category
-        if (category == null) {
+        if (category == null)
+        {
+            loadCategories()
             _quizState.value = QuizState.CATEGORY_SELECTION
-        } else if (category != "AI 자동 생성 (KuizGenius)") {
+        }
+        else if (category != "AI 자동 생성 (KuizGenius)")
+        {
             startQuiz()
         }
     }
@@ -243,7 +251,8 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun checkAnswer() {
+    fun checkAnswer()
+    {
         if (_quizState.value != QuizState.PLAYING) return
 
         val currentQuestion = _questions.value[_currentIndex.value]
@@ -255,14 +264,23 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         val correct = cleanUserAnswer.equals(cleanCorrectAnswer, ignoreCase = true)
         _isCorrect.value = correct
         
-        if (correct) {
+        if (correct)
+        {
             _score.value += 1
             if (correctSoundId != 0) soundPool.play(correctSoundId, 1f, 1f, 0, 0, 1f)
-        } else {
+        }
+        else
+        {
             if (wrongSoundId != 0) soundPool.play(wrongSoundId, 1f, 1f, 0, 0, 1f)
         }
         
         _quizState.value = QuizState.ANSWER_CHECKED
+
+        val context = getApplication<Application>().applicationContext
+        viewModelScope.launch {
+            com.kitwlshcom.kdailyutil.data.QuizStatsManager.getInstance(context)
+                .recordQuizResult(currentQuestion.category, currentQuestion.question, correct)
+        }
     }
 
     fun nextQuestion() {
@@ -278,8 +296,203 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun exitQuiz() {
+    fun exitQuiz()
+    {
         _quizState.value = QuizState.CATEGORY_SELECTION
         _selectedCategory.value = null
+    }
+
+    fun enterCreator()
+    {
+        _quizState.value = QuizState.CREATOR
+    }
+
+    fun loadCategories()
+    {
+        viewModelScope.launch {
+            val custom = repository.getCustomCategories(getApplication())
+            val baseList = listOf("우리말 겨루기", "트렌드 말하기", "상식 백과", "세계 여행", "AI 자동 생성 (KuizGenius)")
+            _availableCategories.value = baseList + custom
+        }
+    }
+
+    fun deleteCustomCategory(category: String)
+    {
+        viewModelScope.launch {
+            val context = getApplication<Application>().applicationContext
+            repository.deleteCustomCategory(context, category)
+            loadCategories()
+        }
+    }
+
+    fun importQuizFromUri(uri: android.net.Uri)
+    {
+        viewModelScope.launch {
+            val context = getApplication<Application>().applicationContext
+            val pkg = com.kitwlshcom.kdailyutil.data.QuizFileHandler.importQuizzes(context, uri)
+            if (pkg != null)
+            {
+                repository.saveCustomQuizzes(context, pkg.questions)
+                loadCategories()
+                Log.d("QuizViewModel", "✅ Successfully imported custom category: ${pkg.category}")
+            }
+            else
+            {
+                Log.e("QuizViewModel", "❌ Failed to import quiz package from Uri: $uri")
+            }
+        }
+    }
+
+    fun saveCustomQuizzes(quizzes: List<QuizQuestion>)
+    {
+        viewModelScope.launch {
+            val context = getApplication<Application>().applicationContext
+            repository.saveCustomQuizzes(context, quizzes)
+            loadCategories()
+        }
+    }
+
+    fun generateWrongOptions(
+        question: String,
+        answer: String,
+        onComplete: (options: List<String>?, explanation: String) -> Unit
+    )
+    {
+        viewModelScope.launch {
+            val apiKey = settingsRepository.geminiApiKeyFlow.first()
+            if (apiKey.isNullOrBlank())
+            {
+                onComplete(null, "API 키가 필요합니다.")
+                return@launch
+            }
+
+            try
+            {
+                val gemini = GeminiManager(apiKey)
+                val jsonString = gemini.generateOptionsForQuestion(question, answer)
+                if (jsonString.isNotBlank())
+                {
+                    val obj = org.json.JSONObject(jsonString)
+                    val optionsArray = obj.getJSONArray("options")
+                    val optionsList = List(optionsArray.length()) { optionsArray.getString(it) }
+                    val explanation = obj.getString("explanation")
+                    onComplete(optionsList, explanation)
+                }
+                else
+                {
+                    onComplete(null, "보기 생성에 실패했습니다.")
+                }
+            }
+            catch (e: Exception)
+            {
+                Log.e("QuizViewModel", "❌ AI Option Generation Failed: ${e.message}", e)
+                onComplete(null, "보기 생성 오류: ${e.message}")
+            }
+        }
+    }
+
+    fun generateAiQuizFromImages(
+        images: List<android.graphics.Bitmap>,
+        categoryName: String
+    )
+    {
+        viewModelScope.launch {
+            _quizState.value = QuizState.GENERATING
+            val apiKey = settingsRepository.geminiApiKeyFlow.first()
+            if (apiKey.isNullOrBlank())
+            {
+                _quizState.value = QuizState.CATEGORY_SELECTION
+                return@launch
+            }
+
+            try
+            {
+                val context = getApplication<Application>().applicationContext
+                val statsManager = com.kitwlshcom.kdailyutil.data.QuizStatsManager.getInstance(context)
+                
+                // Read previous questions to prevent duplicates
+                val previousQuizzes = repository.getQuizzes(context)
+                val prevQuizzesArray = JSONArray().apply {
+                    previousQuizzes.forEach { q ->
+                        put(JSONObject().apply {
+                            put("question", q.question)
+                            put("category", q.category)
+                        })
+                    }
+                }
+                
+                // Fetch top error statistics
+                val highErrorStats = statsManager.getHighErrorQuestions(5)
+                val errorStatsArray = JSONArray().apply {
+                    highErrorStats.forEach { (key, rate) ->
+                        put(JSONObject().apply {
+                            put("questionKey", key)
+                            put("errorRate", rate)
+                        })
+                    }
+                }
+
+                val gemini = GeminiManager(apiKey)
+                val jsonString = gemini.generateQuizzesFromImages(
+                    images = images,
+                    previousQuizzesJson = prevQuizzesArray.toString(),
+                    errorStatsJson = errorStatsArray.toString()
+                )
+
+                if (jsonString.isBlank())
+                {
+                    Log.e("QuizViewModel", "❌ Empty response from image quiz generation")
+                    _quizState.value = QuizState.CATEGORY_SELECTION
+                    return@launch
+                }
+
+                val jsonArray = JSONArray(jsonString)
+                val aiQuestions = mutableListOf<QuizQuestion>()
+
+                for (i in 0 until jsonArray.length())
+                {
+                    val obj = jsonArray.getJSONObject(i)
+                    val optionsArray = obj.optJSONArray("options")
+                    val optionsList = if (optionsArray != null)
+                    {
+                        List(optionsArray.length()) { idx -> optionsArray.getString(idx) }
+                    }
+                    else null
+
+                    val baseQuestion = obj.getString("question")
+                    val uniqueId = Math.abs((categoryName + baseQuestion).hashCode())
+
+                    aiQuestions.add(
+                        QuizQuestion(
+                            id = uniqueId,
+                            type = QuizType.valueOf(obj.getString("type")),
+                            category = categoryName,
+                            subCategory = obj.optString("subCategory", "AI 이미지 분석"),
+                            question = baseQuestion,
+                            options = optionsList,
+                            answer = obj.getString("answer"),
+                            explanation = obj.getString("explanation"),
+                            semanticHint = obj.optString("semanticHint", null)
+                        )
+                    )
+                }
+
+                repository.saveCustomQuizzes(context, aiQuestions)
+                loadCategories()
+                
+                _questions.value = aiQuestions
+                _currentIndex.value = 0
+                _score.value = 0
+                _quizState.value = QuizState.PLAYING
+                _currentInput.value = ""
+                _isCorrect.value = false
+                resetHintState()
+            }
+            catch (e: Exception)
+            {
+                Log.e("QuizViewModel", "❌ AI Image Quiz Generation Failed: ${e.message}", e)
+                _quizState.value = QuizState.CATEGORY_SELECTION
+            }
+        }
     }
 }
