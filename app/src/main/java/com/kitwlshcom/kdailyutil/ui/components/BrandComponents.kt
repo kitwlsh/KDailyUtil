@@ -24,7 +24,7 @@ fun BrandWatermark(
             contentDescription = null,
             modifier = Modifier
                 .size(360.dp)
-                .alpha(0.15f), // 15% 투명도로 강화
+                .alpha(0.28f), // 28% 투명도로 명품화
             contentScale = ContentScale.Fit
         )
     }

@@ -25,6 +25,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.Color
 import android.widget.Toast
 import android.util.Log
 
@@ -47,9 +48,15 @@ fun NewsDetailScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(selectedNewsItem?.source ?: "뉴스 본문", style = MaterialTheme.typography.titleMedium) },
+                title = { Text(selectedNewsItem?.source ?: "뉴스 본문", style = MaterialTheme.typography.titleMedium, color = Color.White) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
+                ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "뒤로가기")
@@ -161,7 +168,7 @@ fun NewsDetailScreen(
                                     font-family: 'Noto Sans KR', sans-serif;
                                     line-height: 1.8;
                                     color: $hexTextColor;
-                                    background-color: $hexBackgroundColor;
+                                    background-color: transparent;
                                     margin: 0;
                                     padding: 0;
                                     font-size: 17px;
@@ -220,7 +227,7 @@ fun NewsDetailScreen(
                                             return true
                                         }
                                     }
-                                    setBackgroundColor(backgroundColor)
+                                    setBackgroundColor(0) // 투명 배경 강제
                                 }
                             },
                             update = { webView ->

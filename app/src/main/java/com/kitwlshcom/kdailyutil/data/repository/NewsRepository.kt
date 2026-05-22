@@ -28,6 +28,27 @@ class NewsRepository(private val context: Context? = null) {
         private const val REGION_PARAMS = "hl=ko&gl=KR&ceid=KR:ko"
     }
 
+    private fun parsePubDateToMillis(pubDate: String?): Long {
+        if (pubDate.isNullOrBlank()) return 0L
+        val formats = listOf(
+            "EEE, dd MMM yyyy HH:mm:ss zzz",
+            "EEE, dd MMM yyyy HH:mm:ss Z",
+            "EEE, dd MMM yyyy HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        )
+        for (format in formats) {
+            try {
+                val sdf = java.text.SimpleDateFormat(format, java.util.Locale.US)
+                return sdf.parse(pubDate.trim())?.time ?: 0L
+            } catch (e: Exception) {
+                // Ignore and try next format
+            }
+        }
+        return 0L
+    }
+
     suspend fun getNewsByKeyword(keyword: String, limit: Int = 3): List<NewsItem> = withContext(Dispatchers.IO) {
         val url = if (keyword.isBlank()) {
             "$BASE_URL?$REGION_PARAMS"
@@ -42,7 +63,7 @@ class NewsRepository(private val context: Context? = null) {
                 .get()
 
             val items = doc.select("item")
-            items.take(limit).mapNotNull { item ->
+            items.mapNotNull { item ->
                 val link = item.select("link").text()
                 // 조선일보 제외
                 if (link.contains("chosun.com")) return@mapNotNull null
@@ -62,6 +83,8 @@ class NewsRepository(private val context: Context? = null) {
                     source = item.select("source").text()
                 )
             }
+            .sortedByDescending { parsePubDateToMillis(it.pubDate) }
+            .take(limit)
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching news for keyword: $keyword", e)
             emptyList()
@@ -554,7 +577,7 @@ class NewsRepository(private val context: Context? = null) {
     suspend fun getAllNews(keywords: Set<String>, limitPerKeyword: Int = 3): List<NewsItem> {
         return keywords.flatMap { keyword ->
             getNewsByKeyword(keyword, limitPerKeyword)
-        }.sortedByDescending { it.pubDate }
+        }.sortedByDescending { parsePubDateToMillis(it.pubDate) }
     }
 
     suspend fun getEditorials(limit: Int = 5): List<NewsItem> = withContext(Dispatchers.IO) {
@@ -563,5 +586,76 @@ class NewsRepository(private val context: Context? = null) {
             getNewsByKeyword(keyword, (limit / editorialKeywords.size) + 1)
         }.take(limit)
     }
-    
+
+    private fun getCacheFile(cacheKey: String): java.io.File? {
+        val safeContext = context ?: return null
+        val encodedKey = android.util.Base64.encodeToString(
+            cacheKey.toByteArray(java.nio.charset.StandardCharsets.UTF_8),
+            android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP
+        )
+        return java.io.File(safeContext.filesDir, "news_cache_$encodedKey.json")
+    }
+
+    suspend fun saveCachedNews(cacheKey: String, newsList: List<NewsItem>) = withContext(Dispatchers.IO) {
+        val file = getCacheFile(cacheKey) ?: return@withContext
+        try {
+            val jsonArray = org.json.JSONArray()
+            for (item in newsList) {
+                val jsonObj = org.json.JSONObject().apply {
+                    put("title", item.title)
+                    put("link", item.link)
+                    put("description", item.description)
+                    put("pubDate", item.pubDate)
+                    put("source", item.source)
+                    put("summary", item.summary)
+                    put("fullContent", item.fullContent)
+                    put("fullContentHtml", item.fullContentHtml)
+                }
+                jsonArray.put(jsonObj)
+            }
+            file.writeText(jsonArray.toString(), java.nio.charset.StandardCharsets.UTF_8)
+            Log.d(TAG, "💾 Saved $cacheKey cache to file: ${file.absolutePath}")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to save news cache for $cacheKey", e)
+        }
+    }
+
+    suspend fun loadCachedNews(cacheKey: String): List<NewsItem> = withContext(Dispatchers.IO) {
+        val file = getCacheFile(cacheKey) ?: return@withContext emptyList()
+        if (!file.exists()) return@withContext emptyList()
+        try {
+            val jsonStr = file.readText(java.nio.charset.StandardCharsets.UTF_8)
+            val jsonArray = org.json.JSONArray(jsonStr)
+            val list = mutableListOf<NewsItem>()
+            for (i in 0 until jsonArray.length()) {
+                val jsonObj = jsonArray.getJSONObject(i)
+                list.add(
+                    NewsItem(
+                        title = jsonObj.optString("title", ""),
+                        link = jsonObj.optString("link", ""),
+                        description = jsonObj.optString("description", ""),
+                        pubDate = jsonObj.optString("pubDate", ""),
+                        source = jsonObj.optString("source", ""),
+                        summary = jsonObj.optString("summary", ""),
+                        fullContent = jsonObj.optString("fullContent", ""),
+                        fullContentHtml = jsonObj.optString("fullContentHtml", "")
+                    )
+                )
+            }
+            Log.d(TAG, "📂 Loaded $cacheKey cache from file (size: ${list.size})")
+            list
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to load news cache for $cacheKey", e)
+            emptyList()
+        }
+    }
+
+    fun getCacheLastModified(cacheKey: String): Long {
+        val file = getCacheFile(cacheKey)
+        return if (file != null && file.exists()) {
+            file.lastModified()
+        } else {
+            0L
+        }
+    }
 }

@@ -40,6 +40,9 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     val stockKeywords = settingsRepository.stockKeywordsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
     val aiCommandAudioPath = settingsRepository.aiCommandAudioPathFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val isApiKeyValidated = settingsRepository.isApiKeyValidatedFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
+    val autoRefreshIntervalHours = settingsRepository.autoRefreshIntervalFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), 2)
+    val newsLimit = settingsRepository.newsLimitFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), 20)
+    val splashTheme = settingsRepository.splashThemeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "shimmer")
 
     val categories = settingsRepository.categoriesFlow.map { cats ->
         val fixed = listOf("전체", "증시", "AI")
@@ -100,6 +103,19 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     val isLoadingDetail: StateFlow<Boolean> = _isLoadingDetail.asStateFlow()
 
     private val aiAnalysisCache = mutableMapOf<String, NewsItem>()
+    private val generalNewsCache = java.util.concurrent.ConcurrentHashMap<String, List<NewsItem>>()
+
+    fun updateAutoRefreshInterval(hours: Int) {
+        viewModelScope.launch { settingsRepository.updateAutoRefreshInterval(hours) }
+    }
+
+    fun updateNewsLimit(limit: Int) {
+        viewModelScope.launch { settingsRepository.updateNewsLimit(limit) }
+    }
+
+    fun updateSplashTheme(theme: String) {
+        viewModelScope.launch { settingsRepository.updateSplashTheme(theme) }
+    }
 
     fun updateKeywords(newKeywords: Set<String>) {
         viewModelScope.launch { settingsRepository.updateKeywords(newKeywords) }
@@ -192,25 +208,119 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
 
     fun fetchNews(forceRefresh: Boolean = false) {
         viewModelScope.launch {
+            val currentCategory = _selectedCategory.value
+            
+            // 1. AI 카테고리 특수 처리
+            if (currentCategory == "AI") {
+                _isRefreshing.value = true
+                try {
+                    generateAiCustomBriefing(forceRefresh)
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ Error fetching AI briefing: ${e.message}", e)
+                } finally {
+                    _isRefreshing.value = false
+                }
+                return@launch
+            }
+
+            // 2. 일반 뉴스 카테고리 캐시 키 계산
+            val cacheKey = if (currentCategory == "증시") {
+                val targetKeyword = selectedStockKeyword.value ?: stockKeywords.value.firstOrNull() ?: "증시"
+                "증시_$targetKeyword"
+            } else {
+                currentCategory
+            }
+
+            // 3. 캐시가 존재하고 강제 새로고침이 아니라면 즉시 데이터 반환
+            if (!forceRefresh) {
+                // 3-1. RAM 캐시에 있는 경우
+                if (generalNewsCache.containsKey(cacheKey)) {
+                    _newsItems.value = generalNewsCache[cacheKey] ?: emptyList()
+                    Log.d(TAG, "✅ Loaded $cacheKey news from RAM cache")
+                    return@launch
+                }
+                // 3-2. 로컬 파일 영구 캐시에 있는 경우 로드하여 복원
+                val persistentCached = newsRepository.loadCachedNews(cacheKey)
+                if (persistentCached.isNotEmpty()) {
+                    val lastModified = newsRepository.getCacheLastModified(cacheKey)
+                    val intervalHours = autoRefreshIntervalHours.value
+                    
+                    // intervalHours가 0이면 자동 새로고침 비활성화(안 함)
+                    var isExpired = if (intervalHours > 0 && lastModified > 0L) {
+                        val diffMillis = System.currentTimeMillis() - lastModified
+                        val diffHours = diffMillis.toDouble() / (1000 * 60 * 60)
+                        diffHours >= intervalHours
+                    } else {
+                        false
+                    }
+
+                    // 예약 브리핑 기준 추가 만료 판정
+                    if (!isExpired && isBriefingEnabled.value && lastModified > 0L) {
+                        val (bHour, bMinute) = briefingTime.value
+                        val now = java.util.Calendar.getInstance()
+                        
+                        // 오늘 설정된 예약 시각 Calendar 객체 생성
+                        val scheduledToday = java.util.Calendar.getInstance().apply {
+                            set(java.util.Calendar.HOUR_OF_DAY, bHour)
+                            set(java.util.Calendar.MINUTE, bMinute)
+                            set(java.util.Calendar.SECOND, 0)
+                            set(java.util.Calendar.MILLISECOND, 0)
+                        }
+                        
+                        // 가장 최근에 지나간 예약 시각 결정
+                        val mostRecentSchedule = if (now.before(scheduledToday)) {
+                            // 현재 시각이 오늘 예약 시각보다 이전이라면, 가장 최근 예약 시각은 '어제' 예약 시각
+                            (scheduledToday.clone() as java.util.Calendar).apply {
+                                add(java.util.Calendar.DATE, -1)
+                            }
+                        } else {
+                            // 현재 시각이 오늘 예약 시각을 지났다면, 가장 최근 예약 시각은 '오늘' 예약 시각
+                            scheduledToday
+                        }
+                        
+                        // 마지막 캐시 수정 시각이 가장 최근 예약 시각 이전이라면 만료로 판단
+                        if (lastModified < mostRecentSchedule.timeInMillis) {
+                            Log.d(TAG, "⏰ Cache for $cacheKey is older than the most recent briefing schedule. Expiring cache to refresh.")
+                            isExpired = true
+                        }
+                    }
+
+                    if (isExpired) {
+                        Log.d(TAG, "⏰ Cache for $cacheKey is expired (interval or schedule). Automatically refreshing...")
+                        // 캐시가 만료되었으므로 아래 실제 크롤링으로 넘어가도록 계속 진행
+                    } else {
+                        generalNewsCache[cacheKey] = persistentCached
+                        _newsItems.value = persistentCached
+                        Log.d(TAG, "✅ Loaded $cacheKey news from persistent file cache (Valid cache)")
+                        return@launch
+                    }
+                }
+            }
+
+            // 4. 캐시가 없거나 강제 새로고침 시 실제 크롤링 수행
             _isRefreshing.value = true
             try {
-                val currentCategory = _selectedCategory.value
-                
-                if (currentCategory == "AI") {
-                    generateAiCustomBriefing(forceRefresh)
-                } else if (currentCategory == "증시") {
+                val limitCount = newsLimit.value
+                val allNews = if (currentCategory == "증시") {
                     val targetKeyword = selectedStockKeyword.value ?: stockKeywords.value.firstOrNull() ?: "증시"
-                    _newsItems.value = newsRepository.getNewsByKeyword(targetKeyword, 20)
+                    newsRepository.getNewsByKeyword(targetKeyword, limitCount)
+                } else if (currentCategory == "전체") {
+                    val topNewsLimit = (limitCount / 2).coerceAtLeast(10)
+                    val topNews = newsRepository.getTopNews(topNewsLimit)
+                    val keywordNews = newsRepository.getAllNews(keywords.value)
+                    (topNews + keywordNews).distinctBy { it.link }
                 } else {
-                    val allNews = if (currentCategory == "전체") {
-                        val topNews = newsRepository.getTopNews(10)
-                        val keywordNews = newsRepository.getAllNews(keywords.value)
-                        (topNews + keywordNews).distinctBy { it.link }
-                    } else {
-                        newsRepository.getNewsByKeyword(currentCategory, 20)
-                    }
-                    _newsItems.value = allNews
+                    newsRepository.getNewsByKeyword(currentCategory, limitCount)
                 }
+                
+                _newsItems.value = allNews
+                // 캐시 업데이트
+                if (allNews.isNotEmpty()) {
+                    generalNewsCache[cacheKey] = allNews
+                    // 파일 캐시도 영구 저장
+                    newsRepository.saveCachedNews(cacheKey, allNews)
+                }
+                Log.d(TAG, "🌐 Successfully fetched fresh $cacheKey news")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error fetching news: ${e.message}", e)
                 _newsItems.value = listOf(
@@ -244,10 +354,24 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
-        if (!forceRefresh && aiAnalysisCache.containsKey(targetCommand)) {
-            _newsItems.value = listOf(aiAnalysisCache[targetCommand]!!)
-            Log.d(TAG, "✅ Loaded AI Analysis from cache")
-            return
+        val fileCacheKey = "AI_$targetCommand"
+
+        if (!forceRefresh) {
+            // 1. RAM 캐시 우선 체크
+            if (aiAnalysisCache.containsKey(targetCommand)) {
+                _newsItems.value = listOf(aiAnalysisCache[targetCommand]!!)
+                Log.d(TAG, "✅ Loaded AI Analysis from RAM cache")
+                return
+            }
+            // 2. 파일 캐시 체크 및 복원
+            val persistentCached = newsRepository.loadCachedNews(fileCacheKey)
+            if (persistentCached.isNotEmpty()) {
+                val cachedItem = persistentCached.first()
+                aiAnalysisCache[targetCommand] = cachedItem
+                _newsItems.value = listOf(cachedItem)
+                Log.d(TAG, "✅ Loaded AI Analysis from persistent file cache")
+                return
+            }
         }
 
         _isAiAnalysisLoading.value = true
@@ -272,6 +396,9 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
             
             aiAnalysisCache[targetCommand] = aiNewsItem
             _newsItems.value = listOf(aiNewsItem)
+            
+            // 파일 캐시로 영구 저장
+            newsRepository.saveCachedNews(fileCacheKey, listOf(aiNewsItem))
 
             Log.d(TAG, "✅ AI Analysis successful")
         } catch (e: Exception) {

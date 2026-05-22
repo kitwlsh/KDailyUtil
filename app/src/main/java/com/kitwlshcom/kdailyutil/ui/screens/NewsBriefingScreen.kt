@@ -53,7 +53,7 @@ fun NewsBriefingScreen(
 
     val listState = rememberLazyListState()
 
-    LaunchedEffect(selectedCategory) {
+    LaunchedEffect(selectedCategory, selectedAiCommand, selectedStockKeyword) {
         listState.scrollToItem(0)
     }
 
@@ -155,6 +155,20 @@ fun NewsBriefingScreen(
                             tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
                         )
                     }
+                }
+
+                // 새로고침 로딩바 (골드 프리미엄 인디케이터)
+                if (isRefreshing) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .padding(bottom = 4.dp),
+                        color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                        trackColor = Color.White.copy(alpha = 0.1f)
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(2.dp))
                 }
 
                 // AI 카테고리 선택 시 서브 탭 표시

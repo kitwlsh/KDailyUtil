@@ -11,6 +11,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -38,13 +40,17 @@ class MainActivity : ComponentActivity() {
         setContent {
             audioViewModel = viewModel()
             KDailyUtilTheme {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val settingsRepository = remember { com.kitwlshcom.kdailyutil.data.repository.SettingsRepository(context) }
+                val splashTheme by settingsRepository.splashThemeFlow.collectAsState(initial = "shimmer")
+
                 // Surface를 사용하여 테마 배경색(DeepCharcoal)을 전체 화면에 적용
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     if (showSplash) {
-                        SplashScreen(onFinished = { showSplash = false })
+                        SplashScreen(theme = splashTheme, onFinished = { showSplash = false })
                     } else {
                         MainScreen(
                             audioViewModel = audioViewModel,

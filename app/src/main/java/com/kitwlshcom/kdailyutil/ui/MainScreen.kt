@@ -41,7 +41,7 @@ fun MainScreen(
                 launchSingleTop = true
                 restoreState = true
             }
-            briefingViewModel.fetchNews()
+            briefingViewModel.fetchNews(forceRefresh = true)
             delay(300)
             while (briefingViewModel.isRefreshing.value) {
                 delay(200)

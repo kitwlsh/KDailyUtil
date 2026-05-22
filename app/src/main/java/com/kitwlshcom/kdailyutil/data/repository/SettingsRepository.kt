@@ -27,6 +27,9 @@ class SettingsRepository(private val context: Context) {
         val AI_COMMAND_AUDIO_PATH = stringPreferencesKey("ai_command_audio_path")
         val IS_API_KEY_VALIDATED = booleanPreferencesKey("is_api_key_validated")
         val STOCK_KEYWORDS = stringSetPreferencesKey("stock_keywords")
+        val AUTO_REFRESH_INTERVAL_HOURS = intPreferencesKey("auto_refresh_interval_hours")
+        val NEWS_LIMIT = intPreferencesKey("news_limit")
+        val SPLASH_THEME = stringPreferencesKey("splash_theme")
     }
 
     // 신규 오디오 설정
@@ -82,6 +85,18 @@ class SettingsRepository(private val context: Context) {
         preferences[PreferencesKeys.IS_API_KEY_VALIDATED] ?: false
     }
 
+    val autoRefreshIntervalFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.AUTO_REFRESH_INTERVAL_HOURS] ?: 2 // 기본값 2시간
+    }
+
+    val newsLimitFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.NEWS_LIMIT] ?: 20 // 기본값 20개
+    }
+
+    val splashThemeFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.SPLASH_THEME] ?: "shimmer"
+    }
+
     // 저장 메서드들
     suspend fun savePlaybackMode(mode: PlaybackMode) {
         context.dataStore.edit { it[PreferencesKeys.PLAYBACK_MODE] = mode.name }
@@ -132,5 +147,17 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun updateStockKeywords(keywords: Set<String>) {
         context.dataStore.edit { it[PreferencesKeys.STOCK_KEYWORDS] = keywords }
+    }
+
+    suspend fun updateAutoRefreshInterval(hours: Int) {
+        context.dataStore.edit { it[PreferencesKeys.AUTO_REFRESH_INTERVAL_HOURS] = hours }
+    }
+
+    suspend fun updateNewsLimit(limit: Int) {
+        context.dataStore.edit { it[PreferencesKeys.NEWS_LIMIT] = limit }
+    }
+
+    suspend fun updateSplashTheme(theme: String) {
+        context.dataStore.edit { it[PreferencesKeys.SPLASH_THEME] = theme }
     }
 }

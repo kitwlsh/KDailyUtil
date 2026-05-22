@@ -63,12 +63,12 @@ fun DrivingShadowingScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF121212)) // 눈부심 방지 딥 블랙
+            .background(Color.Transparent)
     ) {
         // 1. 상단 고정 제목 영역
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = Color.Black,
+            color = Color.Black.copy(alpha = 0.75f),
             shadowElevation = 8.dp
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -134,7 +134,7 @@ fun DrivingShadowingScreen(
                     .align(Alignment.BottomCenter)
                     .background(
                         brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color(0xFF121212))
+                            colors = listOf(Color.Transparent, com.kitwlshcom.kdailyutil.ui.theme.DeepCharcoal.copy(alpha = 0.8f))
                         )
                     )
             )
@@ -175,7 +175,7 @@ fun DrivingShadowingScreen(
         // 4. 하단 거대 제어바
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = Color.Black,
+            color = Color.Black.copy(alpha = 0.75f),
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
         ) {
             Row(

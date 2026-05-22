@@ -230,6 +230,195 @@ fun MorningBriefingSettingsScreen(
         HorizontalDivider()
         Spacer(modifier = Modifier.height(24.dp))
 
+        // 기본 뉴스 서비스 설정
+        Text("기본 뉴스 서비스 설정", style = MaterialTheme.typography.titleMedium, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 1. 자동 새로고침 주기 설정
+        val autoRefreshInterval by viewModel.autoRefreshIntervalHours.collectAsState()
+        var showIntervalDropdown by remember { mutableStateOf(false) }
+        val intervalOptions = listOf(
+            Pair(0, "안 함"),
+            Pair(1, "1시간"),
+            Pair(2, "2시간 (추천)"),
+            Pair(3, "3시간"),
+            Pair(5, "5시간"),
+            Pair(12, "12시간"),
+            Pair(24, "24시간")
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("자동 새로고침 주기", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    "설정 시간 경과 후 앱 실행 시 뉴스를 자동으로 갱신합니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+            Box {
+                val currentText = intervalOptions.find { it.first == autoRefreshInterval }?.second ?: "${autoRefreshInterval}시간"
+                OutlinedButton(
+                    onClick = { showIntervalDropdown = true },
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.5f))
+                ) {
+                    Text(currentText, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                }
+                DropdownMenu(
+                    expanded = showIntervalDropdown,
+                    onDismissRequest = { showIntervalDropdown = false }
+                ) {
+                    intervalOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option.second) },
+                            onClick = {
+                                viewModel.updateAutoRefreshInterval(option.first)
+                                showIntervalDropdown = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 2. 뉴스 노출 개수 설정
+        val limitValue by viewModel.newsLimit.collectAsState()
+        var showLimitDropdown by remember { mutableStateOf(false) }
+        val limitOptions = listOf(10, 20, 30, 50)
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("기사 표시 개수", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    "뉴스 탭당 불러올 기사의 개수를 설정합니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+            Box {
+                OutlinedButton(
+                    onClick = { showLimitDropdown = true },
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.5f))
+                ) {
+                    Text("${limitValue}개", color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                }
+                DropdownMenu(
+                    expanded = showLimitDropdown,
+                    onDismissRequest = { showLimitDropdown = false }
+                ) {
+                    limitOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text("${option}개") },
+                            onClick = {
+                                viewModel.updateNewsLimit(option)
+                                showLimitDropdown = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 3. 스플래시 화면 테마 설정
+        val splashTheme by viewModel.splashTheme.collectAsState()
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("스플래시 화면 디자인", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                Text(
+                    "앱 실행 시 시작 화면의 프리미엄 연출 방식을 선택합니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // 프리미엄 2주기 반사광 옵션
+            val isShimmer = splashTheme == "shimmer"
+            OutlinedButton(
+                onClick = { viewModel.updateSplashTheme("shimmer") },
+                modifier = Modifier.weight(1f),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (isShimmer) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.12f)
+                ),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (isShimmer) com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.08f) else Color.Transparent
+                )
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = if (isShimmer) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "2주기 사선 반사광",
+                        fontWeight = if (isShimmer) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isShimmer) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.8f),
+                        fontSize = 13.sp
+                    )
+                }
+            }
+
+            // 유성 스파이럴 궤도 옵션
+            val isMeteor = splashTheme == "meteor"
+            OutlinedButton(
+                onClick = { viewModel.updateSplashTheme("meteor") },
+                modifier = Modifier.weight(1f),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (isMeteor) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.12f)
+                ),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (isMeteor) com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.08f) else Color.Transparent
+                )
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = if (isMeteor) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "유성 스파이럴 궤도",
+                        fontWeight = if (isMeteor) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isMeteor) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White.copy(alpha = 0.8f),
+                        fontSize = 13.sp
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(24.dp))
+
         // Gemini API Key
         Row(
             modifier = Modifier.fillMaxWidth(),
