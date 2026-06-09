@@ -112,7 +112,7 @@ class GeminiManager(private val apiKey: String?) {
                  "    \"semanticHint\": \"힌트\"\n" +
                  "  }\n" +
                  "]\n" +
-                 "3. 정답은 명확해야 하며, 해설은 친절하게 작성해 주세요.")
+                 "3. 정답은 명확해야 하며, 해설은 친절하게 작성해 주세요. 특히 'SUBJECTIVE'(주관식) 문제의 경우 정답이 긴 문장(서술형)이 아닌, 1~3단어 이내의 명사, 인명, 지명, 단어, 혹은 명확한 수치로만 출제되도록 하세요. 긴 문장을 그대로 입력해야 정답 처리되는 주관식 문제는 출제하지 마세요.")
         }
 
         val response = generativeModel?.generateContent(prompt)
@@ -207,7 +207,7 @@ class GeminiManager(private val apiKey: String?) {
                 "         \"semanticHint\": \"힌트\"\n" +
                 "       }\n" +
                 "     ]\n" +
-                "5. 정답은 명확하고 반론의 여지가 없어야 하며, 오답 보기들도 상당히 설득력 있고 매끄럽게 구성되어야 합니다."
+                "5. 정답은 명확하고 반론의 여지가 없어야 하며, 오답 보기들도 상당히 설득력 있고 매끄럽게 구성되어야 합니다. 특히 'SUBJECTIVE'(주관식) 문제의 경우 정답이 긴 문장(서술형)이 아닌, 1~3단어 이내의 명사, 인명, 지명, 단어, 혹은 명확한 수치로만 출제되도록 하세요. 긴 문장을 그대로 입력해야 정답 처리되는 주관식 문제는 출제하지 마세요."
             )
         }
 
@@ -264,6 +264,46 @@ class GeminiManager(private val apiKey: String?) {
         {
             android.util.Log.e("GeminiManager", "❌ generateOptionsForQuestion error: ${e.message}", e)
             ""
+        }
+    }
+
+    /**
+     * 주관식 답변이 정답과 일치하거나 의미상 동등한지 검증합니다.
+     */
+    suspend fun verifySubjectiveAnswer(
+        question: String,
+        correctAnswer: String,
+        userAnswer: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (generativeModel == null || apiKey.isNullOrBlank()) {
+            return@withContext false
+        }
+
+        val prompt = content {
+            text(
+                "당신은 퀴즈 정답 채점 위원입니다. 다음 질문에 대한 제시된 정답과 사용자의 입력 정답을 비교하여, 사용자의 정답이 맞는지 판정해 주세요.\n\n" +
+                "질문: \"$question\"\n" +
+                "제시된 정답: \"$correctAnswer\"\n" +
+                "사용자 입력: \"$userAnswer\"\n\n" +
+                "채점 기준:\n" +
+                "1. 동의어/유의어: 의미상 또는 문맥상 동일한 대상이나 개념을 가리키는 경우 정답(true)으로 판정합니다.\n" +
+                "2. 영어/한글 발음: 영어 정답을 한글 발음으로 입력했거나(예: 'Washington'에 대해 '워싱턴', '워싱턴 DC'에 대해 '워싱턴' 또는 '워싱턴디씨' 또는 '워싱턴DC' 등) 혹은 그 반대의 경우에도 정답(true)으로 판정합니다.\n" +
+                "3. 핵심 단어 포함: 약어, 부분 단어(예: '대한민국'에 대해 '한국')가 문맥상 정답으로 충분히 유동적으로 해석 가능하면 정답(true)으로 판정합니다.\n" +
+                "4. 주관식/서술형: 정답이 비교적 긴 문장인 경우, 핵심 단어가 포함되어 있고 문장의 의미가 제시된 정답과 문맥상 일치하면 정답(true)으로 판정합니다.\n" +
+                "5. 반드시 다음 JSON 형식으로만 응답하세요. 다른 본문 텍스트나 설명은 제외하세요.\n" +
+                "   JSON 구조: { \"isCorrect\": true 또는 false }"
+            )
+        }
+
+        return@withContext try {
+            val response = generativeModel?.generateContent(prompt)
+            val result = response?.text ?: ""
+            val cleaned = cleanJsonString(result)
+            val obj = org.json.JSONObject(cleaned)
+            obj.getBoolean("isCorrect")
+        } catch (e: Exception) {
+            android.util.Log.e("GeminiManager", "❌ verifySubjectiveAnswer error: ${e.message}", e)
+            false
         }
     }
 }

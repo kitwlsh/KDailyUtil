@@ -474,6 +474,7 @@ fun QuizPlayScreen(viewModel: QuizViewModel)
     val isCorrect by viewModel.isCorrect.collectAsState()
     val currentHintText by viewModel.currentHintText.collectAsState()
     val filteredOptions by viewModel.filteredOptions.collectAsState()
+    val isCheckingAnswer by viewModel.isCheckingAnswer.collectAsState()
 
     val currentQuestion = questions.getOrNull(currentIndex) ?: return
     val isAnswerChecked = quizState == QuizState.ANSWER_CHECKED
@@ -701,7 +702,7 @@ fun QuizPlayScreen(viewModel: QuizViewModel)
                         .padding(vertical = 4.dp)
                         .background(backgroundColor, RoundedCornerShape(10.dp))
                         .border(1.5.dp, borderColor, RoundedCornerShape(10.dp))
-                        .clickable(enabled = !isAnswerChecked) {
+                        .clickable(enabled = !isAnswerChecked && !isCheckingAnswer) {
                             viewModel.updateInput(option)
                         }
                         .padding(12.dp)
@@ -715,11 +716,11 @@ fun QuizPlayScreen(viewModel: QuizViewModel)
                 onValueChange = { viewModel.updateInput(it) },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("정답을 입력하세요") },
-                enabled = !isAnswerChecked,
+                enabled = !isAnswerChecked && !isCheckingAnswer,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
-                    if (currentInput.isNotBlank()) viewModel.checkAnswer()
+                    if (currentInput.isNotBlank() && !isCheckingAnswer) viewModel.checkAnswer()
                 })
             )
         }
@@ -763,10 +764,18 @@ fun QuizPlayScreen(viewModel: QuizViewModel)
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
-                enabled = currentInput.isNotBlank(),
+                enabled = currentInput.isNotBlank() && !isCheckingAnswer,
                 shape = RoundedCornerShape(10.dp)
             ) {
-                Text("정답 확인", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                if (isCheckingAnswer) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.5.dp
+                    )
+                } else {
+                    Text("정답 확인", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
             }
         } else {
             val isLast = currentIndex == questions.size - 1

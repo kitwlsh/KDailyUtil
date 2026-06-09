@@ -96,6 +96,9 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentHintText = MutableStateFlow<String?>(null)
     val currentHintText: StateFlow<String?> = _currentHintText.asStateFlow()
 
+    private val _isCheckingAnswer = MutableStateFlow(false)
+    val isCheckingAnswer: StateFlow<Boolean> = _isCheckingAnswer.asStateFlow()
+
     fun syncRemoteData() {
         viewModelScope.launch {
             repository.syncRemoteQuizzes(getApplication())
@@ -254,32 +257,71 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     fun checkAnswer()
     {
         if (_quizState.value != QuizState.PLAYING) return
+        if (_isCheckingAnswer.value) return // 중복 실행 방지
 
         val currentQuestion = _questions.value[_currentIndex.value]
         
-        // 주관식일 경우 괄호 안의 내용(한자 등)을 제거하고 비교
-        val cleanUserAnswer = _currentInput.value.replace(Regex("\\(.*?\\)"), "").trim()
-        val cleanCorrectAnswer = currentQuestion.answer.replace(Regex("\\(.*?\\)"), "").trim()
-
-        val correct = cleanUserAnswer.equals(cleanCorrectAnswer, ignoreCase = true)
-        _isCorrect.value = correct
-        
-        if (correct)
-        {
-            _score.value += 1
-            if (correctSoundId != 0) soundPool.play(correctSoundId, 1f, 1f, 0, 0, 1f)
-        }
-        else
-        {
-            if (wrongSoundId != 0) soundPool.play(wrongSoundId, 1f, 1f, 0, 0, 1f)
-        }
-        
-        _quizState.value = QuizState.ANSWER_CHECKED
-
-        val context = getApplication<Application>().applicationContext
         viewModelScope.launch {
-            com.kitwlshcom.kdailyutil.data.QuizStatsManager.getInstance(context)
-                .recordQuizResult(currentQuestion.category, currentQuestion.question, correct)
+            _isCheckingAnswer.value = true
+
+            // 주관식일 경우 괄호 안의 내용(한자 등)을 제거하고 앞뒤 공백 제거
+            val cleanUserAnswer = _currentInput.value.replace(Regex("\\(.*?\\)"), "").trim()
+            val cleanCorrectAnswer = currentQuestion.answer.replace(Regex("\\(.*?\\)"), "").trim()
+
+            var correct = false
+
+            if (currentQuestion.type == QuizType.MULTIPLE_CHOICE) {
+                // 객관식은 정확히 대소문자 무시 일치 여부 판정
+                correct = cleanUserAnswer.equals(cleanCorrectAnswer, ignoreCase = true)
+            } else {
+                // 주관식 채점 로직
+                
+                // 1단계: 로컬 정밀 휴리스틱 비교 (공백 완전 무시, 특수문자 및 기호 제거, 대소문자 무시)
+                val cleanUserHeuristic = cleanUserAnswer.replace(" ", "").replace(Regex("[^a-zA-Z0-9가-힣]"), "")
+                val cleanCorrectHeuristic = cleanCorrectAnswer.replace(" ", "").replace(Regex("[^a-zA-Z0-9가-힣]"), "")
+                
+                if (cleanUserHeuristic.equals(cleanCorrectHeuristic, ignoreCase = true)) {
+                    correct = true
+                } else {
+                    // 2단계: Gemini AI 채점 (API 키가 존재할 때에만 비동기로 실행)
+                    val apiKey = settingsRepository.geminiApiKeyFlow.first()
+                    if (!apiKey.isNullOrBlank()) {
+                        try {
+                            val gemini = GeminiManager(apiKey)
+                            correct = gemini.verifySubjectiveAnswer(
+                                question = currentQuestion.question,
+                                correctAnswer = cleanCorrectAnswer,
+                                userAnswer = cleanUserAnswer
+                            )
+                        } catch (e: Exception) {
+                            Log.e("QuizViewModel", "❌ AI Subjective Answer Check Failed: ${e.message}", e)
+                        }
+                    }
+                }
+            }
+
+            _isCorrect.value = correct
+            
+            if (correct)
+            {
+                _score.value += 1
+                if (correctSoundId != 0) soundPool.play(correctSoundId, 1f, 1f, 0, 0, 1f)
+            }
+            else
+            {
+                if (wrongSoundId != 0) soundPool.play(wrongSoundId, 1f, 1f, 0, 0, 1f)
+            }
+            
+            _quizState.value = QuizState.ANSWER_CHECKED
+            _isCheckingAnswer.value = false
+
+            val context = getApplication<Application>().applicationContext
+            try {
+                com.kitwlshcom.kdailyutil.data.QuizStatsManager.getInstance(context)
+                    .recordQuizResult(currentQuestion.category, currentQuestion.question, correct)
+            } catch (e: Exception) {
+                Log.e("QuizViewModel", "❌ Failed to record quiz result: ${e.message}")
+            }
         }
     }
 
