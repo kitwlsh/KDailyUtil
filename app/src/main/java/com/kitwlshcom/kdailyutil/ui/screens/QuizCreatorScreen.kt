@@ -258,7 +258,7 @@ fun QuizCreatorScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "카테고리명: $pendingCategoryName\n총 ${quizzes.size}개의 문제가 생성되었습니다. 문제 리스트를 확인하고 즉시 저장하거나 공유해 보세요.",
+                        text = "카테고리명: $pendingCategoryName\n총 ${quizzes.size}개의 문제가 생성되었습니다.\n\n• [로컬 저장]: 앱 내부에 저장되어 '퀴즈 분야 선택' 목록에 즉시 추가됩니다.\n• [공유 아이콘]: 외부 파일(.kquiz)로 카카오톡 전송, 구글 드라이브 업로드 또는 파일 저장이 가능합니다.",
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 12.sp,
                         lineHeight = 18.sp
@@ -801,7 +801,7 @@ fun ImageScannerTab(
                         }
                     }
                 },
-                enabled = categoryName.isNotBlank() && capturedImages.isNotEmpty(),
+                enabled = true,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Gold24K,
                     contentColor = Color.Black
@@ -1067,7 +1067,7 @@ fun WebCrawlingTab(
                         }
                     }
                 },
-                enabled = categoryName.isNotBlank() && (websiteUrl.isNotBlank() || fallbackTextContent.isNotBlank()),
+                enabled = true,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Gold24K,
                     contentColor = Color.Black
@@ -1391,6 +1391,11 @@ fun ManualCreatorTab(
         // Command Button: Add to package list
         Button(
             onClick = {
+                if (categoryName.isBlank())
+                {
+                    Toast.makeText(context, "카테고리 이름을 입력해 주세요.", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
                 if (questionInput.isBlank() || answerInput.isBlank())
                 {
                     Toast.makeText(context, "질문과 정답을 입력해 주세요.", Toast.LENGTH_SHORT).show()
@@ -1440,7 +1445,7 @@ fun ManualCreatorTab(
                 semanticHintInput = ""
                 Toast.makeText(context, "문제가 리스트에 추가되었습니다!", Toast.LENGTH_SHORT).show()
             },
-            enabled = categoryName.isNotBlank() && questionInput.isNotBlank() && answerInput.isNotBlank(),
+            enabled = true,
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.White.copy(alpha = 0.1f),
                 contentColor = Gold24K

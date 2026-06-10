@@ -397,10 +397,24 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                 repository.saveCustomQuizzes(context, pkg.questions)
                 loadCategories()
                 Log.d("QuizViewModel", "✅ Successfully imported custom category: ${pkg.category}")
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    android.widget.Toast.makeText(
+                        context,
+                        "📥 [${pkg.category}] 카테고리 퀴즈(${pkg.questions.size}문제)를 성공적으로 가져왔습니다!",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
             }
             else
             {
                 Log.e("QuizViewModel", "❌ Failed to import quiz package from Uri: $uri")
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    android.widget.Toast.makeText(
+                        context,
+                        "❌ 퀴즈 패키지 가져오기에 실패했습니다. 올바른 .kquiz 형식의 파일인지 확인해주세요.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
             }
         }
     }
