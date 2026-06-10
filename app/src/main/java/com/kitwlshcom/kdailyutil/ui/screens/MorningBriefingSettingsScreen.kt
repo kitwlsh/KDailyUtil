@@ -1,5 +1,8 @@
 package com.kitwlshcom.kdailyutil.ui.screens
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -17,7 +20,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kitwlshcom.kdailyutil.R
 import com.kitwlshcom.kdailyutil.ui.viewmodel.BriefingViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -25,6 +31,16 @@ import com.kitwlshcom.kdailyutil.ui.viewmodel.BriefingViewModel
 fun MorningBriefingSettingsScreen(
     viewModel: BriefingViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val versionName = remember {
+        try {
+            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            packageInfo.versionName ?: "1.0"
+        } catch (e: Exception) {
+            "1.0"
+        }
+    }
+
     val keywords by viewModel.keywords.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val briefingTime by viewModel.briefingTime.collectAsState()
@@ -58,6 +74,9 @@ fun MorningBriefingSettingsScreen(
     var newAiCommand by remember { mutableStateOf("") }
     var showTimePicker by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
+    var showAppInfoDialog by remember { mutableStateOf(false) }
+    var showIconGalleryDialog by remember { mutableStateOf(false) }
+    var showLegalNoticeDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -602,17 +621,91 @@ fun MorningBriefingSettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(24.dp))
 
-        val context = LocalContext.current
-        val versionName = remember {
-            try {
-                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-                packageInfo.versionName
-            } catch (e: Exception) {
-                "1.0"
+        Text("앱 정보 및 라이선스", style = MaterialTheme.typography.titleMedium, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedCard(
+                onClick = { showAppInfoDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                border = androidx.compose.foundation.BorderStroke(
+                    0.5.dp,
+                    com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.3f)
+                ),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = Color.White.copy(alpha = 0.02f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null, tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("앱 소개 및 버전", fontWeight = FontWeight.Bold)
+                        Text("KDailyUtil 정보 및 개발자 문의", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    }
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.Gray)
+                }
+            }
+
+            OutlinedCard(
+                onClick = { showIconGalleryDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                border = androidx.compose.foundation.BorderStroke(
+                    0.5.dp,
+                    com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.3f)
+                ),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = Color.White.copy(alpha = 0.02f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Image, contentDescription = null, tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("브랜드 아이콘 갤러리", fontWeight = FontWeight.Bold)
+                        Text("공식 3D 엠블럼 및 로고 가이드", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    }
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.Gray)
+                }
+            }
+
+            OutlinedCard(
+                onClick = { showLegalNoticeDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                border = androidx.compose.foundation.BorderStroke(
+                    0.5.dp,
+                    com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.3f)
+                ),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = Color.White.copy(alpha = 0.02f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("법적 고지 및 면책조항", fontWeight = FontWeight.Bold)
+                        Text("뉴스/증시/오디오/퀴즈 관련 법적 주의사항", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    }
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.Gray)
+                }
             }
         }
+        
+        Spacer(modifier = Modifier.height(24.dp))
 
         Box(
             modifier = Modifier.fillMaxWidth(),
@@ -719,6 +812,278 @@ fun MorningBriefingSettingsScreen(
             },
             text = {
                 TimePicker(state = timeState)
+            }
+        )
+    }
+
+    if (showAppInfoDialog) {
+        val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+        AlertDialog(
+            onDismissRequest = { showAppInfoDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("앱 소개 및 정보", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .background(Color.White.copy(alpha = 0.05f), shape = MaterialTheme.shapes.medium),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_k_logo_3d),
+                            contentDescription = "Logo",
+                            modifier = Modifier.size(64.dp)
+                        )
+                    }
+                    
+                    Text(
+                        "KDailyUtil",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 20.sp,
+                        color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+                    )
+                    Text(
+                        "Premium Lifestyle Utility Series",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                    
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row {
+                            Text("현재 버전: ", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(versionName, fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f))
+                        }
+                        Row {
+                            Text("개발자: ", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("KitwLSH", fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f))
+                        }
+                        Row {
+                            Text("개발자 문의: ", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("kitwlsh@gmail.com", fontSize = 13.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K, modifier = Modifier.clickable {
+                                try {
+                                    uriHandler.openUri("mailto:kitwlsh@gmail.com")
+                                } catch (e: Exception) {}
+                            })
+                        }
+                    }
+                    
+                    Text(
+                        "KDailyUtil은 데일리 라이프스타일을 더욱 스마트하고 편리하며 고급스럽게 만들어주는 통합 유틸리티 앱입니다.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        try {
+                            uriHandler.openUri("https://github.com/kitwlsh/KDailyUtil")
+                        } catch (e: Exception) {}
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                        contentColor = Color.Black
+                    )
+                ) {
+                    Text("GitHub 방문", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAppInfoDialog = false }) {
+                    Text("닫기", color = Color.White)
+                }
+            }
+        )
+    }
+
+    if (showIconGalleryDialog) {
+        AlertDialog(
+            onDismissRequest = { showIconGalleryDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = null,
+                        tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("브랜드 아이콘 갤러리", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        "K-시리즈의 통일성 및 프리미엄 이미지를 위해 설계된 Brand Emblem + Feature Hero 전략 기반의 공식 리소스 리스트입니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                    
+                    // 1. 3D 엠블럼
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_k_logo_3d),
+                                contentDescription = "3D Emblem",
+                                modifier = Modifier.size(80.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("K-Brand 3D Hexagon Emblem", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "패밀리 로고이자 정품 인증 마크처럼 기능하는 3D 입체 육각형 골드 엠블럼입니다.",
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.7f),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+
+                    // 2. 통합 로고 Full
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_app_logo_full),
+                                contentDescription = "Full Logo",
+                                modifier = Modifier.size(80.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("KDailyUtil 대표 로고 (Full)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "3D 골드 육각 엠블럼과 앱의 정체성을 보여주는 히어로 심볼(마이크 및 볼륨 웨이브)이 결합된 공식 전체 통합 로고입니다.",
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.7f),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showIconGalleryDialog = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                        contentColor = Color.Black
+                    )
+                ) {
+                    Text("확인", fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    if (showLegalNoticeDialog) {
+        AlertDialog(
+            onDismissRequest = { showLegalNoticeDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.VerifiedUser,
+                        contentDescription = null,
+                        tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("법적 고지 및 면책조항", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.verticalScroll(rememberScrollState())
+                ) {
+                    // 1. 뉴스 요약
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("📰 뉴스 키워드 브리핑 (Morning Briefing)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                        Text(
+                            "본 서비스의 뉴스 요약은 구글 Gemini AI 모델을 통한 기계적 결과물입니다. 요약 과정에서 일부 오류가 있을 수 있으며 사실 관계를 완벽히 보증하지 않으므로 참고용으로만 활용해 주시기 바랍니다.",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+
+                    // 2. 증시 정보
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("📈 증시 카테고리 (Morning Stocks)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                        Text(
+                            "관련 증시 정보 및 뉴스는 실시간 시세와 수 분 내지 수 시간의 지연이 있을 수 있으며, 어떠한 투자 결과에 대해서도 책임을 지지 않습니다.",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+
+                    // 3. 오디오 캡처
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("🔊 오디오 캡처 및 관리 (Audio Capture)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                        Text(
+                            "시스템 오디오 캡처를 포함한 녹음 파일은 저작권법 제30조(사적이용을 위한 복제)의 범위 내에서 본인만 사용해야 하며, 타인에게 공유/전송 시 처벌받을 수 있습니다. 또한, 통신비밀보호법에 의거 타인 간의 대화를 무단 청취/녹음 시 형사 처벌 대상이 됩니다.",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+
+                    // 4. AI 퀴즈
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("🧠 AI 퀴즈 및 창작 플랫폼 (KuizGenius)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                        Text(
+                            "사용자가 이미지를 스캔하거나 크롤링하여 개별적으로 작성한 커스텀 퀴즈 패키지 및 크롭된 사진 자산은 로컬 기기에만 저장되며, 이를 공유 파일(.kquiz) 형태로 외부 유포하여 발생하는 모든 저작권 책임은 사용자 본인에게 있습니다.",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showLegalNoticeDialog = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                        contentColor = Color.Black
+                    )
+                ) {
+                    Text("동의 및 확인", fontWeight = FontWeight.Bold)
+                }
             }
         )
     }
