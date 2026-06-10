@@ -63,6 +63,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import kotlinx.coroutines.flow.first
+import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -299,6 +300,19 @@ fun QuizCreatorScreen(
                                             fontSize = 11.sp
                                         )
                                     }
+                                    if (!q.imageUrl.isNullOrBlank()) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        AsyncImage(
+                                            model = q.imageUrl,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(110.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .border(1.dp, Gold24K.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -396,6 +410,7 @@ fun ImageScannerTab(
     val capturedImages = remember { mutableStateListOf<Bitmap>() }
     var isScanningInProgress by remember { mutableStateOf(false) }
     var questionCount by remember { mutableIntStateOf(5) }
+    var isVisualQuizType by remember { mutableStateOf(false) }
 
     // Camera State management
     var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
@@ -503,6 +518,103 @@ fun ImageScannerTab(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
+
+        // Quiz Type selector
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "🎨 퀴즈 출제 형식 선택",
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                fontSize = 14.sp
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Type 1: Text Quiz
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { isVisualQuizType = false },
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (!isVisualQuizType) Gold24K.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f)
+                    ),
+                    border = BorderStroke(
+                        1.5.dp, 
+                        if (!isVisualQuizType) Gold24K else Color.White.copy(alpha = 0.15f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Description,
+                            contentDescription = null,
+                            tint = if (!isVisualQuizType) Gold24K else Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "개념/텍스트형",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = if (!isVisualQuizType) Gold24K else Color.White
+                        )
+                        Text(
+                            text = "이미지 내용을 분석해 글로 출제",
+                            fontSize = 10.sp,
+                            color = Color.White.copy(alpha = 0.5f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                // Type 2: Visual Quiz (Crop)
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { isVisualQuizType = true },
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isVisualQuizType) Gold24K.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f)
+                    ),
+                    border = BorderStroke(
+                        1.5.dp, 
+                        if (isVisualQuizType) Gold24K else Color.White.copy(alpha = 0.15f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Crop,
+                            contentDescription = null,
+                            tint = if (isVisualQuizType) Gold24K else Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "그림/시각 매칭형",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = if (isVisualQuizType) Gold24K else Color.White
+                        )
+                        Text(
+                            text = "그림 부분을 자동 크롭하여 출제",
+                            fontSize = 10.sp,
+                            color = Color.White.copy(alpha = 0.5f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
 
         // Question count selector
         Column(
@@ -780,12 +892,21 @@ fun ImageScannerTab(
                                 }
                             }
 
-                            val jsonResult = geminiManager.generateQuizzesFromImages(
-                                images = capturedImages.toList(),
-                                previousQuizzesJson = prevQuizzesArray.toString(),
-                                errorStatsJson = errorStatsArray.toString(),
-                                count = questionCount
-                            )
+                            val jsonResult = if (isVisualQuizType) {
+                                geminiManager.generateVisualQuizzesFromImages(
+                                    images = capturedImages.toList(),
+                                    previousQuizzesJson = prevQuizzesArray.toString(),
+                                    errorStatsJson = errorStatsArray.toString(),
+                                    count = questionCount
+                                )
+                            } else {
+                                geminiManager.generateQuizzesFromImages(
+                                    images = capturedImages.toList(),
+                                    previousQuizzesJson = prevQuizzesArray.toString(),
+                                    errorStatsJson = errorStatsArray.toString(),
+                                    count = questionCount
+                                )
+                            }
 
                             if (jsonResult.isNotBlank())
                             {
@@ -804,17 +925,33 @@ fun ImageScannerTab(
                                     val baseQuestion = obj.getString("question")
                                     val uniqueId = Math.abs((categoryName + baseQuestion).hashCode())
 
+                                    var croppedLocalPath: String? = null
+                                    if (isVisualQuizType && capturedImages.isNotEmpty())
+                                    {
+                                        val boxArray = obj.optJSONArray("boundingBox")
+                                        if (boxArray != null && boxArray.length() == 4)
+                                        {
+                                            val sourceBitmap = capturedImages.first()
+                                            val croppedBmp = cropBitmapFromBoundingBox(sourceBitmap, boxArray)
+                                            if (croppedBmp != null)
+                                            {
+                                                croppedLocalPath = saveBitmapToInternalStorage(context, croppedBmp, categoryName, i)
+                                            }
+                                        }
+                                    }
+
                                     list.add(
                                         QuizQuestion(
                                             id = uniqueId,
                                             type = QuizType.valueOf(obj.getString("type")),
                                             category = categoryName,
-                                            subCategory = obj.optString("subCategory", "AI 이미지 분석"),
+                                            subCategory = obj.optString("subCategory", if (isVisualQuizType) "그림 매칭" else "AI 이미지 분석"),
                                             question = baseQuestion,
                                             options = optionsList,
                                             answer = obj.getString("answer"),
                                             explanation = obj.getString("explanation"),
-                                            semanticHint = obj.optString("semanticHint", null)
+                                            semanticHint = obj.optString("semanticHint", null),
+                                            imageUrl = croppedLocalPath
                                         )
                                     )
                                 }
@@ -1755,4 +1892,61 @@ fun QuestionCountChip(
         )
     }
 }
+
+fun cropBitmapFromBoundingBox(
+    bitmap: Bitmap,
+    boundingBox: org.json.JSONArray?
+): Bitmap? {
+    if (boundingBox == null || boundingBox.length() != 4) return null
+    return try {
+        val ymin = boundingBox.getInt(0)
+        val xmin = boundingBox.getInt(1)
+        val ymax = boundingBox.getInt(2)
+        val xmax = boundingBox.getInt(3)
+
+        val originalWidth = bitmap.width
+        val originalHeight = bitmap.height
+
+        // Add 5% padding to prevent clipping of borders
+        val boxWidth = xmax - xmin
+        val boxHeight = ymax - ymin
+        val paddingX = (boxWidth * 0.05).toInt()
+        val paddingY = (boxHeight * 0.05).toInt()
+
+        val left = Math.max(0, ((xmin - paddingX) * originalWidth) / 1000)
+        val top = Math.max(0, ((ymin - paddingY) * originalHeight) / 1000)
+        val right = Math.min(originalWidth, ((xmax + paddingX) * originalWidth) / 1000)
+        val bottom = Math.min(originalHeight, ((ymax + paddingY) * originalHeight) / 1000)
+
+        val width = right - left
+        val height = bottom - top
+
+        if (width <= 0 || height <= 0) null
+        else Bitmap.createBitmap(bitmap, left, top, width, height)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
+fun saveBitmapToInternalStorage(context: Context, bitmap: Bitmap, categoryName: String, questionIndex: Int): String? {
+    return try {
+        val directory = File(context.filesDir, "cropped_quizzes")
+        if (!directory.exists()) {
+            directory.mkdirs()
+        }
+        val safeCategory = categoryName.replace("[\\\\/:*?\"<>|\\s]".toRegex(), "_")
+        val fileName = "crop_${safeCategory}_${System.currentTimeMillis()}_${questionIndex}.png"
+        val file = File(directory, fileName)
+        
+        file.outputStream().use { out ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        }
+        file.absolutePath
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
 

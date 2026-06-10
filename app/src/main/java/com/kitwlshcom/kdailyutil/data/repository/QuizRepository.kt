@@ -233,7 +233,23 @@ class QuizRepository {
         try
         {
             val existing = parseQuizzes(file.readText())
+            val toDelete = existing.filter { it.category == category }
             val filtered = existing.filter { it.category != category }
+            
+            // Delete associated cropped image files
+            toDelete.forEach { q ->
+                if (!q.imageUrl.isNullOrBlank()) {
+                    val imgFile = File(q.imageUrl)
+                    if (imgFile.exists() && q.imageUrl.contains("cropped_quizzes")) {
+                        try {
+                            val deleted = imgFile.delete()
+                            Log.d(TAG, "🗑 Cleaned up cropped image: ${q.imageUrl}, result: $deleted")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "❌ Failed to delete crop image file: ${q.imageUrl}, error: ${e.message}")
+                        }
+                    }
+                }
+            }
             
             val jsonArray = JSONArray()
             filtered.forEach { q ->

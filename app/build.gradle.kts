@@ -58,6 +58,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.generative.ai)
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.coil.compose)
 
 
     testImplementation(libs.junit)

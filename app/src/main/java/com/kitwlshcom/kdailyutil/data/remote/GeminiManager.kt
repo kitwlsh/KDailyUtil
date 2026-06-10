@@ -240,6 +240,76 @@ class GeminiManager(private val apiKey: String?) {
     }
 
     /**
+     * 다중 이미지 스캔을 통해 그림들의 위치(Bounding Box)를 추출하고 이미지 크롭용 퀴즈 데이터셋을 생성합니다.
+     */
+    suspend fun generateVisualQuizzesFromImages(
+        images: List<android.graphics.Bitmap>,
+        previousQuizzesJson: String,
+        errorStatsJson: String,
+        count: Int = 5
+    ): String = withContext(Dispatchers.IO)
+    {
+        if (generativeModel == null || apiKey.isNullOrBlank())
+        {
+            return@withContext ""
+        }
+
+        val prompt = content {
+            images.forEach { bmp ->
+                image(bmp)
+            }
+            
+            text(
+                "당신은 이미지 분석 및 시각 교육용 퀴즈 출제 위원입니다. 제공된 이미지(교과서, 문제집, 단어장 등) 속에서 개별 사물, 그림, 도형, 캐릭터 등 퀴즈 문제로 낼 수 있는 그림 요소들을 정밀 탐지하여 퀴즈를 ${count}개 생성해 주세요.\n\n" +
+                "이전 출제되었던 문제 목록(중복 방지용):\n$previousQuizzesJson\n\n" +
+                "사용자의 학습 분석 오답 기록(취약 영역 저격용):\n$errorStatsJson\n\n" +
+                "핵심 요구 조건:\n" +
+                "1. **그림 영역 탐지 (Bounding Box)**:\n" +
+                "   - 퀴즈 질문의 대상이 되는 개별 그림/일러스트(글자 텍스트 영역 제외, 순수 그림 영역)의 2D 바운딩 박스 좌표를 정확히 감지해 주세요.\n" +
+                "   - 좌표계 형식: [ymin, xmin, ymax, xmax] (0부터 1000 사이의 정수 비율로 표현합니다. 예: 이미지 맨 위가 0, 맨 아래가 1000 / 맨 왼쪽이 0, 맨 오른쪽이 1000)\n" +
+                "   - **주의**: 감지할 이미지 인덱스는 순서대로 첫 번째 이미지 기준입니다. 만약 이미지가 여러 장이면 해당하는 그림이 위치한 이미지의 경계를 기준으로 하세요.\n" +
+                "2. **퀴즈 콘텐츠 재창작**:\n" +
+                "   - 질문 내용은 그 그림을 보고 유추할 수 있는 문제여야 합니다. (예: '이 그림이 나타내는 과일의 영어 이름은?', '다음 일러스트의 명칭은 무엇인가요?')\n" +
+                "   - 정답은 그림의 실제 대상이 되는 단어나 숫자, 설명이어야 합니다. (예: 'apricot', '사과' 등)\n" +
+                "3. **완벽한 JSON 배열 형식 응답**:\n" +
+                "   - 반드시 다음 JSON 형식의 배열로만 응답하세요. 다른 설명이나 텍스트는 제외하세요.\n" +
+                "   - JSON 구조:\n" +
+                "     [\n" +
+                "       {\n" +
+                "         \"id\": 숫자,\n" +
+                "         \"type\": \"MULTIPLE_CHOICE\" 또는 \"SUBJECTIVE\",\n" +
+                "         \"category\": \"AI 이미지 퀴즈\",\n" +
+                "         \"subCategory\": \"그림 매칭\",\n" +
+                "         \"question\": \"질문 내용 (예: 이 그림이 나타내는 과일은 무엇일까요?)\",\n" +
+                "         \"options\": [\"보기1\", \"보기2\", \"보기3\", \"보기4\"] (주관식인 경우 null, 반드시 보기 중에 정답이 포함되어 있어야 함),\n" +
+                "         \"answer\": \"정답\",\n" +
+                "         \"explanation\": \"상세 해설\",\n" +
+                "         \"semanticHint\": \"힌트 (예: a로 시작하는 단어)\",\n" +
+                "         \"boundingBox\": [ymin, xmin, ymax, xmax] (예: [100, 700, 180, 760] 과 같이 4개의 정수로 구성된 배열)\n" +
+                "       }\n" +
+                "     ]\n" +
+                "4. 주관식의 경우 한두 단어의 매우 간단한 명칭이 정답이 되도록 설계하세요."
+            )
+        }
+
+        return@withContext try
+        {
+            val response = generativeModel?.generateContent(prompt)
+            val result = response?.text
+            if (result.isNullOrBlank())
+            {
+                throw Exception("AI 응답이 비어 있습니다. (이미지에서 그림 좌표를 인식하지 못했거나 안전 정책에 의해 차단되었을 수 있습니다.)")
+            }
+            cleanJsonString(result)
+        }
+        catch (e: Exception)
+        {
+            android.util.Log.e("GeminiManager", "❌ generateVisualQuizzesFromImages error: ${e.message}", e)
+            throw e
+        }
+    }
+
+    /**
      * 질문과 정답만을 사용하여 그럴싸한 오답 3개와 해설을 포함한 JSON을 생성합니다.
      */
     suspend fun generateOptionsForQuestion(
