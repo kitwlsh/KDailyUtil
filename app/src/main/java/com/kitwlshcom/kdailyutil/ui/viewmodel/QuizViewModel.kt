@@ -80,6 +80,9 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     private val _availableCategories = MutableStateFlow<List<String>>(listOf("우리말 겨루기", "트렌드 말하기", "상식 백과", "세계 여행", "AI 자동 생성 (KuizGenius)"))
     val availableCategories: StateFlow<List<String>> = _availableCategories.asStateFlow()
 
+    private val _pendingImport = MutableStateFlow<com.kitwlshcom.kdailyutil.data.ImportedQuizPackage?>(null)
+    val pendingImport: StateFlow<com.kitwlshcom.kdailyutil.data.ImportedQuizPackage?> = _pendingImport.asStateFlow()
+
     private val _currentInput = MutableStateFlow("")
     val currentInput: StateFlow<String> = _currentInput.asStateFlow()
 
@@ -394,15 +397,23 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             val pkg = com.kitwlshcom.kdailyutil.data.QuizFileHandler.importQuizzes(context, uri)
             if (pkg != null)
             {
-                repository.saveCustomQuizzes(context, pkg.questions)
-                loadCategories()
-                Log.d("QuizViewModel", "✅ Successfully imported custom category: ${pkg.category}")
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    android.widget.Toast.makeText(
-                        context,
-                        "📥 [${pkg.category}] 카테고리 퀴즈(${pkg.questions.size}문제)를 성공적으로 가져왔습니다!",
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
+                // 이미 동일한 이름의 카테고리가 존재하는지 검사
+                if (_availableCategories.value.contains(pkg.category))
+                {
+                    _pendingImport.value = pkg
+                }
+                else
+                {
+                    repository.saveCustomQuizzes(context, pkg.questions)
+                    loadCategories()
+                    Log.d("QuizViewModel", "✅ Successfully imported custom category: ${pkg.category}")
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            context,
+                            "📥 [${pkg.category}] 카테고리 퀴즈(${pkg.questions.size}문제)를 성공적으로 가져왔습니다!",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             }
             else
@@ -417,6 +428,58 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    fun resolveImportConflict(resolution: String, newName: String? = null) {
+        val pkg = _pendingImport.value ?: return
+        viewModelScope.launch {
+            val context = getApplication<Application>().applicationContext
+            when (resolution) {
+                "MERGE" -> {
+                    repository.saveCustomQuizzes(context, pkg.questions)
+                    loadCategories()
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            context,
+                            "📥 기존 [${pkg.category}] 카테고리에 문제를 성공적으로 합쳤습니다!",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+                "SEPARATE" -> {
+                    val finalName = newName ?: "${pkg.category} (새 패키지)"
+                    val renamedQuizzes = pkg.questions.map { q ->
+                        q.copy(category = finalName, id = Math.abs((finalName + q.question).hashCode()))
+                    }
+                    repository.saveCustomQuizzes(context, renamedQuizzes)
+                    loadCategories()
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            context,
+                            "📥 새로운 카테고리 [${finalName}]로 분리하여 성공적으로 저장했습니다!",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+                "OVERWRITE" -> {
+                    repository.deleteCustomCategory(context, pkg.category)
+                    repository.saveCustomQuizzes(context, pkg.questions)
+                    loadCategories()
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            context,
+                            "📥 기존 [${pkg.category}] 카테고리를 삭제하고 새 문제로 성공적으로 덮어썼습니다!",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+            _pendingImport.value = null
+        }
+    }
+
+    fun cancelImportConflict() {
+        _pendingImport.value = null
     }
 
     fun saveCustomQuizzes(quizzes: List<QuizQuestion>)

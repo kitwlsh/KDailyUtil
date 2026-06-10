@@ -435,6 +435,98 @@ fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
             }
         )
     }
+
+    val pendingImport by viewModel.pendingImport.collectAsState()
+    if (pendingImport != null) {
+        val pkg = pendingImport!!
+        var separateCategoryName by remember(pkg.category) { mutableStateOf("${pkg.category} (새 패키지)") }
+        var isSeparateNameMode by remember { mutableStateOf(false) }
+
+        if (!isSeparateNameMode) {
+            AlertDialog(
+                onDismissRequest = { viewModel.cancelImportConflict() },
+                title = { Text("📥 중복 카테고리 발견") },
+                text = {
+                    Text(
+                        "가져올 카테고리 [${pkg.category}]와 동일한 이름의 카테고리가 이미 앱 내에 존재합니다.\n\n" +
+                        "어떻게 처리하시겠습니까?",
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                },
+                confirmButton = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.resolveImportConflict("MERGE") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K, contentColor = Color.Black)
+                        ) {
+                            Text("합치기 (기존 목록에 추가)", fontWeight = FontWeight.Bold)
+                        }
+                        Button(
+                            onClick = { isSeparateNameMode = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f), contentColor = Color.White)
+                        ) {
+                            Text("별도로 유지 (새 이름으로 저장)", fontWeight = FontWeight.Bold)
+                        }
+                        Button(
+                            onClick = { viewModel.resolveImportConflict("OVERWRITE") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f), contentColor = Color.White)
+                        ) {
+                            Text("덮어쓰기 (기존 목록 교체)", fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(
+                            onClick = { viewModel.cancelImportConflict() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("가져오기 취소", color = Color.Gray)
+                        }
+                    }
+                }
+            )
+        } else {
+            AlertDialog(
+                onDismissRequest = { isSeparateNameMode = false },
+                title = { Text("새 카테고리 이름 입력") },
+                text = {
+                    Column {
+                        Text("구분하여 저장할 새 카테고리 이름을 입력해 주세요.", color = Color.White.copy(alpha = 0.8f))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = separateCategoryName,
+                            onValueChange = { separateCategoryName = it },
+                            placeholder = { Text("예: ${pkg.category} (2)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (separateCategoryName.isNotBlank()) {
+                                viewModel.resolveImportConflict("SEPARATE", separateCategoryName.trim())
+                                isSeparateNameMode = false
+                            }
+                        },
+                        enabled = separateCategoryName.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K, contentColor = Color.Black)
+                    ) {
+                        Text("저장", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { isSeparateNameMode = false }) {
+                        Text("이전으로")
+                    }
+                }
+            )
+        }
+    }
 }
 
 @Composable
