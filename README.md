@@ -99,6 +99,7 @@ KDailyUtil의 핵심 기능인 **KuizGenius AI 퀴즈 플랫폼**에 이미지 �
 
 ## 📂 프로젝트 문서 (Documentation)
 
+- [🛠 개발자 컨텍스트 가이드 (신규 세션 필독)](DEVELOPER_GUIDE.md) — 아키텍처, 파일 구조, 퀴즈 파이프라인, 주의사항 총정리
 - [📄 전체 구현 계획 및 설계](doc/implementation_plan.md)
 - [✅ 단계별 작업 현황](doc/task.md)
 

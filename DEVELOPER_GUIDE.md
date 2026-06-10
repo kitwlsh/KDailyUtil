@@ -1,0 +1,396 @@
+# 🛠 KDailyUtil - 개발자 가이드 (Developer Context Guide)
+
+> **신규 세션 또는 AI 어시스턴트가 이 파일을 먼저 읽으면 프로젝트 전체 맥락을 즉시 파악할 수 있습니다.**
+> 최종 업데이트: 2026-06-10
+
+---
+
+## 📌 프로젝트 개요
+
+- **앱 이름**: KDailyUtil
+- **패키지**: `com.kitwlshcom.kdailyutil`
+- **언어**: Kotlin (Jetpack Compose)
+- **최소 SDK**: 26 / 타겟 SDK: 36
+- **빌드 도구**: AGP 8.13.2, Kotlin 2.0.21
+- **GitHub**: `kitwlsh/KDailyUtil`
+- **로컬 경로**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil`
+- **원격 퀴즈 데이터**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\korean_quiz_data\`
+
+---
+
+## 📂 프로젝트 디렉토리 구조
+
+```
+KDailyUtil/
+├── app/src/main/java/com/kitwlshcom/kdailyutil/
+│   ├── MainActivity.kt                     # 앱 진입점, 네비게이션 호스트
+│   ├── audio/
+│   │   └── AudioCaptureService.kt          # 포그라운드 오디오 캡처 서비스
+│   ├── data/
+│   │   ├── model/
+│   │   │   ├── QuizQuestion.kt             # 퀴즈 데이터 모델 (imageUrl 필드 포함)
+│   │   │   ├── AudioItem.kt
+│   │   │   └── NewsItem.kt
+│   │   ├── remote/
+│   │   │   └── GeminiManager.kt            # Gemini AI API 통합 (퀴즈 생성/채점)
+│   │   ├── repository/
+│   │   │   ├── QuizRepository.kt           # 퀴즈 CRUD, 원격 동기화, 커스텀 저장
+│   │   │   ├── AudioRepository.kt          # 오디오 파일 관리
+│   │   │   ├── NewsRepository.kt           # 뉴스 RSS 수집 및 크롤링
+│   │   │   └── SettingsRepository.kt       # DataStore 기반 설정 저장
+│   │   ├── QuizFileHandler.kt              # .kquiz 파일 export/import
+│   │   └── QuizStatsManager.kt             # 퀴즈 정답률/도전 이력 추적
+│   ├── domain/                             # 도메인 로직 (UseCase 등)
+│   ├── receiver/
+│   │   └── BriefingReceiver.kt             # 예약 브리핑 알림 수신
+│   ├── scheduler/                          # WorkManager 예약 작업
+│   └── ui/
+│       ├── MainScreen.kt                   # 하단 네비게이션 바 메인 화면
+│       ├── components/                     # 공통 Composable 컴포넌트
+│       ├── navigation/                     # NavGraph 정의
+│       ├── screens/
+│       │   ├── QuizScreen.kt               # 퀴즈 플레이 전체 화면 (카테고리 선택~결과)
+│       │   ├── QuizCreatorScreen.kt        # AI 퀴즈 제작소 (사진/링크/수동)
+│       │   ├── AudioCaptureScreen.kt       # 오디오 녹음/재생 화면
+│       │   ├── AudioSubScreens.kt          # 오디오 서브 화면들
+│       │   ├── DrivingShadowingScreen.kt   # 뉴스 쉐도잉 화면
+│       │   ├── LearningHubScreen.kt        # 배움터 허브 화면
+│       │   ├── MorningBriefingSettingsScreen.kt # 설정 화면
+│       │   ├── NewsBriefingScreen.kt       # 뉴스 브리핑 메인 화면
+│       │   ├── NewsDetailScreen.kt         # 뉴스 상세 화면
+│       │   ├── SplashScreen.kt             # 스플래시 (유성 스파이럴 애니메이션)
+│       │   └── PlaceholderScreen.kt        # 빈 플레이스홀더
+│       ├── theme/
+│       │   ├── Color.kt                    # Gold24K, DeepCharcoal 등 컬러 상수
+│       │   ├── Theme.kt                    # MaterialTheme 설정
+│       │   └── Type.kt                     # 타이포그래피
+│       └── viewmodel/
+│           ├── QuizViewModel.kt            # 퀴즈 상태 관리 (QuizState enum)
+│           ├── BriefingViewModel.kt        # 뉴스 브리핑 상태 관리
+│           ├── AudioCaptureViewModel.kt    # 오디오 상태 관리
+│           └── ShadowingViewModel.kt       # 쉐도잉 상태 관리
+├── app/src/main/res/
+│   ├── raw/                                # quiz_correct.mp3, quiz_wrong.mp3, quiz_finish.mp3
+│   ├── drawable/                           # 앱 아이콘, 로고 등
+│   └── xml/
+│       ├── file_paths.xml                  # FileProvider 경로 (cache + files)
+│       └── backup_rules.xml
+├── app/build.gradle.kts                    # 의존성 관리
+├── gradle/libs.versions.toml              # 버전 카탈로그
+├── README.md                               # 사용자/앱 소개 문서
+└── DEVELOPER_GUIDE.md                      # 이 파일 - 개발자 컨텍스트 가이드
+```
+
+---
+
+## 🏗 아키텍처 개요
+
+```
+UI Layer (Compose Screens)
+    ↕ StateFlow / collectAsState
+ViewModel Layer (AndroidViewModel)
+    ↕ suspend functions / coroutines
+Repository Layer (Data Access)
+    ↕ HTTP / File I/O / DataStore
+Data Sources (Remote API / Local Storage)
+```
+
+- **상태 관리**: `MutableStateFlow` + `collectAsState()`
+- **비동기**: Kotlin Coroutines (`viewModelScope`, `Dispatchers.IO`)
+- **설정 저장**: Preferences DataStore (`SettingsRepository`)
+- **퀴즈 저장**: Internal File Storage JSON (`filesDir/custom_quizzes.json`)
+- **퀴즈 캐시**: `filesDir/quizzes_v2.json` (원격 동기화 캐시)
+- **이미지 크롭 저장**: `filesDir/cropped_quizzes/` (PNG 파일)
+
+---
+
+## 🧠 KuizGenius 퀴즈 시스템 상세
+
+### 데이터 모델
+```kotlin
+// data/model/QuizQuestion.kt
+enum class QuizType { MULTIPLE_CHOICE, SUBJECTIVE }
+
+data class QuizQuestion(
+    val id: Int,
+    val type: QuizType,
+    val category: String,
+    val subCategory: String = "",
+    val question: String,
+    val options: List<String>? = null,  // null이면 주관식
+    val answer: String,
+    val explanation: String,
+    val semanticHint: String? = null,
+    val imageUrl: String? = null        // 로컬 절대 경로 (크롭 이미지) 또는 null
+)
+```
+
+### 퀴즈 카테고리 유형 (중요!)
+| 유형 | 표시 | 삭제/공유 | 출처 |
+|------|------|-----------|------|
+| 공식 내장 | ☁️ | 불가 | 하드코딩 (우리말겨루기, 트렌드말하기, 상식백과, 세계여행) |
+| 클라우드 동기화 | ☁️ | 불가 | `korean_quiz_data` GitHub 원격 JSON |
+| 로컬 커스텀 | ⭐ | 가능 | AI 생성/수동 작성/외부 가져오기 |
+
+> **⚠️ 주의**: `isDefault` 판별 시 공식 내장 + 클라우드 동기화 카테고리 **모두** 읽기 전용으로 처리해야 함.
+
+### 퀴즈 상태 머신 (QuizState)
+```
+IDLE → CATEGORY_SELECTION → GENERATING → PLAYING ↔ ANSWER_CHECKED → FINISHED
+  ↑                                                                        |
+  └────────────────────────────────────────────────────────────────────────┘
+                         CREATOR (QuizCreatorScreen으로 전환)
+```
+
+### QuizRepository 주요 메서드
+```kotlin
+// 원격 퀴즈 동기화 (앱 시작 시 호출)
+suspend fun syncRemoteQuizzes(context: Context)
+
+// 퀴즈 로드 (카테고리 필터 가능, 셔플됨)
+suspend fun getQuizzes(context: Context, category: String? = null): List<QuizQuestion>
+
+// 커스텀 퀴즈 저장 (ID 기준 병합)
+suspend fun saveCustomQuizzes(context: Context, quizzes: List<QuizQuestion>)
+
+// 커스텀 카테고리 삭제 (크롭 이미지 파일도 함께 삭제)
+suspend fun deleteCustomCategory(context: Context, category: String)
+
+// 커스텀/원격 카테고리 목록 조회
+suspend fun getCustomCategories(context: Context): List<String>
+suspend fun getRemoteCategories(context: Context): List<String>
+```
+
+---
+
+## 🖼 이미지(시각) 퀴즈 파이프라인 (2026.06 완성)
+
+```
+[사용자] 이미지 선택 (카메라/갤러리)
+    ↓
+[GeminiManager.generateVisualQuizzesFromImages()]
+    - Bounding Box 좌표 [ymin, xmin, ymax, xmax] (0~1000 비율) 반환
+    ↓
+[QuizCreatorScreen.cropBitmapFromBoundingBox()]
+    - 비율 좌표 → 실제 픽셀 변환
+    - 5% 여백 패딩 추가
+    - Bitmap.createBitmap() 으로 크롭
+    ↓
+[QuizCreatorScreen.saveBitmapToInternalStorage()]
+    - filesDir/cropped_quizzes/crop_{category}_{timestamp}_{index}.png 저장
+    - 절대 경로 String 반환
+    ↓
+[QuizQuestion.imageUrl] = 절대 경로
+    ↓
+[QuizPlayScreen] - AsyncImage(model = currentQuestion.imageUrl) 로 표시
+[저장 다이얼로그] - AsyncImage 로 미리보기 표시
+```
+
+### 관련 파일
+- `GeminiManager.generateVisualQuizzesFromImages()` - AI API 호출 (라인 245~310)
+- `QuizCreatorScreen.cropBitmapFromBoundingBox()` - 크롭 헬퍼 (라인 1896~1930)
+- `QuizCreatorScreen.saveBitmapToInternalStorage()` - 저장 헬퍼 (라인 1932~1950)
+- `QuizScreen.QuizPlayScreen` - 이미지 표시 (라인 743~763)
+
+---
+
+## 🤖 GeminiManager API 메서드 목록
+
+```kotlin
+// 이미지 다중 스캔 → 텍스트 기반 퀴즈 JSON 생성
+suspend fun generateQuizzesFromImages(images, previousQuizzesJson, errorStatsJson, count): String
+
+// 이미지 스캔 → Bounding Box 포함 시각 퀴즈 JSON 생성
+suspend fun generateVisualQuizzesFromImages(images, previousQuizzesJson, errorStatsJson, count): String
+
+// 웹 크롤링 텍스트 → 퀴즈 JSON 생성
+suspend fun generateQuizzesFromText(text, previousQuizzesJson, errorStatsJson, count): String
+
+// 질문+정답 → 오답 보기 3개 + 해설 자동 생성
+suspend fun generateOptionsForQuestion(question, answer): String
+
+// 주관식 답안 의미론적 채점 (2단계 채점 시스템)
+suspend fun verifySubjectiveAnswer(question, correctAnswer, userAnswer): Boolean
+```
+
+---
+
+## 📦 주요 의존성 (libs.versions.toml)
+
+| 라이브러리 | 버전 | 용도 |
+|-----------|------|------|
+| Jetpack Compose BOM | 2024.09.00 | UI 전체 |
+| Material3 | BOM 관리 | UI 컴포넌트 |
+| Navigation Compose | 2.8.1 | 화면 전환 |
+| Coil Compose | **2.6.0** | 이미지 비동기 로딩 (AsyncImage) |
+| Google Generative AI | **0.9.0** | Gemini API |
+| Jsoup | 1.18.1 | 웹 크롤링/RSS |
+| DataStore Preferences | 1.1.1 | 설정 영속화 |
+| WorkManager KTX | 2.10.0 | 백그라운드 작업 |
+| Core SplashScreen | 1.0.1 | 스플래시 화면 |
+| Material Icons Extended | BOM 관리 | 아이콘 |
+
+---
+
+## 🎨 디자인 시스템
+
+### 핵심 컬러 (Color.kt)
+```kotlin
+val Gold24K = Color(0xFFFFD700)     // 골드 - 주요 강조색
+val DeepCharcoal = Color(0xFF121212) // 다크 배경
+```
+
+### 앱 테마
+- **고정 다크 테마** (라이트 모드 없음)
+- `Scaffold.containerColor = DeepCharcoal`
+- 강조색: `Gold24K`
+- 보조색: `White.copy(alpha = 0.6~0.8f)`
+
+---
+
+## 📡 원격 퀴즈 데이터 (korean_quiz_data)
+
+- **GitHub 저장소**: `kitwlsh/korean_quiz_data`
+- **Base URL**: `https://raw.githubusercontent.com/kitwlsh/korean_quiz_data/refs/heads/main/`
+- **퀴즈 파일 목록**:
+  - `korean.json` → 우리말 겨루기
+  - `trend.json` → 트렌드 말하기
+  - `knowledge.json` → 상식 백과
+  - `travel.json` → 세계 여행
+  - `quiz_updates.json` → 맞춤법 띄어쓰기, 고난이도 고유어, 아름다운 순우리말, 사자성어, 최신 유행어 등
+
+- **Python 업데이트 스크립트**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\korean_quiz_data\update_quiz.py`
+- **로컬 캐시 파일**: `filesDir/quizzes_v2.json`
+
+---
+
+## 🔐 권한 및 보안
+
+### AndroidManifest.xml 권한
+- `INTERNET` - 뉴스 크롤링, Gemini API, 원격 퀴즈 동기화
+- `CAMERA` - 퀴즈 이미지 촬영
+- `READ_MEDIA_IMAGES` - 갤러리 이미지 선택
+- `RECORD_AUDIO` - 오디오 캡처
+- `READ_EXTERNAL_STORAGE` (API ≤32) / `WRITE_EXTERNAL_STORAGE` (API ≤29)
+- `SCHEDULE_EXACT_ALARM`, `POST_NOTIFICATIONS` - 예약 브리핑
+
+### FileProvider
+- **Authority**: `com.kitwlshcom.kdailyutil.fileprovider`
+- **경로 설정** (`file_paths.xml`):
+  - `cache-path` → `.kquiz` 파일 공유 (shared_quizzes)
+  - `files-path` → 커스텀 퀴즈 파일 및 크롭 이미지 접근
+
+### API 키
+- **저장**: Preferences DataStore (`SettingsRepository.geminiApiKeyFlow`)
+- **UI 입력**: `MorningBriefingSettingsScreen` > API 키 설정
+- **사용**: `GeminiManager(apiKey)` 생성자 주입
+
+---
+
+## 🔊 사운드 시스템
+
+- **엔진**: Android `SoundPool`
+- **리소스** (`app/src/main/res/raw/`):
+  - `quiz_correct.mp3` - 정답 효과음
+  - `quiz_wrong.mp3` - 오답 효과음
+  - `quiz_finish.mp3` - 완료 효과음
+- **초기화**: `QuizViewModel.init { }` 블록에서 SoundPool 생성 및 로드
+- **백업 파일**: `backup_audio/` 폴더 (git 추적되지 않음)
+
+---
+
+## 📊 퀴즈 통계 시스템 (QuizStatsManager)
+
+- **저장소**: DataStore (사용자별 퀴즈 정답/오답 이력)
+- **싱글톤**: `QuizStatsManager.getInstance(context)`
+- **주요 메서드**:
+  ```kotlin
+  // 도전/정답 기록
+  fun recordAttempt(category: String, question: String, isCorrect: Boolean)
+  // 오답률 높은 상위 N개 질문 조회 (AI 타겟팅용)
+  fun getHighErrorQuestions(n: Int): Map<String, Float>
+  // 특정 질문 통계
+  fun getQuestionStats(category: String, question: String): QuestionStats
+  ```
+
+---
+
+## 📤 퀴즈 파일 포맷 (.kquiz)
+
+`.kquiz` 파일은 실제로 JSON 형식입니다:
+```json
+{
+  "category": "카테고리명",
+  "creator": "출제자 닉네임",
+  "creatorId": "장치해시ID",
+  "version": 1,
+  "questions": [
+    {
+      "type": "MULTIPLE_CHOICE",
+      "subCategory": "서브카테고리",
+      "question": "질문 내용",
+      "answer": "정답",
+      "explanation": "해설",
+      "semanticHint": "힌트",
+      "imageUrl": "/data/user/0/.../files/cropped_quizzes/crop_xxx.png",
+      "options": ["정답", "오답1", "오답2", "오답3"]
+    }
+  ]
+}
+```
+
+---
+
+## ⚠️ 알려진 주의사항 및 제약
+
+1. **이미지 퀴즈 공유 제한**: `.kquiz` 파일에 `imageUrl`(로컬 절대경로)이 포함되지만, 다른 기기에서는 해당 경로의 이미지가 존재하지 않아 이미지가 표시되지 않음. (현재 미해결)
+
+2. **Gemini API 할당량**: `generateVisualQuizzesFromImages()`는 멀티모달 요청으로 토큰 소비가 큼. 무료 플랜에서는 할당량 초과 시 `429` 에러 발생.
+
+3. **Bounding Box 정확도**: AI가 반환하는 좌표가 부정확할 경우 크롭 영역이 빗나갈 수 있음. 특히 그림이 복잡한 이미지에서 발생.
+
+4. **카테고리 유형 구분**: 공식/클라우드 카테고리 이름이 하드코딩되어 있음. 새 카테고리를 원격에 추가할 때 `QuizScreen`의 `isDefault` 목록도 함께 업데이트 필요.
+
+5. **Android 13+ 미디어 권한**: `READ_MEDIA_IMAGES` 권한 필요. 갤러리 접근 시 자동으로 요청됨.
+
+---
+
+## 🚀 다음 구현 예정 과제 (Phase 2)
+
+- [ ] **독립된 증시 대시보드**: 야후 파이낸스 API 연동 (실시간 주가/환율)
+- [ ] **프리미엄 미니 차트**: Compose `Canvas` 기반 스파크라인 차트
+- [ ] **AI 마크다운 렌더링**: 브리핑 결과에 Rich Text 뷰어 적용
+- [ ] **이미지 퀴즈 공유 개선**: 크롭 이미지를 Base64로 인코딩하여 `.kquiz` 파일에 내장
+
+---
+
+## 🔄 최근 커밋 이력 (최신순)
+
+| 커밋 | 내용 |
+|------|------|
+| `b02450b` | docs: README 업데이트 (AI 이미지 퀴즈 완성 반영) |
+| `46b1f03` | feat: AI 이미지 크롭 기반 시각 퀴즈 + Coil 라이브러리 연동 |
+| `fa2548d` | docs: README + MP3 효과음 리소스 추가 |
+| `a0f6ab2` | feat: 퀴즈 카테고리 공식/클라우드/커스텀 유형 분리 |
+| `32ae6d8` | feat: AI 퀴즈 생성 실패 상세 에러 Toast |
+| `2eacd27` | feat: .kquiz 가져오기 중복 카테고리 처리 (합치기/별도/덮어쓰기) |
+| `304250a` | feat: AI 문제 수 선택(5/10/15/20/30개) |
+| `14c4489` | feat: 주관식 2단계 AI 채점 시스템 (verifySubjectiveAnswer) |
+| `4756ce3` | refactor: 고품질 MP3 효과음 교체 |
+| `964e830` | feat: KuizGenius 퀴즈 크리에이터 스위트 전체 구축 |
+
+---
+
+## 💡 새 세션 시작 체크리스트
+
+새 AI 세션에서 개발을 시작할 때 반드시 확인할 사항:
+
+1. **이 파일 읽기** - 전체 맥락 파악
+2. **`git log -n 10 --oneline`** - 최신 커밋 확인
+3. **`git status`** - 미커밋 변경사항 확인
+4. 작업 관련 파일 직접 열기 (위 디렉토리 구조 참조)
+5. 퀴즈 관련 작업 시 → `QuizQuestion.kt`, `QuizRepository.kt`, `GeminiManager.kt`, `QuizViewModel.kt`, `QuizScreen.kt`, `QuizCreatorScreen.kt` 순서로 파악
+
+---
+
+> 이 문서는 개발 진행에 따라 지속적으로 업데이트됩니다.
