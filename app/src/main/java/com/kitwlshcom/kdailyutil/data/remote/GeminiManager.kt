@@ -115,10 +115,21 @@ class GeminiManager(private val apiKey: String?) {
                  "3. 정답은 명확해야 하며, 해설은 친절하게 작성해 주세요. 특히 'SUBJECTIVE'(주관식) 문제의 경우 정답이 긴 문장(서술형)이 아닌, 1~3단어 이내의 명사, 인명, 지명, 단어, 혹은 명확한 수치로만 출제되도록 하세요. 긴 문장을 그대로 입력해야 정답 처리되는 주관식 문제는 출제하지 마세요.")
         }
 
-        val response = generativeModel?.generateContent(prompt)
-        val result = response?.text ?: ""
-        
-        return@withContext cleanJsonString(result)
+        return@withContext try
+        {
+            val response = generativeModel?.generateContent(prompt)
+            val result = response?.text
+            if (result.isNullOrBlank())
+            {
+                throw Exception("AI 응답이 비어 있습니다. (텍스트가 너무 짧거나 안전 정책에 의해 차단되었을 수 있습니다.)")
+            }
+            cleanJsonString(result)
+        }
+        catch (e: Exception)
+        {
+            android.util.Log.e("GeminiManager", "❌ generateQuizFromText error: ${e.message}", e)
+            throw e
+        }
     }
 
     /**
@@ -214,13 +225,17 @@ class GeminiManager(private val apiKey: String?) {
         return@withContext try
         {
             val response = generativeModel?.generateContent(prompt)
-            val result = response?.text ?: ""
+            val result = response?.text
+            if (result.isNullOrBlank())
+            {
+                throw Exception("AI 응답이 비어 있습니다. (이미지에서 텍스트를 인식하지 못했거나 안전 정책에 의해 차단되었을 수 있습니다.)")
+            }
             cleanJsonString(result)
         }
         catch (e: Exception)
         {
             android.util.Log.e("GeminiManager", "❌ generateQuizzesFromImages error: ${e.message}", e)
-            ""
+            throw e
         }
     }
 

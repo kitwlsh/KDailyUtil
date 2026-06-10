@@ -822,7 +822,7 @@ fun ImageScannerTab(
                             }
                             else
                             {
-                                Toast.makeText(context, "퀴즈 생성 결과가 비어 있습니다. 사진 상태를 확인하세요.", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "퀴즈 생성 실패: AI가 유효한 퀴즈 데이터를 생성하지 못했습니다. (빈 응답)", Toast.LENGTH_LONG).show()
                             }
                         }
                         catch (e: Exception)
@@ -1122,7 +1122,7 @@ fun WebCrawlingTab(
                             }
                             else
                             {
-                                Toast.makeText(context, "퀴즈 생성 오류: 결과 데이터가 올바르지 않습니다.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "퀴즈 생성 실패: AI가 유효한 퀴즈 데이터를 생성하지 못했습니다. (빈 응답)", Toast.LENGTH_LONG).show()
                             }
                         }
                         catch (e: Exception)
