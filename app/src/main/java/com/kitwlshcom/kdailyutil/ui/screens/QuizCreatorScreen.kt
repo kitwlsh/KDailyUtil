@@ -395,6 +395,7 @@ fun ImageScannerTab(
     var categoryName by remember { mutableStateOf("") }
     val capturedImages = remember { mutableStateListOf<Bitmap>() }
     var isScanningInProgress by remember { mutableStateOf(false) }
+    var questionCount by remember { mutableIntStateOf(5) }
 
     // Camera State management
     var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
@@ -502,6 +503,39 @@ fun ImageScannerTab(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
+
+        // Question count selector
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "🎯 생성할 문제 수 선택",
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                fontSize = 14.sp
+            )
+            Text(
+                text = "💡 단어장이나 목록 이미지인 경우, 문제 수를 15~30개로 설정하여 스캔하시면 이미지의 모든 단어를 골고루 문제로 만들 수 있습니다.",
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 11.sp,
+                lineHeight = 15.sp
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val counts = listOf(5, 10, 15, 20, 30)
+                counts.forEach { count ->
+                    val isSelected = questionCount == count
+                    QuestionCountChip(
+                        count = count,
+                        isSelected = isSelected,
+                        onClick = { questionCount = count }
+                    )
+                }
+            }
+        }
 
         // Photo Action Buttons
         Row(
@@ -750,7 +784,7 @@ fun ImageScannerTab(
                                 images = capturedImages.toList(),
                                 previousQuizzesJson = prevQuizzesArray.toString(),
                                 errorStatsJson = errorStatsArray.toString(),
-                                count = 5
+                                count = questionCount
                             )
 
                             if (jsonResult.isNotBlank())
@@ -841,6 +875,7 @@ fun WebCrawlingTab(
     var websiteUrl by remember { mutableStateOf("") }
     var fallbackTextContent by remember { mutableStateOf("") }
     var isCrawlingInProgress by remember { mutableStateOf(false) }
+    var questionCount by remember { mutableIntStateOf(5) }
 
     Column(
         modifier = Modifier
@@ -879,6 +914,39 @@ fun WebCrawlingTab(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
+
+        // Question count selector
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "🎯 생성할 문제 수 선택",
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                fontSize = 14.sp
+            )
+            Text(
+                text = "💡 요약본이나 기사 단어 목록을 다룰 때 15~30개로 넉넉하게 설정하시면 모든 중요 단어를 골고루 문제로 만들 수 있습니다.",
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 11.sp,
+                lineHeight = 15.sp
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val counts = listOf(5, 10, 15, 20, 30)
+                counts.forEach { count ->
+                    val isSelected = questionCount == count
+                    QuestionCountChip(
+                        count = count,
+                        isSelected = isSelected,
+                        onClick = { questionCount = count }
+                    )
+                }
+            }
+        }
 
         OutlinedTextField(
             value = websiteUrl,
@@ -1016,7 +1084,7 @@ fun WebCrawlingTab(
                             val geminiManager = com.kitwlshcom.kdailyutil.data.remote.GeminiManager(apiKey)
                             val jsonResult = geminiManager.generateQuizFromText(
                                 topic = scannedContent.take(4000), // Protect context length limit
-                                count = 5
+                                count = questionCount
                             )
 
                             if (jsonResult.isNotBlank())
@@ -1659,3 +1727,32 @@ fun CreatorSettingsCard(
         }
     }
 }
+
+@Composable
+fun QuestionCountChip(
+    count: Int,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isSelected) Gold24K else Color.White.copy(alpha = 0.05f))
+            .border(
+                1.dp,
+                if (isSelected) Gold24K else Color.White.copy(alpha = 0.2f),
+                RoundedCornerShape(8.dp)
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "${count}개",
+            color = if (isSelected) Color.Black else Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp
+        )
+    }
+}
+
