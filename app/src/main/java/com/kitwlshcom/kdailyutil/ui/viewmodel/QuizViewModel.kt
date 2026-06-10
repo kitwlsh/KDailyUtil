@@ -122,7 +122,23 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     fun startQuiz() {
         viewModelScope.launch {
             val allQuestions = repository.getQuizzes(getApplication(), _selectedCategory.value)
-            _questions.value = allQuestions.take(10)
+            
+            // 정답이 중복되거나 매우 유사한 문제 제거 (공백, 괄호, 기호 무시)
+            val uniqueQuestions = mutableListOf<QuizQuestion>()
+            val seenAnswers = mutableSetOf<String>()
+            for (q in allQuestions) {
+                val normalizedAnswer = q.answer
+                    .replace(Regex("\\(.*?\\)"), "") // 괄호 제거
+                    .replace(" ", "")                // 공백 제거
+                    .replace(Regex("[^a-zA-Z0-9가-힣]"), "") // 기호 및 특수문자 제거
+                    .lowercase()
+                if (normalizedAnswer.isNotEmpty() && !seenAnswers.contains(normalizedAnswer)) {
+                    uniqueQuestions.add(q)
+                    seenAnswers.add(normalizedAnswer)
+                }
+            }
+            
+            _questions.value = uniqueQuestions.take(10)
             _currentIndex.value = 0
             _score.value = 0
             _quizState.value = QuizState.PLAYING
@@ -353,8 +369,12 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     {
         viewModelScope.launch {
             val custom = repository.getCustomCategories(getApplication())
+            val remote = repository.getRemoteCategories(getApplication())
             val baseList = listOf("우리말 겨루기", "트렌드 말하기", "상식 백과", "세계 여행", "AI 자동 생성 (KuizGenius)")
-            _availableCategories.value = baseList + custom
+            
+            val extraRemote = remote.filter { !baseList.contains(it) }
+            
+            _availableCategories.value = baseList + extraRemote + custom
         }
     }
 

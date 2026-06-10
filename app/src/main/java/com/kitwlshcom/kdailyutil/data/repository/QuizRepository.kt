@@ -283,4 +283,26 @@ class QuizRepository {
             return@withContext emptyList()
         }
     }
+
+    /**
+     * 원격에서 동기화되어 캐시된 퀴즈들의 유니크한 카테고리 목록을 반환합니다.
+     */
+    suspend fun getRemoteCategories(context: Context): List<String> = withContext(Dispatchers.IO)
+    {
+        val file = File(context.filesDir, QUIZ_CACHE_FILE)
+        if (!file.exists())
+        {
+            return@withContext emptyList()
+        }
+        try
+        {
+            val quizzes = parseQuizzes(file.readText())
+            return@withContext quizzes.map { it.category }.distinct()
+        }
+        catch (e: Exception)
+        {
+            Log.e(TAG, "❌ Failed to parse remote categories: ${e.message}")
+            return@withContext emptyList()
+        }
+    }
 }
