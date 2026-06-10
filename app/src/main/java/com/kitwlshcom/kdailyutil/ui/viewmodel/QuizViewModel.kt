@@ -80,6 +80,9 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     private val _availableCategories = MutableStateFlow<List<String>>(listOf("우리말 겨루기", "트렌드 말하기", "상식 백과", "세계 여행", "AI 자동 생성 (KuizGenius)"))
     val availableCategories: StateFlow<List<String>> = _availableCategories.asStateFlow()
 
+    private val _customCategories = MutableStateFlow<List<String>>(emptyList())
+    val customCategories: StateFlow<List<String>> = _customCategories.asStateFlow()
+
     private val _pendingImport = MutableStateFlow<com.kitwlshcom.kdailyutil.data.ImportedQuizPackage?>(null)
     val pendingImport: StateFlow<com.kitwlshcom.kdailyutil.data.ImportedQuizPackage?> = _pendingImport.asStateFlow()
 
@@ -375,6 +378,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             val remote = repository.getRemoteCategories(getApplication())
             val baseList = listOf("우리말 겨루기", "트렌드 말하기", "상식 백과", "세계 여행", "AI 자동 생성 (KuizGenius)")
             
+            _customCategories.value = custom
             val extraRemote = remote.filter { !baseList.contains(it) }
             
             _availableCategories.value = baseList + extraRemote + custom

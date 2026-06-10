@@ -131,6 +131,7 @@ fun QuizIdleScreen(onStart: () -> Unit) {
 fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
 {
     val categories by viewModel.availableCategories.collectAsState()
+    val customCategories by viewModel.customCategories.collectAsState()
     var showAiTopicDialog by remember { mutableStateOf(false) }
     var aiTopic by remember { mutableStateOf("") }
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -256,6 +257,8 @@ fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
         {
             categories.forEach { category ->
                 val isDefault = listOf("우리말 겨루기", "트렌드 말하기", "상식 백과", "세계 여행", "AI 자동 생성 (KuizGenius)").contains(category)
+                val isCustom = customCategories.contains(category)
+                val isRemote = !isDefault && !isCustom
                 val icon = when (category) {
                     "우리말 겨루기" -> Icons.Default.Language
                     "트렌드 말하기" -> Icons.Default.Psychology
@@ -280,7 +283,8 @@ fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
                     ),
                     border = androidx.compose.foundation.BorderStroke(
                         1.dp,
-                        if (category.contains("AI") || !isDefault) com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.5f)
+                        if (category.contains("AI") || isCustom) com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.5f)
+                        else if (isRemote) com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.25f)
                         else Color.White.copy(alpha = 0.1f)
                     )
                 ) {
@@ -293,7 +297,7 @@ fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (category.contains("AI") || !isDefault) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else Color.White,
+                            tint = if (category.contains("AI") || isCustom) com.kitwlshcom.kdailyutil.ui.theme.Gold24K else if (isRemote) Color.White.copy(alpha = 0.7f) else Color.White,
                             modifier = Modifier.size(30.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
@@ -301,7 +305,7 @@ fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                text = if (isDefault) category else "⭐ $category",
+                                text = if (isDefault) category else if (isCustom) "⭐ $category" else "☁️ $category",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -312,16 +316,22 @@ fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
                                     fontSize = 11.sp,
                                     color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.7f)
                                 )
-                            } else if (!isDefault) {
+                            } else if (isCustom) {
                                 Text(
                                     text = "내가 생성/가져온 맞춤형 퀴즈 패키지",
                                     fontSize = 11.sp,
                                     color = Color.White.copy(alpha = 0.6f)
                                 )
+                            } else if (isRemote) {
+                                Text(
+                                    text = "클라우드에서 동기화된 공식 퀴즈 패키지",
+                                    fontSize = 11.sp,
+                                    color = Color.White.copy(alpha = 0.5f)
+                                )
                             }
                         }
 
-                        if (!isDefault) {
+                        if (isCustom) {
                             // Sharing Button (.kquiz export)
                             IconButton(
                                 onClick = 
