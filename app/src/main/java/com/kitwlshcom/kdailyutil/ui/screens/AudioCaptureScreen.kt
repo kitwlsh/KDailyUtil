@@ -63,8 +63,12 @@ fun AudioCaptureScreen(
     val activeTab by viewModel.activeTab.collectAsState()
     val isSelectionMode by viewModel.isSelectionMode.collectAsState()
     val selectedPaths by viewModel.selectedPaths.collectAsState()
+    val audioCopyrightAccepted by viewModel.audioCopyrightAccepted.collectAsState()
 
     var showPlayerSheet by remember { mutableStateOf(false) }
+    var showCopyrightDialog by remember { mutableStateOf(false) }
+    var copyrightDoNotShowAgain by remember { mutableStateOf(false) }
+    var onConfirmRecordingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val sheetState = rememberModalBottomSheetState()
     
     val snackbarHostState = remember { SnackbarHostState() }
@@ -123,6 +127,82 @@ fun AudioCaptureScreen(
     }
 
     // 다이얼로그들
+    if (showCopyrightDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showCopyrightDialog = false 
+                onConfirmRecordingAction = null
+            },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("저작권 및 법적 주의사항 고지", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "본 캡처 기능으로 녹음된 오디오 파일은 저작권법 제30조(사적이용을 위한 복제)에 따라 개인적인 용도로만 사용해야 합니다.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        "저작권자의 동의 없이 녹음된 파일을 외부로 공유, 전송, 배포하거나 상업적으로 이용하는 행위는 저작권 침해로 처벌받을 수 있습니다.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "또한, 타인의 대화를 무단으로 녹음하는 행위는 통신비밀보호법에 의거하여 형사 처벌을 받을 수 있으므로 주의하시기 바랍니다.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { copyrightDoNotShowAgain = !copyrightDoNotShowAgain }
+                    ) {
+                        Checkbox(
+                            checked = copyrightDoNotShowAgain,
+                            onCheckedChange = { copyrightDoNotShowAgain = it }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("동의하며, 다시 표시하지 않기", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (copyrightDoNotShowAgain) {
+                            viewModel.acceptAudioCopyright()
+                        }
+                        showCopyrightDialog = false
+                        onConfirmRecordingAction?.invoke()
+                        onConfirmRecordingAction = null
+                    }
+                ) {
+                    Text("동의 및 계속")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showCopyrightDialog = false
+                        onConfirmRecordingAction = null
+                    }
+                ) {
+                    Text("취소")
+                }
+            }
+        )
+    }
+
     if (showRenameDialog != null) {
         AlertDialog(
             onDismissRequest = { showRenameDialog = null },
@@ -516,6 +596,11 @@ fun AudioCaptureScreen(
                             when (tab) {
                                 AudioTab.CAPTURE -> CaptureTabContent(
                                     viewModel = viewModel,
+                                    audioCopyrightAccepted = audioCopyrightAccepted,
+                                    onShowCopyrightDialog = { onStartRecord ->
+                                        onConfirmRecordingAction = onStartRecord
+                                        showCopyrightDialog = true
+                                    },
                                     onStartInternalRecording = {
                                         projectionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
                                     }

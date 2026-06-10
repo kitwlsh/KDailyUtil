@@ -30,6 +30,7 @@ class SettingsRepository(private val context: Context) {
         val AUTO_REFRESH_INTERVAL_HOURS = intPreferencesKey("auto_refresh_interval_hours")
         val NEWS_LIMIT = intPreferencesKey("news_limit")
         val SPLASH_THEME = stringPreferencesKey("splash_theme")
+        val AUDIO_COPYRIGHT_ACCEPTED = booleanPreferencesKey("audio_copyright_accepted")
     }
 
     // 신규 오디오 설정
@@ -40,6 +41,10 @@ class SettingsRepository(private val context: Context) {
 
     val isEditLockedFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.EDIT_LOCKED] ?: true
+    }
+
+    val audioCopyrightAcceptedFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.AUDIO_COPYRIGHT_ACCEPTED] ?: false
     }
 
     // 기존 브리핑 설정 Flow 복구
@@ -104,6 +109,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun saveEditLocked(isLocked: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.EDIT_LOCKED] = isLocked }
+    }
+
+    suspend fun saveAudioCopyrightAccepted(accepted: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.AUDIO_COPYRIGHT_ACCEPTED] = accepted }
     }
 
     suspend fun updateKeywords(newKeywords: Set<String>) {

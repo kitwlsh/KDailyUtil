@@ -96,6 +96,9 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
 
     val isPrepared = AudioCaptureService.isPrepared
 
+    val audioCopyrightAccepted: StateFlow<Boolean> = settingsRepository.audioCopyrightAcceptedFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     init {
         loadRecordings()
         observePlaybackProgress()
@@ -568,6 +571,12 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
         viewModelScope.launch {
             kotlinx.coroutines.delay(500)
             loadRecordings()
+        }
+    }
+
+    fun acceptAudioCopyright() {
+        viewModelScope.launch {
+            settingsRepository.saveAudioCopyrightAccepted(true)
         }
     }
 

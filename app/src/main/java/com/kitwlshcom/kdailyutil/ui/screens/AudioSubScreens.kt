@@ -28,6 +28,8 @@ import com.kitwlshcom.kdailyutil.ui.viewmodel.PlaybackMode
 @Composable
 fun CaptureTabContent(
     viewModel: AudioCaptureViewModel,
+    audioCopyrightAccepted: Boolean,
+    onShowCopyrightDialog: (onStartRecord: () -> Unit) -> Unit,
     onStartInternalRecording: () -> Unit
 ) {
     val context = LocalContext.current
@@ -58,23 +60,31 @@ fun CaptureTabContent(
                 if (isRecording) {
                     viewModel.stopRecording()
                 } else {
-                    if (recordingSource == RecordingSource.MIC) {
-                        viewModel.startRecording(null)
-                    } else {
-                        if (isPrepared) {
-                            viewModel.startRecording(null) // 이미 준비된 데이터 사용
+                    val startRecordingAction = {
+                        if (recordingSource == RecordingSource.MIC) {
+                            viewModel.startRecording(null)
                         } else {
-                            if (android.provider.Settings.canDrawOverlays(context)) {
-                                onStartInternalRecording() // 권한 요청 및 준비 시작
+                            if (isPrepared) {
+                                viewModel.startRecording(null) // 이미 준비된 데이터 사용
                             } else {
-                                // 권한 요청 페이지로 이동
-                                val intent = Intent(
-                                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                    android.net.Uri.parse("package:${context.packageName}")
-                                )
-                                context.startActivity(intent)
+                                if (android.provider.Settings.canDrawOverlays(context)) {
+                                    onStartInternalRecording() // 권한 요청 및 준비 시작
+                                } else {
+                                    // 권한 요청 페이지로 이동
+                                    val intent = Intent(
+                                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                        android.net.Uri.parse("package:${context.packageName}")
+                                    )
+                                    context.startActivity(intent)
+                                }
                             }
                         }
+                    }
+
+                    if (!audioCopyrightAccepted) {
+                        onShowCopyrightDialog(startRecordingAction)
+                    } else {
+                        startRecordingAction()
                     }
                 }
             },
