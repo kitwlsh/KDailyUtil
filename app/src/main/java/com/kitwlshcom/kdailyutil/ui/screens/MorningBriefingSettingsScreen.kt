@@ -77,6 +77,7 @@ fun MorningBriefingSettingsScreen(
     var showAppInfoDialog by remember { mutableStateOf(false) }
     var showIconGalleryDialog by remember { mutableStateOf(false) }
     var showLegalNoticeDialog by remember { mutableStateOf(false) }
+    var showFullScreenIcon by remember { mutableStateOf<Int?>(null) }
 
     Column(
         modifier = Modifier
@@ -893,26 +894,43 @@ fun MorningBriefingSettingsScreen(
                         color = Color.White.copy(alpha = 0.7f),
                         modifier = Modifier.padding(top = 4.dp)
                     )
+
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.White.copy(alpha = 0.05f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            0.5.dp,
+                            com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.2f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                "💡 AI 기술 활용 안내",
+                                fontWeight = FontWeight.Bold,
+                                color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                                fontSize = 12.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "본 앱은 뉴스 기사의 대화체 요약 및 퀴즈 생성 품질 향상을 위해 Google Gemini AI 모델을 활용합니다.",
+                                fontSize = 11.sp,
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(
-                    onClick = {
-                        try {
-                            uriHandler.openUri("https://github.com/kitwlsh/KDailyUtil")
-                        } catch (e: Exception) {}
-                    },
+                    onClick = { showAppInfoDialog = false },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
                         contentColor = Color.Black
                     )
                 ) {
-                    Text("GitHub 방문", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAppInfoDialog = false }) {
-                    Text("닫기", color = Color.White)
+                    Text("확인", fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -938,16 +956,25 @@ fun MorningBriefingSettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.verticalScroll(rememberScrollState())
                 ) {
-                    Text(
-                        "K-시리즈의 통일성 및 프리미엄 이미지를 위해 설계된 Brand Emblem + Feature Hero 전략 기반의 공식 리소스 리스트입니다.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            "K-시리즈의 통일성 및 프리미엄 이미지를 위해 설계된 Brand Emblem + Feature Hero 전략 기반의 공식 리소스 리스트입니다.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                        Text(
+                            "🔍 카드를 클릭하면 로고를 전체 화면으로 볼 수 있습니다.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+                        )
+                    }
                     
                     // 1. 3D 엠블럼
                     Card(
+                        onClick = { showFullScreenIcon = R.drawable.ic_k_logo_3d },
                         colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
-                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f))
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier.padding(12.dp),
@@ -973,8 +1000,10 @@ fun MorningBriefingSettingsScreen(
 
                     // 2. 통합 로고 Full
                     Card(
+                        onClick = { showFullScreenIcon = R.drawable.ic_app_logo_full },
                         colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
-                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f))
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier.padding(12.dp),
@@ -1085,6 +1114,51 @@ fun MorningBriefingSettingsScreen(
                     Text("동의 및 확인", fontWeight = FontWeight.Bold)
                 }
             }
+        )
+    }
+
+    if (showFullScreenIcon != null) {
+        AlertDialog(
+            onDismissRequest = { showFullScreenIcon = null },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false
+            ),
+            title = null,
+            text = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.95f))
+                        .clickable { showFullScreenIcon = null },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(id = showFullScreenIcon!!),
+                            contentDescription = "Full Screen Icon",
+                            modifier = Modifier
+                                .fillMaxWidth(0.9f)
+                                .aspectRatio(1f),
+                            contentScale = ContentScale.Fit
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "화면 아무 곳이나 누르면 닫힙니다.",
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = null,
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp
         )
     }
 }
