@@ -50,6 +50,13 @@ fun StockDashboardScreen(
     val isDisclosuresLoading by viewModel.isDisclosuresLoading.collectAsState()
     val isExpectedLoading by viewModel.isExpectedLoading.collectAsState()
 
+    DisposableEffect(Unit) {
+        viewModel.startPricePolling()
+        onDispose {
+            viewModel.stopPricePolling()
+        }
+    }
+
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -62,7 +69,7 @@ fun StockDashboardScreen(
                 actions = {
                     IconButton(onClick = {
                         when (selectedTabIndex) {
-                            0 -> viewModel.loadStockPrices()
+                            0 -> viewModel.loadStockPrices(showLoading = true)
                             1 -> viewModel.loadDisclosures(forceRefresh = true)
                             2 -> viewModel.loadExpectedEarnings()
                         }

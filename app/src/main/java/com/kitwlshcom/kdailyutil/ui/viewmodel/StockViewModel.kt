@@ -59,18 +59,23 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
     private val _activeAiSummaryDisclosure = MutableStateFlow<EarningsDisclosure?>(null)
     val activeAiSummaryDisclosure: StateFlow<EarningsDisclosure?> = _activeAiSummaryDisclosure.asStateFlow()
 
+    private var pollingJob: kotlinx.coroutines.Job? = null
+
     init {
-        loadStockPrices()
+        loadStockPrices(showLoading = true)
         loadDisclosures()
         loadExpectedEarnings()
     }
 
     /**
      * 관심 종목 시세 정보를 로드합니다.
+     * @param showLoading 중앙 프로그레스 바 노출 여부 (자동 폴링 시에는 false)
      */
-    fun loadStockPrices() {
+    fun loadStockPrices(showLoading: Boolean = true) {
         viewModelScope.launch {
-            _isPricesLoading.value = true
+            if (showLoading) {
+                _isPricesLoading.value = true
+            }
             try {
                 // SettingsRepository에서 사용자의 관심종목 가져오기
                 val keywords = settingsRepository.stockKeywordsFlow.first()
@@ -81,9 +86,35 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to load stock prices: ${e.message}")
             } finally {
-                _isPricesLoading.value = false
+                if (showLoading) {
+                    _isPricesLoading.value = false
+                }
             }
         }
+    }
+
+    /**
+     * 장중 주기적인 자동 새로고침(Auto Polling)을 시작합니다.
+     */
+    fun startPricePolling() {
+        if (pollingJob != null) return
+        pollingJob = viewModelScope.launch {
+            // 30초 간격으로 주가 정보 백그라운드 갱신
+            while (true) {
+                delay(30000L)
+                loadStockPrices(showLoading = false)
+            }
+        }
+        Log.d(TAG, "🚀 Started Stock Price Auto-Polling (30s interval)")
+    }
+
+    /**
+     * 자동 새로고침 폴링을 중단합니다.
+     */
+    fun stopPricePolling() {
+        pollingJob?.cancel()
+        pollingJob = null
+        Log.d(TAG, "⏹️ Stopped Stock Price Auto-Polling")
     }
 
     /**
