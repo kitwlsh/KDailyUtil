@@ -4,8 +4,10 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kitwlshcom.kdailyutil.data.model.ChartRange
 import com.kitwlshcom.kdailyutil.data.model.EarningsDisclosure
 import com.kitwlshcom.kdailyutil.data.model.ExpectedEarnings
+import com.kitwlshcom.kdailyutil.data.model.StockChartData
 import com.kitwlshcom.kdailyutil.data.model.StockPriceItem
 import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
 import com.kitwlshcom.kdailyutil.data.repository.SettingsRepository
@@ -61,8 +63,28 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
 
     private var pollingJob: kotlinx.coroutines.Job? = null
 
+    // ─────────────────────────────────────────────
+    // 차트 상세 바텀시트 관련 StateFlow
+    // ─────────────────────────────────────────────
+    private val _selectedStock = MutableStateFlow<StockPriceItem?>(null)
+    val selectedStock: StateFlow<StockPriceItem?> = _selectedStock.asStateFlow()
+
+    private val _chartRange = MutableStateFlow(ChartRange.TODAY)
+    val chartRange: StateFlow<ChartRange> = _chartRange.asStateFlow()
+
+    private val _chartData = MutableStateFlow<StockChartData?>(null)
+    val chartData: StateFlow<StockChartData?> = _chartData.asStateFlow()
+
+    private val _isChartLoading = MutableStateFlow(false)
+    val isChartLoading: StateFlow<Boolean> = _isChartLoading.asStateFlow()
+
+    // 종목 편집 모드 현재 키워드 목록
+    private val _stockKeywords = MutableStateFlow<List<String>>(emptyList())
+    val stockKeywords: StateFlow<List<String>> = _stockKeywords.asStateFlow()
+
     init {
         loadStockPrices(showLoading = true)
+        loadStockKeywords()
         loadDisclosures()
         loadExpectedEarnings()
     }
@@ -115,6 +137,80 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
         pollingJob?.cancel()
         pollingJob = null
         Log.d(TAG, "⏹️ Stopped Stock Price Auto-Polling")
+    }
+
+    // ─────────────────────────────────────────────
+    // 차트 상세 제어
+    // ─────────────────────────────────────────────
+    /** 특정 종목을 선택하여 차트 바텀시트를 열고, 현재 단일 데이터를 로드 */
+    fun openStockDetail(item: StockPriceItem) {
+        _selectedStock.value = item
+        _chartRange.value = ChartRange.TODAY
+        loadChartData(item.name, ChartRange.TODAY)
+    }
+
+    /** 차트 바텀시트 닫기 */
+    fun closeStockDetail() {
+        _selectedStock.value = null
+        _chartData.value = null
+    }
+
+    /** 차트 기간 변경 */
+    fun setChartRange(range: ChartRange) {
+        val current = _selectedStock.value ?: return
+        _chartRange.value = range
+        loadChartData(current.name, range)
+    }
+
+    /** Yahoo Finance에서 기간별 차트 데이터 로드 */
+    private fun loadChartData(name: String, range: ChartRange) {
+        viewModelScope.launch {
+            _isChartLoading.value = true
+            try {
+                val data = stockRepository.getChartData(name, range)
+                _chartData.value = data
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ loadChartData error: ${e.message}")
+            } finally {
+                _isChartLoading.value = false
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // 관심 종목 관리 (DataStore 연동)
+    // ─────────────────────────────────────────────
+    /** 현재 저장된 종목 목록을 로드 */
+    fun loadStockKeywords() {
+        viewModelScope.launch {
+            settingsRepository.stockKeywordsFlow.collect { keywords ->
+                _stockKeywords.value = keywords.toList()
+            }
+        }
+    }
+
+    /** 골락(DataStore) 기준 한 종목 키워드를 추가 */
+    fun addStockKeyword(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            val current = settingsRepository.stockKeywordsFlow.first().toMutableSet()
+            if (current.add(trimmed)) {
+                settingsRepository.updateStockKeywords(current)
+                loadStockPrices(showLoading = true)
+            }
+        }
+    }
+
+    /** DataStore에서 종목 키워드를 제거 */
+    fun removeStockKeyword(name: String) {
+        viewModelScope.launch {
+            val current = settingsRepository.stockKeywordsFlow.first().toMutableSet()
+            if (current.remove(name)) {
+                settingsRepository.updateStockKeywords(current)
+                _stockPrices.value = _stockPrices.value.filter { it.name != name }
+            }
+        }
     }
 
     /**

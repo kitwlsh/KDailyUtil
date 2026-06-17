@@ -2,8 +2,10 @@ package com.kitwlshcom.kdailyutil.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.kitwlshcom.kdailyutil.data.model.ChartRange
 import com.kitwlshcom.kdailyutil.data.model.EarningsDisclosure
 import com.kitwlshcom.kdailyutil.data.model.ExpectedEarnings
+import com.kitwlshcom.kdailyutil.data.model.StockChartData
 import com.kitwlshcom.kdailyutil.data.model.StockPriceItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -167,7 +169,56 @@ class StockRepository(private val context: Context) {
     }
 
     /**
-     * Open DART API를 사용하여 신규 실적 공시 목록을 긁어옵니다.
+     * 기간(ChartRange)에 따른 차트 데이터를 조회합니다.
+     * 커드 카드의 기간 버튼 환경 시 호출됨
+     */
+    suspend fun getChartData(name: String, range: ChartRange): StockChartData = withContext(Dispatchers.IO) {
+        val symbol = SYMBOL_MAP[name] ?: name
+        val url = "https://query1.finance.yahoo.com/v8/finance/chart/$symbol?interval=${range.interval}&range=${range.range}"
+
+        try {
+            val responseJson = Jsoup.connect(url)
+                .ignoreContentType(true)
+                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .timeout(10000)
+                .execute()
+                .body()
+
+            val root = JSONObject(responseJson)
+            val chart = root.getJSONObject("chart")
+            val resultList = chart.getJSONArray("result")
+
+            if (resultList.length() > 0) {
+                val resultObj = resultList.getJSONObject(0)
+                val timestampsArray = resultObj.optJSONArray("timestamp")
+                val indicators = resultObj.optJSONObject("indicators")
+                val quoteList = indicators?.optJSONArray("quote")
+
+                val prices = mutableListOf<Float>()
+                val timestamps = mutableListOf<Long>()
+
+                if (quoteList != null && quoteList.length() > 0) {
+                    val quote = quoteList.getJSONObject(0)
+                    val closeArray = quote.optJSONArray("close")
+                    if (closeArray != null && timestampsArray != null) {
+                        for (i in 0 until closeArray.length()) {
+                            val v = closeArray.optDouble(i)
+                            if (!v.isNaN() && v > 0.0) {
+                                prices.add(v.toFloat())
+                                timestamps.add(timestampsArray.optLong(i, 0L))
+                            }
+                        }
+                    }
+                }
+                return@withContext StockChartData(symbol, name, prices, timestamps, range)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to fetch chart data for $name ($symbol) range=$range: ${e.message}")
+        }
+        return@withContext StockChartData(symbol, name, emptyList(), emptyList(), range)
+    }
+
+    /**
      * @param bgnDe 조회 시작일 (YYYYMMDD)
      * @param endDe 조회 종료일 (YYYYMMDD)
      * @param apiKey DART API Key (비어있으면 공용 키 사용)

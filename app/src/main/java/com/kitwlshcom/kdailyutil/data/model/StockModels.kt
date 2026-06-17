@@ -1,5 +1,27 @@
 package com.kitwlshcom.kdailyutil.data.model
 
+/**
+ * 차트 기간 선택 Enum
+ * Yahoo Finance API interval/range 파라미터와 직접 대응
+ */
+enum class ChartRange(val label: String, val interval: String, val range: String) {
+    TODAY("당일", "1m", "1d"),
+    WEEK("1주", "15m", "5d"),
+    MONTH("1개월", "1d", "1mo"),
+    THREE_MONTHS("3개월", "1d", "3mo")
+}
+
+/**
+ * 기간별 차트 데이터 모델
+ */
+data class StockChartData(
+    val symbol: String,
+    val name: String,
+    val prices: List<Float>,
+    val timestamps: List<Long>,  // Unix epoch (seconds)
+    val range: ChartRange
+)
+
 data class StockPriceItem(
     val symbol: String,
     val name: String,
