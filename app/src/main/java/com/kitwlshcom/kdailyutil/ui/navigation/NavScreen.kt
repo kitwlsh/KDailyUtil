@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class NavScreen(
@@ -15,7 +16,7 @@ sealed class NavScreen(
     val icon: ImageVector
 ) {
     object NewsBriefing : NavScreen("news_briefing", "뉴스", Icons.Default.Newspaper)
-
+    object StockDashboard : NavScreen("stock_dashboard", "증시", Icons.Default.TrendingUp)
     object DrivingShadowing : NavScreen("driving_shadowing", "뉴스 쉐도잉", Icons.Default.DriveEta)
     object AudioCapture : NavScreen("audio_capture", "오디오 캡처", Icons.Default.Audiotrack)
     object MorningSettings : NavScreen("morning_settings", "설정", Icons.Default.Settings)
@@ -25,7 +26,7 @@ sealed class NavScreen(
     companion object {
         val items = listOf(
             NewsBriefing,
-            DrivingShadowing,
+            StockDashboard,
             AudioCapture,
             LearningHub,
             MorningSettings

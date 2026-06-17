@@ -32,6 +32,7 @@ import com.kitwlshcom.kdailyutil.ui.navigation.NavScreen
 import com.kitwlshcom.kdailyutil.ui.viewmodel.BriefingViewModel
 import com.kitwlshcom.kdailyutil.ui.viewmodel.ShadowingViewModel
 import androidx.compose.material.icons.filled.RecordVoiceOver
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,10 +53,7 @@ fun NewsBriefingScreen(
     val selectedStockKeyword by viewModel.selectedStockKeyword.collectAsState()
 
     val listState = rememberLazyListState()
-
-    LaunchedEffect(selectedCategory, selectedAiCommand, selectedStockKeyword) {
-        listState.scrollToItem(0)
-    }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         if (newsItems.isEmpty()) {
@@ -122,7 +120,12 @@ fun NewsBriefingScreen(
                         CategoryTabItem(
                             category = category,
                             isSelected = category == selectedCategory,
-                            onClick = { viewModel.selectCategory(category) }
+                            onClick = {
+                                viewModel.selectCategory(category)
+                                coroutineScope.launch {
+                                    listState.scrollToItem(0)
+                                }
+                            }
                         )
                     }
                 }
@@ -186,7 +189,12 @@ fun NewsBriefingScreen(
                             val shortCommand = if (command.length > 10) command.take(10) + "..." else command
                             Tab(
                                 selected = index == selectedIndex,
-                                onClick = { viewModel.selectAiCommand(command) },
+                                onClick = {
+                                    viewModel.selectAiCommand(command)
+                                    coroutineScope.launch {
+                                        listState.scrollToItem(0)
+                                    }
+                                },
                                 text = { Text(shortCommand, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                             )
                         }
@@ -208,7 +216,12 @@ fun NewsBriefingScreen(
                             val shortKeyword = if (keyword.length > 10) keyword.take(10) + "..." else keyword
                             Tab(
                                 selected = index == selectedIndex,
-                                onClick = { viewModel.selectStockKeyword(keyword) },
+                                onClick = {
+                                    viewModel.selectStockKeyword(keyword)
+                                    coroutineScope.launch {
+                                        listState.scrollToItem(0)
+                                    }
+                                },
                                 text = { Text(shortKeyword, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                             )
                         }

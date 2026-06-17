@@ -60,11 +60,19 @@ fun MorningBriefingSettingsScreen(
     }
 
     var localApiKey by remember { mutableStateOf(apiKey ?: "") }
+    val dartApiKey by viewModel.dartApiKey.collectAsState()
+    var localDartApiKey by remember { mutableStateOf(dartApiKey) }
     
     // 외부(DataStore)에서 값이 변경되었을 때만 로컬 동기화
     LaunchedEffect(apiKey) {
         if (localApiKey != (apiKey ?: "")) {
             localApiKey = apiKey ?: ""
+        }
+    }
+
+    LaunchedEffect(dartApiKey) {
+        if (localDartApiKey != dartApiKey) {
+            localDartApiKey = dartApiKey
         }
     }
 
@@ -506,6 +514,40 @@ fun MorningBriefingSettingsScreen(
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Open DART API Key
+        Text("Open DART API Key (선택)", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "미입력 시 기본 공용 키가 제공되며, 한도 초과 시 개인 키를 발급받아 등록할 수 있습니다.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.outline
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        var isDartKeyVisible by remember { mutableStateOf(false) }
+        
+        OutlinedTextField(
+            value = localDartApiKey,
+            onValueChange = { 
+                localDartApiKey = it
+                viewModel.updateDartApiKey(it) 
+            },
+            placeholder = { Text("기본 공용 키 사용 중 (비어있음)") },
+            visualTransformation = if (isDartKeyVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                IconButton(onClick = { isDartKeyVisible = !isDartKeyVisible }) {
+                    Icon(
+                        imageVector = if (isDartKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (isDartKeyVisible) "비밀번호 숨기기" else "비밀번호 보기"
+                    )
+                }
+            }
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
         HorizontalDivider()

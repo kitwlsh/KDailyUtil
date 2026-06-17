@@ -113,6 +113,9 @@ fun MainScreen(
                         shadowingViewModel = shadowingViewModel
                     ) 
                 }
+                composable(NavScreen.StockDashboard.route) { 
+                    StockDashboardScreen(navController = navController)
+                }
                 composable(NavScreen.DrivingShadowing.route) { 
                     DrivingShadowingScreen(viewModel = shadowingViewModel) 
                 }
@@ -122,7 +125,12 @@ fun MainScreen(
                 }
                 composable(NavScreen.LearningHub.route) { LearningHubScreen() }
                 composable(NavScreen.NewsDetail.route) { 
-                    NewsDetailScreen(onBack = { navController.popBackStack() }, viewModel = briefingViewModel) 
+                    NewsDetailScreen(
+                        onBack = { navController.popBackStack() }, 
+                        navController = navController,
+                        viewModel = briefingViewModel,
+                        shadowingViewModel = shadowingViewModel
+                    ) 
                 }
             }
         }

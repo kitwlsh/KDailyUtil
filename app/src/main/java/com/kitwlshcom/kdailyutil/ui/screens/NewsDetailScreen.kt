@@ -21,6 +21,7 @@ import android.content.Intent
 import android.net.Uri
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -28,23 +29,74 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Color
 import android.widget.Toast
 import android.util.Log
+import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.kitwlshcom.kdailyutil.ui.viewmodel.ShadowingViewModel
+import com.kitwlshcom.kdailyutil.ui.navigation.NavScreen
+import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Info
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewsDetailScreen(
     onBack: () -> Unit,
-    viewModel: BriefingViewModel = viewModel()
+    navController: NavController,
+    viewModel: BriefingViewModel = viewModel(),
+    shadowingViewModel: ShadowingViewModel = viewModel()
 ) {
     val selectedNewsItem by viewModel.selectedNewsItem.collectAsState()
     val isBriefingPlaying by viewModel.isBriefingPlaying.collectAsState()
     val isLoadingDetail by viewModel.isLoadingDetail.collectAsState()
     val context = LocalContext.current
+    var showHelpDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedNewsItem) {
         selectedNewsItem?.let { item ->
             // 무조건 본문을 다시 긁어오도록 유도 (개선된 알고리즘 적용을 위해)
             viewModel.loadFullContent(item)
         }
+    }
+
+    if (showHelpDialog) {
+        AlertDialog(
+            onDismissRequest = { showHelpDialog = false },
+            title = { Text("💡 기능 안내 (브리핑 & 쉐도잉)", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) },
+            text = {
+                Column {
+                    Text(
+                        text = "1. AI 뉴스 브리핑 🎧",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "기사 본문을 음성(TTS)으로 친절하게 읽어주는 자동 낭독 서비스입니다. 출근길이나 이동 시 눈을 쓰지 않고 귀로 편리하게 기사를 들을 수 있습니다.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    
+                    Text(
+                        text = "2. 뉴스 쉐도잉 (말하기 연습) 🗣️",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "AI 낭독 한 문장을 듣고 마이크에 큰 소리로 따라 읽는 스피킹 연습 기능입니다. 운전 중이나 이동 중에도 조작 없이 자동으로 음성 재생과 녹음이 전환되어 편리하게 따라 읽기 훈련을 할 수 있습니다.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showHelpDialog = false }) {
+                    Text("확인", fontWeight = FontWeight.Bold)
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -79,13 +131,21 @@ fun NewsDetailScreen(
                             Icon(Icons.Default.Public, contentDescription = "브라우저에서 열기")
                         }
                     }
+
+                    IconButton(onClick = { showHelpDialog = true }) {
+                        Icon(Icons.Default.Info, contentDescription = "도움말")
+                    }
                     
                     Button(
                         onClick = { 
-                            if (isBriefingPlaying) {
-                                viewModel.stopBriefing()
+                            if (isLoadingDetail) {
+                                Toast.makeText(context, "브리핑 데이터를 준비 중입니다. 잠시만 기다려 주세요.", Toast.LENGTH_SHORT).show()
                             } else {
-                                selectedNewsItem?.let { viewModel.startSingleNewsBriefing(it) }
+                                if (isBriefingPlaying) {
+                                    viewModel.stopBriefing()
+                                } else {
+                                    selectedNewsItem?.let { viewModel.startSingleNewsBriefing(it) }
+                                }
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
@@ -103,151 +163,64 @@ fun NewsDetailScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            selectedNewsItem?.let { item ->
+                ExtendedFloatingActionButton(
+                    onClick = {
+                        if (isLoadingDetail) {
+                            Toast.makeText(context, "말하기 연습 데이터를 준비 중입니다. 잠시만 기다려 주세요.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            shadowingViewModel.selectArticle(item)
+                            navController.navigate(NavScreen.DrivingShadowing.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    },
+                    icon = { Icon(Icons.Default.RecordVoiceOver, contentDescription = null, tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K) },
+                    text = { Text("쉐도잉 연습", color = Color.White) },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            }
         }
     ) { innerPadding ->
         selectedNewsItem?.let { item ->
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState())
             ) {
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = item.source,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = item.pubDate,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-                
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-                
-                if (isLoadingDetail) {
-                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator()
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("본문 내용을 분석 중입니다...", style = MaterialTheme.typography.labelSmall)
+                // 실제 뉴스 기사 웹페이지 로딩 (Outlink 인앱 브라우저로 저작권 분쟁 소지 제거)
+                AndroidView(
+                    factory = { context ->
+                        WebView(context).apply {
+                            settings.apply {
+                                javaScriptEnabled = true // 일반 기사 웹페이지이므로 JS 활성화 필수
+                                domStorageEnabled = true
+                                loadWithOverviewMode = true
+                                useWideViewPort = true
+                                databaseEnabled = true
+                            }
+                            webViewClient = object : WebViewClient() {
+                                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                    // 웹뷰 내부에서 링크 클릭 시 해당 웹뷰에서 계속 탐색하도록 처리
+                                    return false
+                                }
+                            }
                         }
-                    }
-                } else {
-                    val contentText = item.fullContent.ifBlank { item.description }
-                    val contentHtml = item.fullContentHtml.ifBlank { "<div>$contentText</div>" }
-                    
-                    val isDarkMode = isSystemInDarkTheme()
-                    val backgroundColor = MaterialTheme.colorScheme.surface.toArgb()
-                    val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
-                    val primaryColor = MaterialTheme.colorScheme.primary.toArgb()
-                    
-                    val hexBackgroundColor = String.format("#%06X", 0xFFFFFF and backgroundColor)
-                    val hexTextColor = String.format("#%06X", 0xFFFFFF and textColor)
-                    val hexPrimaryColor = String.format("#%06X", 0xFFFFFF and primaryColor)
-
-                    val styledHtml = """
-                        <html>
-                        <head>
-                            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-                            <style>
-                                @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap');
-                                body {
-                                    font-family: 'Noto Sans KR', sans-serif;
-                                    line-height: 1.8;
-                                    color: $hexTextColor;
-                                    background-color: transparent;
-                                    margin: 0;
-                                    padding: 0;
-                                    font-size: 17px;
-                                    word-break: break-all;
-                                }
-                                p { margin-bottom: 24px; }
-                                img {
-                                    max-width: 100%;
-                                    height: auto;
-                                    display: block;
-                                    margin: 20px auto;
-                                    border-radius: 8px;
-                                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                                }
-                                a { color: $hexPrimaryColor; text-decoration: none; font-weight: bold; }
-                                blockquote {
-                                    border-left: 4px solid $hexPrimaryColor;
-                                    padding-left: 16px;
-                                    margin-left: 0;
-                                    color: #888;
-                                    font-style: italic;
-                                }
-                                .caption {
-                                    font-size: 14px;
-                                    color: #888;
-                                    text-align: center;
-                                    margin-top: -15px;
-                                    margin-bottom: 20px;
-                                }
-                                * { max-width: 100%; }
-                            </style>
-                        </head>
-                        <body>
-                            $contentHtml
-                        </body>
-                        </html>
-                    """.trimIndent()
-
-                    Box(modifier = Modifier.fillMaxWidth().heightIn(min = 400.dp, max = 2000.dp)) {
-                        AndroidView(
-                            factory = { context ->
-                                WebView(context).apply {
-                                    settings.apply {
-                                        javaScriptEnabled = false // 보안상 끄기
-                                        domStorageEnabled = true
-                                        loadWithOverviewMode = true
-                                        useWideViewPort = true
-                                        defaultFontSize = 17
-                                    }
-                                    webViewClient = object : WebViewClient() {
-                                        override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                                            url?.let {
-                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(it))
-                                                context.startActivity(intent)
-                                            }
-                                            return true
-                                        }
-                                    }
-                                    setBackgroundColor(0) // 투명 배경 강제
-                                }
-                            },
-                            update = { webView ->
-                                webView.loadDataWithBaseURL(item.link, styledHtml, "text/html", "UTF-8", null)
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    
-                    if (item.fullContent.isBlank() && item.fullContentHtml.isBlank()) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            "본문을 가져오는 데 실패했습니다. 원본 보기를 이용해 주세요.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(40.dp))
+                    },
+                    update = { webView ->
+                        val url = item.resolvedUrl.ifBlank { item.link }
+                        if (webView.url != url) {
+                            webView.loadUrl(url)
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
             }
         } ?: Box(
             modifier = Modifier.fillMaxSize(),

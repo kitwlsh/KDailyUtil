@@ -34,6 +34,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     val briefingTime = settingsRepository.briefingTimeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), Pair(7, 0))
     val isBriefingEnabled = settingsRepository.isBriefingEnabledFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
     val geminiApiKey = settingsRepository.geminiApiKeyFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
+    val dartApiKey = settingsRepository.dartApiKeyFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "9c9196d12df614324f10184b78ca26707bd5a9da")
     
     val aiBriefingCommand = settingsRepository.aiBriefingCommandFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val aiBriefingCommands = settingsRepository.aiBriefingCommandsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
@@ -147,6 +148,12 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
             settingsRepository.updateGeminiApiKey(trimmedKey)
             settingsRepository.setApiKeyValidated(false)
             _apiKeyStatus.value = ApiKeyStatus.Idle // 키 변경 시 상태 초기화
+        }
+    }
+
+    fun updateDartApiKey(key: String) {
+        viewModelScope.launch {
+            settingsRepository.updateDartApiKey(key.trim())
         }
     }
 
@@ -483,6 +490,13 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
 
     fun loadFullContent(item: NewsItem) {
         if (!item.link.startsWith("http")) return // AI 분석 등 웹 링크가 아닌 경우 무시
+        
+        // 캐시 데이터가 이미 있는 경우, 불필요한 네트워크/AI 스크래핑을 생략하여 0초 만에 화면 전환 지원
+        if (item.fullContent.isNotBlank()) {
+            _selectedNewsItem.value = item.copy()
+            _isLoadingDetail.value = false
+            return
+        }
 
         viewModelScope.launch {
             _isLoadingDetail.value = true

@@ -391,4 +391,78 @@ class GeminiManager(private val apiKey: String?) {
             false
         }
     }
+
+    /**
+     * DART 정형 재무 JSON을 기반으로 어닝 서프라이즈 여부 판정 및 3줄 요약 Markdown을 생성합니다.
+     */
+    suspend fun verifyEarningsDisclosure(rawFinancialJson: String): String = withContext(Dispatchers.IO) {
+        if (generativeModel == null || apiKey.isNullOrBlank()) {
+            return@withContext ""
+        }
+
+        val prompt = content {
+            text(
+                "당신은 대한민국 코스닥/코스피 시장 전문 금융 분석가이자 퀀트(Quant)입니다. 아래 제공된 JSON 형태의 기업 실적 데이터를 분석하여 정돈된 요약 보고서를 작성하고, 실적 등급을 판정해 주세요.\n\n" +
+                "실적 데이터:\n$rawFinancialJson\n\n" +
+                "요구 조건:\n" +
+                "1. 반드시 다음 JSON 객체 형식으로만 응답하세요. 다른 부가적인 텍스트나 코드 펜스는 제외하세요.\n" +
+                "   JSON 구조:\n" +
+                "   {\n" +
+                "     \"isSurprise\": true 또는 false 또는 null (매출액 및 영업이익이 전년 대비 대폭 성장했거나 시장 예상치를 상회하는 경우 true, 전년 대비 대폭 감소했거나 어닝 쇼크인 경우 false, 예상 수준에 부합하거나 미미한 변동인 경우 null),\n" +
+                "     \"isTurnaround\": true 또는 false (영업이익이나 순이익이 이전 기간 적자에서 이번 기간에 흑자로 전환된 경우 true, 그 외에는 false),\n" +
+                "     \"summary\": \"### 📊 실적 요약\\n* **매출액 변동**: 전년비 변동률 및 금액 기재\\n* **영업이익 변동**: 전년비 변동률 및 금액, 흑자전환 여부 필수 기재\\n\\n### 💡 3줄 투자 관점\\n1. 이번 실적의 가장 긍정적인 요인\\n2. 주의 깊게 봐야 할 리스크 또는 비용 요인\\n3. 종합 평가: 어닝 서프라이즈 / 인라인 / 어닝 쇼크 중 하나를 선택하고 그 이유를 설명\"\n" +
+                "   }\n" +
+                "2. 반드시 유효한 JSON 문자열만 반환하세요."
+            )
+        }
+
+        return@withContext try {
+            val response = generativeModel?.generateContent(prompt)
+            val result = response?.text ?: ""
+            cleanJsonString(result)
+        } catch (e: Exception) {
+            android.util.Log.e("GeminiManager", "❌ verifyEarningsDisclosure error: ${e.message}", e)
+            ""
+        }
+    }
+
+    /**
+     * 실적 공시 발표 예정 종목에 대한 AI 사전 전망 리포트를 생성합니다.
+     */
+    suspend fun generateExpectedEarningsReport(
+        companyName: String,
+        consensusRevenue: String,
+        consensusProfit: String
+    ): String = withContext(Dispatchers.IO) {
+        if (generativeModel == null || apiKey.isNullOrBlank()) {
+            return@withContext "API 키를 설정하면 AI 사전 전망 리포트를 생성할 수 있습니다."
+        }
+
+        val prompt = content {
+            text(
+                "당신은 대한민국 주식시장 전문 금융 애널리스트입니다. 이번 주 실적 발표가 예정된 '$companyName' 기업의 사전 전망 리포트를 작성해 주세요.\n\n" +
+                "참고 데이터:\n" +
+                "- 기업명: $companyName\n" +
+                "- 시장 예상 매출액(컨센서스): $consensusRevenue\n" +
+                "- 시장 예상 영업이익(컨센서스): $consensusProfit\n\n" +
+                "요구 조건:\n" +
+                "1. 친절하고 전문적인 말투의 한국어로 작성하세요.\n" +
+                "2. 아래 형식을 지켜 마크다운(Markdown) 포맷으로 답변하세요:\n\n" +
+                "### 🗓️ $companyName 실적 발표 사전 관전 포인트\n" +
+                "* **시장 예상치(컨센서스)**: 매출액 및 영업이익 전망 요약\n" +
+                "* **최근 주요 이슈 및 업황**: 최근 업계 트렌드 및 기업 동향 분석\n" +
+                "* **발표 시 주목해야 할 핵심 지표**:\n" +
+                "  1. [핵심 포인트 1]\n" +
+                "  2. [핵심 포인트 2]"
+            )
+        }
+
+        return@withContext try {
+            val response = generativeModel?.generateContent(prompt)
+            response?.text ?: "리포트를 생성할 수 없습니다."
+        } catch (e: Exception) {
+            android.util.Log.e("GeminiManager", "❌ generateExpectedEarningsReport error: ${e.message}", e)
+            "사전 리포트 생성 중 오류가 발생했습니다: ${e.message}"
+        }
+    }
 }

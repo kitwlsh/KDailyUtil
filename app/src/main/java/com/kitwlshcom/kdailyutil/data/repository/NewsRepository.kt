@@ -113,9 +113,10 @@ class NewsRepository(private val context: Context? = null) {
             )
             doc.select(noiseSelectors.joinToString(", ")).remove()
 
-            // "광고" 텍스트를 포함하는 요소 추가 제거
+            // "광고" 또는 "광고주" 텍스트를 *자체적으로* 포함하는 단일 요소(Leaf 노드 위주)만 제거하여 부모 컨테이너가 통째로 지워지는 문제 방지
             doc.select("div, span, p").filter { 
-                it.ownText().trim() == "광고" || it.text().trim().contains("광고주") 
+                val ownText = it.ownText().trim()
+                ownText == "광고" || ownText.contains("광고주") 
             }.forEach { it.remove() }
 
             // 2. 주요 본문 셀렉터 탐색 (우선순위 기반)
@@ -421,6 +422,7 @@ class NewsRepository(private val context: Context? = null) {
 
         // 1. URL 리다이렉트 해결 (Google News URL -> 실제 기사 URL)
         val finalUrl = resolveRedirect(googleUrl)
+        item.resolvedUrl = finalUrl
         Log.i(TAG, "🎯 FINAL TARGET URL: $finalUrl")
 
         if (finalUrl.contains("google.com/url?") || finalUrl.contains("news.google.com/rss/articles/")) {
@@ -610,6 +612,7 @@ class NewsRepository(private val context: Context? = null) {
                     put("summary", item.summary)
                     put("fullContent", item.fullContent)
                     put("fullContentHtml", item.fullContentHtml)
+                    put("resolvedUrl", item.resolvedUrl)
                 }
                 jsonArray.put(jsonObj)
             }
@@ -638,7 +641,8 @@ class NewsRepository(private val context: Context? = null) {
                         source = jsonObj.optString("source", ""),
                         summary = jsonObj.optString("summary", ""),
                         fullContent = jsonObj.optString("fullContent", ""),
-                        fullContentHtml = jsonObj.optString("fullContentHtml", "")
+                        fullContentHtml = jsonObj.optString("fullContentHtml", ""),
+                        resolvedUrl = jsonObj.optString("resolvedUrl", "")
                     )
                 )
             }

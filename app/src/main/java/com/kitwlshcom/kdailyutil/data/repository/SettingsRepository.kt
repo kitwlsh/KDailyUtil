@@ -21,6 +21,7 @@ class SettingsRepository(private val context: Context) {
         val BRIEFING_MINUTE = intPreferencesKey("briefing_minute")
         val BRIEFING_ENABLED = booleanPreferencesKey("briefing_enabled")
         val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
+        val DART_API_KEY = stringPreferencesKey("dart_api_key")
         val NEWS_CATEGORIES = stringSetPreferencesKey("news_categories")
         val AI_BRIEFING_COMMAND = stringPreferencesKey("ai_briefing_command") // 하위 호환용
         val AI_BRIEFING_COMMANDS = stringSetPreferencesKey("ai_briefing_commands") // 다중 커맨드용
@@ -64,6 +65,10 @@ class SettingsRepository(private val context: Context) {
 
     val geminiApiKeyFlow: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.GEMINI_API_KEY]
+    }
+    
+    val dartApiKeyFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.DART_API_KEY] ?: "9c9196d12df614324f10184b78ca26707bd5a9da"
     }
 
     val categoriesFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
@@ -132,6 +137,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun updateGeminiApiKey(key: String) {
         context.dataStore.edit { it[PreferencesKeys.GEMINI_API_KEY] = key }
+    }
+
+    suspend fun updateDartApiKey(key: String) {
+        context.dataStore.edit { it[PreferencesKeys.DART_API_KEY] = key }
     }
 
     suspend fun updateCategories(categories: Set<String>) {
