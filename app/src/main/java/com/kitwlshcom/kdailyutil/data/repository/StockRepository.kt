@@ -74,27 +74,38 @@ class StockRepository(private val context: Context) {
      */
     suspend fun getStockPrice(name: String): StockPriceItem = withContext(Dispatchers.IO) {
         val symbol = SYMBOL_MAP[name] ?: name
-        val url = "https://query1.finance.yahoo.com/v8/finance/chart/$symbol?interval=1d&range=30d"
 
         try {
-            val responseJson = Jsoup.connect(url)
+            // ──────────────────────────────────────────────────
+            // 1. 시세(현재가 & 전일 종가 기준 등락률) 조회
+            //    - regularMarketPreviousClose = 전일 종가 (올바른 비교 기준)
+            //    - chartPreviousClose         = 차트 범위 첫날 종가 (30일 전) → 사용 금지
+            // ──────────────────────────────────────────────────
+            val quoteUrl = "https://query1.finance.yahoo.com/v8/finance/chart/$symbol?interval=1m&range=1d"
+            val quoteJson = Jsoup.connect(quoteUrl)
                 .ignoreContentType(true)
                 .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                 .timeout(8000)
                 .execute()
                 .body()
 
-            val root = JSONObject(responseJson)
+            val root = JSONObject(quoteJson)
             val chart = root.getJSONObject("chart")
             val resultList = chart.getJSONArray("result")
+
             if (resultList.length() > 0) {
                 val resultObj = resultList.getJSONObject(0)
                 val meta = resultObj.getJSONObject("meta")
+
                 val price = meta.optDouble("regularMarketPrice", 0.0)
-                val previousClose = meta.optDouble("chartPreviousClose", 0.0)
-                
-                val change = if (previousClose != 0.0) {
-                    ((price - previousClose) / previousClose) * 100.0
+
+                // ✅ 전일 종가(regularMarketPreviousClose)로 당일 등락률 계산
+                val prevClose = meta.optDouble("regularMarketPreviousClose", 0.0)
+                    .takeIf { it != 0.0 }
+                    ?: meta.optDouble("previousClose", 0.0)
+
+                val change = if (prevClose != 0.0) {
+                    ((price - prevClose) / prevClose) * 100.0
                 } else {
                     0.0
                 }
@@ -105,32 +116,33 @@ class StockRepository(private val context: Context) {
                     val sdf = SimpleDateFormat("MM.dd HH:mm", Locale.KOREA)
                     sdf.format(Date(marketTimeEpoch * 1000L))
                 } else {
-                    val sdf = SimpleDateFormat("MM.dd HH:mm", Locale.KOREA)
-                    sdf.format(Date())
+                    SimpleDateFormat("MM.dd HH:mm", Locale.KOREA).format(Date())
                 }
 
                 // 실시간 여부 판별 (지수 및 암호화폐는 실시간 수준, 개별 주식은 15~20분 지연)
                 val isCryptoOrIndex = symbol.startsWith("^") || symbol.contains("USD") || symbol.contains("=F")
-                val delayInfoStr = if (isCryptoOrIndex) {
-                    "실시간급"
-                } else if (symbol.endsWith(".KS") || symbol.endsWith(".KQ")) {
-                    "20분 지연"
-                } else {
-                    "15분 지연"
+                val delayInfoStr = when {
+                    isCryptoOrIndex -> "실시간급"
+                    symbol.endsWith(".KS") || symbol.endsWith(".KQ") -> "20분 지연"
+                    else -> "15분 지연"
                 }
 
-                // 스파크라인 차트 데이터 추출
+                // ──────────────────────────────────────────────────
+                // 2. 당일 장중 분봉(1m)으로 스파크라인 데이터 추출
+                //    (range=1d&interval=1m → 오늘 장 시작~현재까지의 체결가)
+                // ──────────────────────────────────────────────────
                 val sparklinePoints = mutableListOf<Float>()
                 val indicators = resultObj.optJSONObject("indicators")
                 val quoteList = indicators?.optJSONArray("quote")
                 if (quoteList != null && quoteList.length() > 0) {
-                    val quote = quoteList.getJSONObject(0)
-                    val closeArray = quote.optJSONArray("close")
+                    val quoteData = quoteList.getJSONObject(0)
+                    val closeArray = quoteData.optJSONArray("close")
                     if (closeArray != null) {
+                        // 1분봉 전체 포인트를 그대로 수집 (NaN 제외)
                         for (i in 0 until closeArray.length()) {
-                            val valObj = closeArray.optDouble(i)
-                            if (!valObj.isNaN() && valObj > 0.0) {
-                                  sparklinePoints.add(valObj.toFloat())
+                            val v = closeArray.optDouble(i)
+                            if (!v.isNaN() && v > 0.0) {
+                                sparklinePoints.add(v.toFloat())
                             }
                         }
                     }
