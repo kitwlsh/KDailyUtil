@@ -164,9 +164,39 @@ fun StockPriceCard(item: StockPriceItem) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1.2f)) {
-                Text(item.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
-                Text(item.symbol, fontSize = 11.sp, color = Color.Gray)
-                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(item.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
+                    
+                    val isRealtime = item.delayInfo == "실시간급"
+                    val badgeBgColor = if (isRealtime) Color(0xFF2ECC71).copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f)
+                    val badgeContentColor = if (isRealtime) Color(0xFF2ECC71) else Color.LightGray.copy(alpha = 0.6f)
+                    val badgeBorderColor = if (isRealtime) Color(0xFF2ECC71).copy(alpha = 0.3f) else Color.White.copy(alpha = 0.1f)
+                    
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(badgeBgColor)
+                            .border(0.5.dp, badgeBorderColor, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    ) {
+                        Text(item.delayInfo, fontSize = 9.sp, color = badgeContentColor, fontWeight = FontWeight.Bold)
+                    }
+                }
+                
+                val timeSuffix = if (item.updateTime.isNotBlank()) " • ${item.updateTime}" else ""
+                Text(
+                    text = "${item.symbol}$timeSuffix", 
+                    fontSize = 10.sp, 
+                    color = Color.Gray,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                
+                Spacer(modifier = Modifier.height(6.dp))
+                
                 val formattedPrice = if (item.price > 1000.0) {
                     String.format("₩%,.0f", item.price)
                 } else {

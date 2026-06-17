@@ -5,7 +5,9 @@ data class StockPriceItem(
     val name: String,
     val price: Double,
     val change: Double,
-    val sparkline: List<Float> = emptyList()
+    val sparkline: List<Float> = emptyList(),
+    val updateTime: String = "",
+    val delayInfo: String = "15분+ 지연"
 )
 
 data class EarningsDisclosure(

@@ -99,6 +99,26 @@ class StockRepository(private val context: Context) {
                     0.0
                 }
 
+                // API 데이터의 기준 시간 (Unix epoch in seconds)
+                val marketTimeEpoch = meta.optLong("regularMarketTime", 0L)
+                val updateTimeStr = if (marketTimeEpoch > 0L) {
+                    val sdf = SimpleDateFormat("MM.dd HH:mm", Locale.KOREA)
+                    sdf.format(Date(marketTimeEpoch * 1000L))
+                } else {
+                    val sdf = SimpleDateFormat("MM.dd HH:mm", Locale.KOREA)
+                    sdf.format(Date())
+                }
+
+                // 실시간 여부 판별 (지수 및 암호화폐는 실시간 수준, 개별 주식은 15~20분 지연)
+                val isCryptoOrIndex = symbol.startsWith("^") || symbol.contains("USD") || symbol.contains("=F")
+                val delayInfoStr = if (isCryptoOrIndex) {
+                    "실시간급"
+                } else if (symbol.endsWith(".KS") || symbol.endsWith(".KQ")) {
+                    "20분 지연"
+                } else {
+                    "15분 지연"
+                }
+
                 // 스파크라인 차트 데이터 추출
                 val sparklinePoints = mutableListOf<Float>()
                 val indicators = resultObj.optJSONObject("indicators")
@@ -110,19 +130,28 @@ class StockRepository(private val context: Context) {
                         for (i in 0 until closeArray.length()) {
                             val valObj = closeArray.optDouble(i)
                             if (!valObj.isNaN() && valObj > 0.0) {
-                                sparklinePoints.add(valObj.toFloat())
+                                  sparklinePoints.add(valObj.toFloat())
                             }
                         }
                     }
                 }
 
-                return@withContext StockPriceItem(symbol, name, price, change, sparklinePoints)
+                return@withContext StockPriceItem(
+                    symbol = symbol,
+                    name = name,
+                    price = price,
+                    change = change,
+                    sparkline = sparklinePoints,
+                    updateTime = updateTimeStr,
+                    delayInfo = delayInfoStr
+                )
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to fetch stock price for $name ($symbol): ${e.message}")
         }
         // 에러 시 0.0 주가 반환
-        return@withContext StockPriceItem(symbol, name, 0.0, 0.0)
+        val currentLocalTime = SimpleDateFormat("MM.dd HH:mm", Locale.KOREA).format(Date())
+        return@withContext StockPriceItem(symbol, name, 0.0, 0.0, updateTime = currentLocalTime, delayInfo = "연결 실패")
     }
 
     /**
@@ -351,7 +380,7 @@ class StockRepository(private val context: Context) {
                         report_nm = obj.optString("report_nm", ""),
                         flr_nm = obj.optString("flr_nm", ""),
                         rcept_dt = obj.optString("rcept_dt", ""),
-                        aiSummary = obj.optString("aiSummary", null),
+                        aiSummary = obj.optString("aiSummary").takeIf { it.isNotBlank() },
                         isSurprise = if (obj.has("isSurprise")) obj.optBoolean("isSurprise") else null,
                         isTurnaround = obj.optBoolean("isTurnaround", false)
                     )
