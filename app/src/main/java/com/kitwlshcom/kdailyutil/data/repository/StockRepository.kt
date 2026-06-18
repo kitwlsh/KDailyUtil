@@ -384,9 +384,15 @@ class StockRepository(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to parse financial accounts for corpCode $corpCode: ${e.message}")
         }
-        
-        // 정형 파싱 실패 시 기본 껍데기 JSON 반환하여 Gemini가 처리할 수 있도록 유도
-        return@withContext JSONObject().put("corp_code", corpCode).put("rcept_dt", rceptDt).toString()
+
+        // 정형 파싱 실패 시: 잠정실적 등 비정형 공시는 재무 API에 데이터가 없을 수 있음
+        // Gemini에게 데이터 없음을 알리는 JSON 반환
+        return@withContext JSONObject().apply {
+            put("corp_code", corpCode)
+            put("rcept_dt", rceptDt)
+            put("error", "재무제표 API데이터 없음 - 잠정실적 등 비정형 공시일 수 있음")
+            put("hint", "직접 DART 공시 원문에서 실적 내용 파악 요청")
+        }.toString()
     }
 
     /**
@@ -419,28 +425,29 @@ class StockRepository(private val context: Context) {
             Log.e(TAG, "❌ Naver Finance Expected Earnings Scrape Failed: ${e.message}")
         }
 
-        // 웹 크롤링 결과가 없는 경우, 사용자 경험(WOW) 확보를 위해 현재 시점에 예정된 주요 기업들의 발표 일정을 동적으로 생성(Fallback)
+        // 웹 크롤링 결과가 없는 경우 Fallback — [예시] 표기로 더미임을 명확히 알림
         if (list.isEmpty()) {
             val cal = Calendar.getInstance()
             val sdf = SimpleDateFormat("MM.dd", Locale.getDefault())
-            
-            // 오늘 이후의 날짜 생성 헬퍼
+
             fun getFutureDate(daysAhead: Int): String {
                 val c = cal.clone() as Calendar
                 c.add(Calendar.DATE, daysAhead)
                 return sdf.format(c.time)
             }
 
-            list.add(ExpectedEarnings("삼성전자", getFutureDate(2), "74.2조원", "8.9조원"))
-            list.add(ExpectedEarnings("SK하이닉스", getFutureDate(4), "12.4조원", "1.2조원"))
-            list.add(ExpectedEarnings("현대차", getFutureDate(5), "41.5조원", "3.8조원"))
-            list.add(ExpectedEarnings("카카오", getFutureDate(7), "2.1조원", "1,800억원"))
-            list.add(ExpectedEarnings("네이버", getFutureDate(9), "2.6조원", "3,900억원"))
-            list.add(ExpectedEarnings("켄코아에어로스페이스", getFutureDate(11), "240억원", "12억원"))
+            // ⚠️ 아래는 네이버 크롤링 실패 시 표시되는 예시 데이터입니다.
+            list.add(ExpectedEarnings("[예시] 삼성전자", getFutureDate(2), "74.2조원", "8.9조원"))
+            list.add(ExpectedEarnings("[예시] SK하이닉스", getFutureDate(4), "12.4조원", "1.2조원"))
+            list.add(ExpectedEarnings("[예시] 현대차", getFutureDate(5), "41.5조원", "3.8조원"))
+            list.add(ExpectedEarnings("[예시] 카카오", getFutureDate(7), "2.1조원", "1,800억원"))
+            list.add(ExpectedEarnings("[예시] 네이버", getFutureDate(9), "2.6조원", "3,900억원"))
+            list.add(ExpectedEarnings("[예시] 켄코아에어로스페이스", getFutureDate(11), "240억원", "12억원"))
         }
 
         return@withContext list
     }
+
 
     /**
      * 로컬 파일로부터 캐시된 공시 AI 요약 내역을 가져옵니다.
