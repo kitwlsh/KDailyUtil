@@ -27,7 +27,8 @@ class SettingsRepository(private val context: Context) {
         val AI_BRIEFING_COMMANDS = stringSetPreferencesKey("ai_briefing_commands") // 다중 커맨드용
         val AI_COMMAND_AUDIO_PATH = stringPreferencesKey("ai_command_audio_path")
         val IS_API_KEY_VALIDATED = booleanPreferencesKey("is_api_key_validated")
-        val STOCK_KEYWORDS = stringSetPreferencesKey("stock_keywords")
+        val STOCK_KEYWORDS = stringSetPreferencesKey("stock_keywords")       // 📰 뉴스탭 증시 필터 키워드
+        val WATCH_STOCK_KEYWORDS = stringSetPreferencesKey("watch_stock_keywords") // 📈 증시탭 종목 관심목록
         val AUTO_REFRESH_INTERVAL_HOURS = intPreferencesKey("auto_refresh_interval_hours")
         val NEWS_LIMIT = intPreferencesKey("news_limit")
         val SPLASH_THEME = stringPreferencesKey("splash_theme")
@@ -83,8 +84,20 @@ class SettingsRepository(private val context: Context) {
         preferences[PreferencesKeys.AI_BRIEFING_COMMANDS] ?: emptySet()
     }
 
+    /**
+     * 📰 뉴스탭 증시 뉴스 필터 키워드 (MorningBriefingSettingsScreen / BriefingViewModel 에서 사용)
+     */
     val stockKeywordsFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.STOCK_KEYWORDS] ?: setOf("나스닥", "코스피", "테슬라", "비트코인")
+    }
+
+    /**
+     * 📈 증시탭 관심종목 목록 (StockViewModel / StockDashboardScreen 에서 사용)
+     * 뉴스 필터 키워드(stockKeywordsFlow)와 완전히 독립된 별도 저장소
+     */
+    val watchStockKeywordsFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.WATCH_STOCK_KEYWORDS]
+            ?: setOf("나스닥", "코스피", "테슬라", "비트코인") // 앱 최초 실행 기본값
     }
 
     val aiCommandAudioPathFlow: Flow<String> = context.dataStore.data.map { preferences ->
@@ -163,8 +176,14 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it[PreferencesKeys.IS_API_KEY_VALIDATED] = isValidated }
     }
 
+    /** 📰 뉴스탭 증시 뉴스 필터 키워드 저장 */
     suspend fun updateStockKeywords(keywords: Set<String>) {
         context.dataStore.edit { it[PreferencesKeys.STOCK_KEYWORDS] = keywords }
+    }
+
+    /** 📈 증시탭 관심종목 목록 저장 */
+    suspend fun updateWatchStockKeywords(keywords: Set<String>) {
+        context.dataStore.edit { it[PreferencesKeys.WATCH_STOCK_KEYWORDS] = keywords }
     }
 
     suspend fun updateAutoRefreshInterval(hours: Int) {

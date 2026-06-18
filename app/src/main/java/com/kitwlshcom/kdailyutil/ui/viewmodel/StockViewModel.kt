@@ -99,8 +99,8 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 _isPricesLoading.value = true
             }
             try {
-                // SettingsRepository에서 사용자의 관심종목 가져오기
-                val keywords = settingsRepository.stockKeywordsFlow.first()
+                // ⚠️ watchStockKeywordsFlow 사용 — 뉴스탭 필터(stockKeywordsFlow)와 엄감히 분리
+                val keywords = settingsRepository.watchStockKeywordsFlow.first()
                 val list = keywords.map { keyword ->
                     stockRepository.getStockPrice(keyword)
                 }
@@ -178,36 +178,37 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ─────────────────────────────────────────────
-    // 관심 종목 관리 (DataStore 연동)
+    // 📈 증시탭 관심종목 관리 (WATCH_STOCK_KEYWORDS DataStore)
+    //    특집논에: 뉴스탭 증시 필터(STOCK_KEYWORDS)와 완전히 분리되어 독립 저장소를 사용
     // ─────────────────────────────────────────────
-    /** 현재 저장된 종목 목록을 로드 */
+    /** 증시탭 관심종목 목록을 DataStore에서 실시간 수집 */
     fun loadStockKeywords() {
         viewModelScope.launch {
-            settingsRepository.stockKeywordsFlow.collect { keywords ->
+            settingsRepository.watchStockKeywordsFlow.collect { keywords ->
                 _stockKeywords.value = keywords.toList()
             }
         }
     }
 
-    /** 골락(DataStore) 기준 한 종목 키워드를 추가 */
+    /** 증시탭 관심종목에 종목을 추가 */
     fun addStockKeyword(name: String) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
-            val current = settingsRepository.stockKeywordsFlow.first().toMutableSet()
+            val current = settingsRepository.watchStockKeywordsFlow.first().toMutableSet()
             if (current.add(trimmed)) {
-                settingsRepository.updateStockKeywords(current)
+                settingsRepository.updateWatchStockKeywords(current)
                 loadStockPrices(showLoading = true)
             }
         }
     }
 
-    /** DataStore에서 종목 키워드를 제거 */
+    /** 증시탭 관심종목에서 종목을 제거 */
     fun removeStockKeyword(name: String) {
         viewModelScope.launch {
-            val current = settingsRepository.stockKeywordsFlow.first().toMutableSet()
+            val current = settingsRepository.watchStockKeywordsFlow.first().toMutableSet()
             if (current.remove(name)) {
-                settingsRepository.updateStockKeywords(current)
+                settingsRepository.updateWatchStockKeywords(current)
                 _stockPrices.value = _stockPrices.value.filter { it.name != name }
             }
         }
