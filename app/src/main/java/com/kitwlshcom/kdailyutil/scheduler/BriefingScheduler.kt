@@ -28,9 +28,13 @@ class BriefingScheduler(private val context: Context) {
             set(Calendar.HOUR_OF_DAY, hour)
             set(Calendar.MINUTE, minute)
             set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
             
-            // 설정 시간이 이미 지났다면 내일로 예약
-            if (before(Calendar.getInstance())) {
+            // 설정 시간이 이미 지났거나 너무 인접한 경우(5초 이내) 내일로 예약하여 오발동 방지
+            val nowThreshold = Calendar.getInstance().apply {
+                add(Calendar.SECOND, 5)
+            }
+            if (before(nowThreshold)) {
                 add(Calendar.DATE, 1)
             }
         }
