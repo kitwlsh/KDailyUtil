@@ -9,26 +9,18 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import com.kitwlshcom.kdailyutil.MainActivity
+import com.kitwlshcom.kdailyutil.data.repository.SettingsRepository
 import com.kitwlshcom.kdailyutil.scheduler.BriefingScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-
-private val Context.dataStore by preferencesDataStore(name = "settings")
 
 class BriefingReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "BriefingReceiver"
-        private val KEY_BRIEFING_ENABLED = booleanPreferencesKey("briefing_enabled")
-        private val KEY_BRIEFING_HOUR    = intPreferencesKey("briefing_hour")
-        private val KEY_BRIEFING_MINUTE  = intPreferencesKey("briefing_minute")
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -40,12 +32,11 @@ class BriefingReceiver : BroadcastReceiver() {
             "com.kitwlshcom.kdailyutil.ACTION_MORNING_BRIEFING" -> {
                 Log.d(TAG, "📅 모닝 브리핑 알람 수신")
 
-                // BroadcastReceiver에서 코루틴을 안전하게 실행하기 위해 goAsync() 사용
                 val pendingResult = goAsync()
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
-                        val prefs = context.dataStore.data.first()
-                        val isEnabled = prefs[KEY_BRIEFING_ENABLED] ?: false
+                        val settingsRepo = SettingsRepository(context)
+                        val isEnabled = settingsRepo.isBriefingEnabledFlow.first()
 
                         if (isEnabled) {
                             Log.d(TAG, "✅ 자동 브리핑 활성화 상태 — 알림 표시")
@@ -54,8 +45,7 @@ class BriefingReceiver : BroadcastReceiver() {
                             Log.d(TAG, "⏸️ 자동 브리핑 비활성화 상태 — 알림 생략")
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "DataStore 읽기 실패: ${e.message}")
-                        // DataStore 오류 시 안전을 위해 알림 생략
+                        Log.e(TAG, "설정 읽기 실패: ${e.message}")
                     } finally {
                         pendingResult.finish()
                     }
@@ -72,19 +62,18 @@ class BriefingReceiver : BroadcastReceiver() {
                 val pendingResult = goAsync()
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
-                        val prefs = context.dataStore.data.first()
-                        val isEnabled = prefs[KEY_BRIEFING_ENABLED] ?: false
+                        val settingsRepo = SettingsRepository(context)
+                        val isEnabled = settingsRepo.isBriefingEnabledFlow.first()
 
                         if (isEnabled) {
-                            val hour   = prefs[KEY_BRIEFING_HOUR]   ?: 7
-                            val minute = prefs[KEY_BRIEFING_MINUTE] ?: 0
+                            val (hour, minute) = settingsRepo.briefingTimeFlow.first()
                             Log.d(TAG, "✅ 자동 브리핑 재등록: ${hour}:${String.format("%02d", minute)}")
                             BriefingScheduler(context).scheduleBriefing(hour, minute)
                         } else {
                             Log.d(TAG, "⏸️ 자동 브리핑 비활성화 — 알람 재등록 생략")
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "DataStore 읽기 실패 (BOOT): ${e.message}")
+                        Log.e(TAG, "설정 읽기 실패 (BOOT): ${e.message}")
                     } finally {
                         pendingResult.finish()
                     }
