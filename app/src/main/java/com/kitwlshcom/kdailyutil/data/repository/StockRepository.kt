@@ -19,6 +19,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
+import java.util.concurrent.ConcurrentHashMap
 
 class StockRepository(private val context: Context) {
 
@@ -72,17 +74,148 @@ class StockRepository(private val context: Context) {
     private val cacheFile: File
         get() = File(context.filesDir, "earnings_disclosures_cache.json")
 
+    // ── 시세 데이터 로컬 파일 및 인메모리 캐시 ──────────────────
+    private val priceCacheFile: File
+        get() = File(context.filesDir, "stock_prices_cache.json")
+
+    private val cachedPrices = ConcurrentHashMap<String, StockPriceItem>()
+
+    init {
+        loadCachedPrices()
+    }
+
+    @Synchronized
+    private fun loadCachedPrices() {
+        if (!priceCacheFile.exists()) return
+        try {
+            val jsonStr = priceCacheFile.readText(StandardCharsets.UTF_8)
+            val array = JSONArray(jsonStr)
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                val symbol = obj.getString("symbol")
+                val name = obj.getString("name")
+                val price = obj.getDouble("price")
+                val change = obj.getDouble("change")
+                val updateTime = obj.optString("updateTime", "")
+                val delayInfo = obj.optString("delayInfo", "")
+                val currencyTypeStr = obj.optString("currencyType", "USD")
+                val currencyType = try { CurrencyType.valueOf(currencyTypeStr) } catch(e: Exception) { CurrencyType.USD }
+                
+                val sparkline = mutableListOf<Float>()
+                val sparkArray = obj.optJSONArray("sparkline")
+                if (sparkArray != null) {
+                    for (j in 0 until sparkArray.length()) {
+                        sparkline.add(sparkArray.getDouble(j).toFloat())
+                    }
+                }
+                
+                val item = StockPriceItem(
+                    symbol = symbol,
+                    name = name,
+                    price = price,
+                    change = change,
+                    sparkline = sparkline,
+                    updateTime = updateTime,
+                    delayInfo = delayInfo,
+                    currencyType = currencyType
+                )
+                cachedPrices[name] = item
+            }
+            Log.d(TAG, "💾 Loaded ${cachedPrices.size} stock prices from local cache.")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to load cached prices: ${e.message}")
+        }
+    }
+
+    @Synchronized
+    private fun saveCachedPrices() {
+        try {
+            val array = JSONArray()
+            for ((_, item) in cachedPrices) {
+                val obj = JSONObject().apply {
+                    put("symbol", item.symbol)
+                    put("name", item.name)
+                    put("price", item.price)
+                    put("change", item.change)
+                    put("updateTime", item.updateTime)
+                    put("delayInfo", item.delayInfo)
+                    put("currencyType", item.currencyType.name)
+                    
+                    val sparkArray = JSONArray()
+                    item.sparkline.forEach { sparkArray.put(it.toDouble()) }
+                    put("sparkline", sparkArray)
+                }
+                array.put(obj)
+            }
+            priceCacheFile.writeText(array.toString(), StandardCharsets.UTF_8)
+            Log.d(TAG, "💾 Saved ${cachedPrices.size} stock prices to local cache.")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to save cached prices: ${e.message}")
+        }
+    }
+
+    /**
+     * 해당 종목의 심볼을 기준으로 현재 거래소가 장중(영업시간)인지 판별합니다.
+     */
+    fun isMarketOpen(symbol: String): Boolean {
+        val isCrypto = symbol.contains("USD") || symbol.contains("=F") // 비트코인 등 암호화폐
+        val isKorean = symbol.endsWith(".KS") || symbol.endsWith(".KQ") || symbol == "^KS11" || symbol == "^KQ11"
+        
+        return when {
+            isCrypto -> true // 암호화폐는 24시간 365일 개장
+            isKorean -> {
+                // 한국 시간(KST) 기준 월~금 09:00 ~ 15:30
+                val tz = TimeZone.getTimeZone("Asia/Seoul")
+                val cal = Calendar.getInstance(tz)
+                val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
+                if (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY) {
+                    false
+                } else {
+                    val hour = cal.get(Calendar.HOUR_OF_DAY)
+                    val minute = cal.get(Calendar.MINUTE)
+                    val timeInMinutes = hour * 60 + minute
+                    timeInMinutes in (9 * 60)..(15 * 60 + 30)
+                }
+            }
+            else -> {
+                // 미국 시간(EST/EDT) 기준 월~금 09:30 ~ 16:00
+                // TimeZone "America/New_York" 설정 시 자바 Calendar 내부에서 미국 서머타임을 자동 계산함
+                val tz = TimeZone.getTimeZone("America/New_York")
+                val cal = Calendar.getInstance(tz)
+                val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
+                if (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY) {
+                    false
+                } else {
+                    val hour = cal.get(Calendar.HOUR_OF_DAY)
+                    val minute = cal.get(Calendar.MINUTE)
+                    val timeInMinutes = hour * 60 + minute
+                    timeInMinutes in (9 * 60 + 30)..(16 * 60)
+                }
+            }
+        }
+    }
+
     /**
      * Yahoo Finance API를 통해 실시간 주가 시세 및 스파크라인 포인트를 조회합니다.
+     * 장중이 아닐 경우(장마감 상태) 캐싱된 로컬 데이터를 즉시 반환하여 네트워크 사용을 억제합니다.
      */
     suspend fun getStockPrice(name: String): StockPriceItem = withContext(Dispatchers.IO) {
         val symbol = SYMBOL_MAP[name] ?: name
+        val isOpen = isMarketOpen(symbol)
+
+        // ──────────────────────────────────────────────────
+        // 1. 장중이 아니고, 기존 캐시 데이터가 있으면 그대로 반환
+        //    (단, 캐시에 데이터가 전혀 없는 최초 로드 시에는 장외여도 1회 조회해 옴)
+        // ──────────────────────────────────────────────────
+        val existingCache = cachedPrices[name]
+        if (!isOpen && existingCache != null) {
+            Log.d(TAG, "⏭️ Market CLOSED for $name ($symbol). Returning cached price.")
+            return@withContext existingCache
+        }
 
         try {
             // ──────────────────────────────────────────────────
-            // 1. 시세(현재가 & 전일 종가 기준 등락률) 조회
-            //    - regularMarketPreviousClose = 전일 종가 (올바른 비교 기준)
-            //    - chartPreviousClose         = 차트 범위 첫날 종가 (30일 전) → 사용 금지
+            // 2. 시세(현재가 & 전일 종가 기준 등락률) 조회
             // ──────────────────────────────────────────────────
             val quoteUrl = "https://query1.finance.yahoo.com/v8/finance/chart/$symbol?interval=1m&range=1d"
             val quoteJson = Jsoup.connect(quoteUrl)
@@ -130,12 +263,6 @@ class StockRepository(private val context: Context) {
                     else -> "15분 지연"
                 }
 
-                // ─────────────────────────────────────────────────
-                // 통화 타입 결정
-                //  ^IXIC, ^KS11 등 지수  → INDEX (숫자만 표시)
-                //  .KS / .KQ 한국 주식   → KRW (₩)
-                //  나머지 (US주식, 암호화폐) → USD ($)
-                // ─────────────────────────────────────────────────
                 val currencyType = when {
                     symbol.startsWith("^") -> CurrencyType.INDEX
                     symbol.endsWith(".KS") || symbol.endsWith(".KQ") -> CurrencyType.KRW
@@ -143,8 +270,7 @@ class StockRepository(private val context: Context) {
                 }
 
                 // ──────────────────────────────────────────────────
-                // 2. 당일 장중 분봉(1m)으로 스파크라인 데이터 추출
-                //    (range=1d&interval=1m → 오늘 장 시작~현재까지의 체결가)
+                // 3. 당일 장중 분봉(1m)으로 스파크라인 데이터 추출
                 // ──────────────────────────────────────────────────
                 val sparklinePoints = mutableListOf<Float>()
                 val indicators = resultObj.optJSONObject("indicators")
@@ -153,7 +279,6 @@ class StockRepository(private val context: Context) {
                     val quoteData = quoteList.getJSONObject(0)
                     val closeArray = quoteData.optJSONArray("close")
                     if (closeArray != null) {
-                        // 1분봉 전체 포인트를 그대로 수집 (NaN 제외)
                         for (i in 0 until closeArray.length()) {
                             val v = closeArray.optDouble(i)
                             if (!v.isNaN() && v > 0.0) {
@@ -163,7 +288,7 @@ class StockRepository(private val context: Context) {
                     }
                 }
 
-                return@withContext StockPriceItem(
+                val updatedItem = StockPriceItem(
                     symbol = symbol,
                     name = name,
                     price = price,
@@ -173,18 +298,42 @@ class StockRepository(private val context: Context) {
                     delayInfo = delayInfoStr,
                     currencyType = currencyType
                 )
+
+                // ──────────────────────────────────────────────────
+                // 4. 캐시 및 로컬 파일 갱신
+                // ──────────────────────────────────────────────────
+                cachedPrices[name] = updatedItem
+                saveCachedPrices()
+
+                return@withContext updatedItem
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to fetch stock price for $name ($symbol): ${e.message}")
         }
-        // 에러 시 0.0 주가 반환
+
+        // ──────────────────────────────────────────────────
+        // 5. 에러 발생 시 Fallback: 기존 캐시 반환, 정 캐시조차 없으면 0.0 리턴
+        // ──────────────────────────────────────────────────
+        if (existingCache != null) {
+            Log.w(TAG, "⚠️ Connection failed for $name. Returning cached price as fallback.")
+            return@withContext existingCache
+        }
+
         val currentLocalTime = SimpleDateFormat("MM.dd HH:mm", Locale.KOREA).format(Date())
         val fallbackCurrency = when {
             symbol.startsWith("^") -> CurrencyType.INDEX
             symbol.endsWith(".KS") || symbol.endsWith(".KQ") -> CurrencyType.KRW
             else -> CurrencyType.USD
         }
-        return@withContext StockPriceItem(symbol, name, 0.0, 0.0, updateTime = currentLocalTime, delayInfo = "연결 실패", currencyType = fallbackCurrency)
+        return@withContext StockPriceItem(
+            symbol = symbol,
+            name = name,
+            price = 0.0,
+            change = 0.0,
+            updateTime = currentLocalTime,
+            delayInfo = "연결 실패",
+            currencyType = fallbackCurrency
+        )
     }
 
     /**
