@@ -53,6 +53,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.kitwlshcom.kdailyutil.data.model.ChartRange
+import com.kitwlshcom.kdailyutil.data.model.CurrencyType
 import com.kitwlshcom.kdailyutil.data.model.EarningsDisclosure
 import com.kitwlshcom.kdailyutil.data.model.ExpectedEarnings
 import com.kitwlshcom.kdailyutil.data.model.StockChartData
@@ -65,6 +66,24 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
+
+// ─────────────────────────────────────────────────────────────
+// 📐 통화 포맷터: 심볼 타입에 따라 올바른 화폐 단위를 붙임
+//  - CurrencyType.KRW   → ₩80,000 (한국 주식)
+//  - CurrencyType.USD   → $234.56 (US 주식 / 비트코인 등)
+//  - CurrencyType.INDEX → 18,234.12 pt (나스닥, 코스피 등 지수)
+// ─────────────────────────────────────────────────────────────
+fun formatStockPrice(price: Double, currencyType: CurrencyType): String = when (currencyType) {
+    CurrencyType.KRW   -> "₩${String.format("%,.0f", price)}"
+    CurrencyType.USD   -> "\$${String.format("%,.2f", price)}"
+    CurrencyType.INDEX -> String.format("%,.2f", price)  // 단위 없이 숫자만 (소수 2자리)
+}
+
+fun formatChartPrice(price: Float, currencyType: CurrencyType): String = when (currencyType) {
+    CurrencyType.KRW   -> "₩${String.format("%,.0f", price)}"
+    CurrencyType.USD   -> "\$${String.format("%,.2f", price)}"
+    CurrencyType.INDEX -> String.format("%,.2f", price)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -458,7 +477,7 @@ fun StockPriceCard(
                         val timeSuffix = if (item.updateTime.isNotBlank()) " • ${item.updateTime}" else ""
                         Text("${item.symbol}$timeSuffix", fontSize = 10.sp, color = Color.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(modifier = Modifier.height(4.dp))
-                        val formattedPrice = if (item.price > 1000.0) String.format("₩%,.0f", item.price) else String.format("$%,.2f", item.price)
+                        val formattedPrice = formatStockPrice(item.price, item.currencyType)
                         Text(formattedPrice, fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, color = Color.White)
                     }
 
@@ -615,7 +634,7 @@ fun StockChartBottomSheet(
                     Text(item.symbol, fontSize = 12.sp, color = Color.Gray)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    val formattedPrice = if (item.price > 1000.0) String.format("₩%,.0f", item.price) else String.format("$%,.2f", item.price)
+                    val formattedPrice = formatStockPrice(item.price, item.currencyType)
                     Text(formattedPrice, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Color.White)
                     val prefix = if (isPositive) "+" else ""
                     Text("${prefix}${String.format("%.2f", item.change)}%", color = trendColor, fontWeight = FontWeight.Bold, fontSize = 15.sp)
@@ -737,23 +756,77 @@ fun StockChartBottomSheet(
                             }
 
                             // 그라디언트 배경
-                            drawPath(fillPath, Brush.verticalGradient(listOf(lineColor.copy(0.3f), Color.Transparent), padding, h))
-                            // 라인
-                            drawPath(path, lineColor, style = Stroke(2.5.dp.toPx()))
+                            drawPath(fillPath, Brush.verticalGradient(listOf(lineColor.copy(0.25f), Color.Transparent), padding, h))
+                            // 가격 라인 (둥근 끝 처리)
+                            drawPath(path, lineColor, style = Stroke(2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+
+                            // ── Y축 수평 그리드 (4단계) ──────────────────
+                            val gridSteps = 4
+                            for (i in 0..gridSteps) {
+                                val yPos = padding + (chartH / gridSteps) * i
+                                drawLine(
+                                    color = Color.White.copy(alpha = 0.07f),
+                                    start = Offset(0f, yPos),
+                                    end = Offset(w, yPos),
+                                    strokeWidth = 0.5.dp.toPx()
+                                )
+                            }
+
+                            // ── Y축 수평 그리드 (4단계) 레이블은 Canvas 외부 Compose에서 처리
 
                             // 크로스헤어
                             touchX?.let { tx ->
                                 val clampedTx = tx.coerceIn(0f, w)
-                                drawLine(Color.White.copy(0.4f), Offset(clampedTx, 0f), Offset(clampedTx, h), strokeWidth = 1.dp.toPx())
+                                // 수직선
+                                drawLine(Color.White.copy(0.35f), Offset(clampedTx, padding), Offset(clampedTx, h - padding), strokeWidth = 1.dp.toPx())
                                 // 가격 계산
                                 val idx = ((clampedTx / w) * (visiblePrices.size - 1)).toInt().coerceIn(0, visiblePrices.lastIndex)
                                 val priceAtTouch = visiblePrices.getOrNull(idx)
                                 val cy = if (priceAtTouch != null) padding + chartH - ((priceAtTouch - minVal) / valRange) * chartH else h / 2
-                                drawCircle(lineColor, radius = 5.dp.toPx(), center = Offset(clampedTx, cy))
+                                // 가격 도트 (흰 테두리 + 라인 색 내부)
+                                drawCircle(Color.White, radius = 5.5.dp.toPx(), center = Offset(clampedTx, cy))
+                                drawCircle(lineColor, radius = 4.dp.toPx(), center = Offset(clampedTx, cy))
+                                // 수평선 (점선 효과)
+                                drawLine(lineColor.copy(0.5f), Offset(0f, cy), Offset(w, cy), strokeWidth = 0.5.dp.toPx())
+                            }
+                        }  // end Canvas
+
+                        // ── Y축 가격 레이블 (Compose Text 오버레이) ──────────
+                        BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(end = 2.dp)) {
+                            val chartH2 = maxHeight
+                            val padding2 = 4.dp
+                            val visiblePricesSnap = run {
+                                val count = prices.size
+                                val vc = (count / zoomX).toInt().coerceIn(5, count)
+                                val maxS = (count - vc).coerceAtLeast(0)
+                                val si = ((-offsetX / 1f) * count / 1f).toFloat().coerceIn(0f, maxS.toFloat()).toInt()
+                                val ei = (si + vc).coerceAtMost(count)
+                                prices.subList(si, ei)
+                            }
+                            val minP = visiblePricesSnap.minOrNull() ?: 0f
+                            val maxP = visiblePricesSnap.maxOrNull() ?: 1f
+                            listOf(0, 1, 2).forEach { i ->
+                                val fraction = i.toFloat() / 2f
+                                val priceLabel = minP + (maxP - minP) * (1f - fraction)
+                                val yOffset = (chartH2 * fraction)
+                                Box(
+                                    modifier = Modifier
+                                        .wrapContentSize()
+                                        .align(Alignment.TopEnd)
+                                        .offset(y = yOffset - 8.dp)
+                                ) {
+                                    Text(
+                                        text = formatChartPrice(priceLabel, item.currencyType),
+                                        fontSize = 8.sp,
+                                        color = Color.White.copy(0.45f),
+                                        textAlign = TextAlign.End
+                                    )
+                                }
                             }
                         }
 
                         // 크로스헤어 가격 말풍선
+
                         touchX?.let { tx ->
                             val count2 = prices.size
                             val visibleCount2 = (count2 / zoomX).toInt().coerceIn(5, count2)
@@ -773,7 +846,7 @@ fun StockChartBottomSheet(
                                 val tsVal = visibleTs.getOrNull(idx)
 
                                 if (priceVal != null) {
-                                    val formP = if (priceVal > 1000f) String.format("₩%,.0f", priceVal) else String.format("$%,.2f", priceVal)
+                                    val formP = formatChartPrice(priceVal, item.currencyType)
                                     val timeStr = if (tsVal != null && tsVal > 0L) {
                                         val pattern = when (chartRange) {
                                             ChartRange.TODAY -> "HH:mm"

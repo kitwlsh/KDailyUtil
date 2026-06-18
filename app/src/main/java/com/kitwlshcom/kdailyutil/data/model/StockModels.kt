@@ -22,6 +22,14 @@ data class StockChartData(
     val range: ChartRange
 )
 
+/**
+ * 주가/지수 통화 타입
+ *  - KRW   : 한국 원화 종목 (.KS / .KQ)         → ₩ 표시
+ *  - USD   : 미국 달러 종목 (US 주식, 암호화폐)   → $ 표시
+ *  - INDEX : 주가지수 (코스피, 나스닥 등 ^로 시작) → 단위 없이 숫자만 (pt 병기)
+ */
+enum class CurrencyType { KRW, USD, INDEX }
+
 data class StockPriceItem(
     val symbol: String,
     val name: String,
@@ -29,8 +37,10 @@ data class StockPriceItem(
     val change: Double,
     val sparkline: List<Float> = emptyList(),
     val updateTime: String = "",
-    val delayInfo: String = "15분+ 지연"
+    val delayInfo: String = "15분+ 지연",
+    val currencyType: CurrencyType = CurrencyType.USD  // 기본값 USD (레거시 호환)
 )
+
 
 data class EarningsDisclosure(
     val rcept_no: String,

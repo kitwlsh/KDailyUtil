@@ -3,6 +3,7 @@ package com.kitwlshcom.kdailyutil.data.repository
 import android.content.Context
 import android.util.Log
 import com.kitwlshcom.kdailyutil.data.model.ChartRange
+import com.kitwlshcom.kdailyutil.data.model.CurrencyType
 import com.kitwlshcom.kdailyutil.data.model.EarningsDisclosure
 import com.kitwlshcom.kdailyutil.data.model.ExpectedEarnings
 import com.kitwlshcom.kdailyutil.data.model.StockChartData
@@ -129,6 +130,18 @@ class StockRepository(private val context: Context) {
                     else -> "15분 지연"
                 }
 
+                // ─────────────────────────────────────────────────
+                // 통화 타입 결정
+                //  ^IXIC, ^KS11 등 지수  → INDEX (숫자만 표시)
+                //  .KS / .KQ 한국 주식   → KRW (₩)
+                //  나머지 (US주식, 암호화폐) → USD ($)
+                // ─────────────────────────────────────────────────
+                val currencyType = when {
+                    symbol.startsWith("^") -> CurrencyType.INDEX
+                    symbol.endsWith(".KS") || symbol.endsWith(".KQ") -> CurrencyType.KRW
+                    else -> CurrencyType.USD
+                }
+
                 // ──────────────────────────────────────────────────
                 // 2. 당일 장중 분봉(1m)으로 스파크라인 데이터 추출
                 //    (range=1d&interval=1m → 오늘 장 시작~현재까지의 체결가)
@@ -157,7 +170,8 @@ class StockRepository(private val context: Context) {
                     change = change,
                     sparkline = sparklinePoints,
                     updateTime = updateTimeStr,
-                    delayInfo = delayInfoStr
+                    delayInfo = delayInfoStr,
+                    currencyType = currencyType
                 )
             }
         } catch (e: Exception) {
@@ -165,7 +179,12 @@ class StockRepository(private val context: Context) {
         }
         // 에러 시 0.0 주가 반환
         val currentLocalTime = SimpleDateFormat("MM.dd HH:mm", Locale.KOREA).format(Date())
-        return@withContext StockPriceItem(symbol, name, 0.0, 0.0, updateTime = currentLocalTime, delayInfo = "연결 실패")
+        val fallbackCurrency = when {
+            symbol.startsWith("^") -> CurrencyType.INDEX
+            symbol.endsWith(".KS") || symbol.endsWith(".KQ") -> CurrencyType.KRW
+            else -> CurrencyType.USD
+        }
+        return@withContext StockPriceItem(symbol, name, 0.0, 0.0, updateTime = currentLocalTime, delayInfo = "연결 실패", currencyType = fallbackCurrency)
     }
 
     /**
