@@ -69,7 +69,7 @@ class SettingsRepository(private val context: Context) {
     }
     
     val dartApiKeyFlow: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[PreferencesKeys.DART_API_KEY] ?: "9c9196d12df614324f10184b78ca26707bd5a9da"
+        preferences[PreferencesKeys.DART_API_KEY] ?: com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY
     }
 
     val categoriesFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->

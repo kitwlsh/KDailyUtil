@@ -461,7 +461,15 @@ fun StockPriceCard(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(item.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White, maxLines = 1)
+                            Text(
+                                item.name,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
                             val isRealtime = item.delayInfo == "실시간급"
                             val bgColor = if (isRealtime) Color(0xFF2ECC71).copy(0.15f) else Color.White.copy(0.05f)
                             val fgColor = if (isRealtime) Color(0xFF2ECC71) else Color.LightGray.copy(0.6f)
@@ -471,7 +479,7 @@ fun StockPriceCard(
                                     .background(bgColor)
                                     .padding(horizontal = 4.dp, vertical = 1.dp)
                             ) {
-                                Text(item.delayInfo, fontSize = 8.sp, color = fgColor, fontWeight = FontWeight.Bold)
+                                Text(item.delayInfo, fontSize = 8.sp, color = fgColor, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                             }
                         }
                         val timeSuffix = if (item.updateTime.isNotBlank()) " • ${item.updateTime}" else ""

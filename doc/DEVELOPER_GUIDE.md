@@ -1,7 +1,7 @@
 # 🛠 KDailyUtil - 개발자 가이드 (Developer Context Guide)
 
 > **신규 세션 또는 AI 어시스턴트가 이 파일을 먼저 읽으면 프로젝트 전체 맥락을 즉시 파악할 수 있습니다.**
-> 최종 업데이트: 2026-06-10
+> 최종 업데이트: 2026-06-23
 
 ---
 
@@ -280,10 +280,31 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
   - `cache-path` → `.kquiz` 파일 공유 (shared_quizzes)
   - `files-path` → 커스텀 퀴즈 파일 및 크롭 이미지 접근
 
+### 백업 데이터 보호 (2026-06-23)
+- API 키 등 민감 설정이 저장되는 DataStore(`files/datastore/`)를 자동 백업에서 제외함.
+  - `res/xml/backup_rules.xml` (API ≤30): `<exclude domain="file" path="datastore/" />`
+  - `res/xml/data_extraction_rules.xml` (API 31+): `cloud-backup` / `device-transfer` 모두 동일 제외.
+
+### WebView 보안 (2026-06-23)
+- 외부 뉴스 페이지를 로드하는 WebView 3곳(`NewsDetailScreen`, `NewsRepository`의 리다이렉트/본문추출 WebView)에서
+  단말 내부 파일 접근을 차단: `allowFileAccess = false`, `allowContentAccess = false`,
+  `allowFileAccessFromFileURLs = false`, `allowUniversalAccessFromFileURLs = false`.
+
 ### API 키
 - **저장**: Preferences DataStore (`SettingsRepository.geminiApiKeyFlow`)
 - **UI 입력**: `MorningBriefingSettingsScreen` > API 키 설정
 - **사용**: `GeminiManager(apiKey)` 생성자 주입
+
+#### ⚠️ DART 기본 제공 키 (빌드 시 필수 확인)
+- 사용자가 DART 키를 직접 입력하지 않으면 **기본 제공 키**로 폴백하여 실적 공시 기능이 동작함.
+- 이 기본 키는 소스 코드에 하드코딩하지 않고 **`local.properties`(VCS 제외)** 에서 주입함:
+  ```properties
+  # local.properties
+  dart.default.key=발급받은_DART_키
+  ```
+- `app/build.gradle.kts`가 이 값을 읽어 `BuildConfig.DART_DEFAULT_KEY`로 노출 (`buildConfig = true`).
+- 폴백 참조 위치: `SettingsRepository.dartApiKeyFlow`, `StockRepository.fetchRecentDisclosures()` / `fetchCompanyFinancialJson()`, `BriefingViewModel.dartApiKey`.
+- **주의**: 다른 PC에서 클론해 빌드할 때 `local.properties`에 `dart.default.key`가 없으면 빈 문자열이 되어, 사용자가 직접 키를 입력해야만 실적 기능이 동작함.
 
 ---
 

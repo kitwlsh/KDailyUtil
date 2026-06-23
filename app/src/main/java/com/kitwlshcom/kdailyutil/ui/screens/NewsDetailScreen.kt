@@ -204,6 +204,13 @@ fun NewsDetailScreen(
                                 loadWithOverviewMode = true
                                 useWideViewPort = true
                                 databaseEnabled = true
+                                // 보안: 외부 웹페이지가 단말 내부 파일(file://, content://)에 접근하지 못하도록 차단
+                                allowFileAccess = false
+                                allowContentAccess = false
+                                @Suppress("DEPRECATION")
+                                allowFileAccessFromFileURLs = false
+                                @Suppress("DEPRECATION")
+                                allowUniversalAccessFromFileURLs = false
                             }
                             webViewClient = object : WebViewClient() {
                                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {

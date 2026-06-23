@@ -357,6 +357,13 @@ class NewsRepository(private val context: Context? = null) {
                     domStorageEnabled = true
                     databaseEnabled = true
                     userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                    // 보안: 외부 페이지의 단말 내부 파일 접근 차단
+                    allowFileAccess = false
+                    allowContentAccess = false
+                    @Suppress("DEPRECATION")
+                    allowFileAccessFromFileURLs = false
+                    @Suppress("DEPRECATION")
+                    allowUniversalAccessFromFileURLs = false
                 }
 
                 val timeoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -493,6 +500,13 @@ class NewsRepository(private val context: Context? = null) {
                     domStorageEnabled = true
                     databaseEnabled = true
                     userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/122.0.0.0"
+                    // 보안: 외부 페이지의 단말 내부 파일 접근 차단
+                    allowFileAccess = false
+                    allowContentAccess = false
+                    @Suppress("DEPRECATION")
+                    allowFileAccessFromFileURLs = false
+                    @Suppress("DEPRECATION")
+                    allowUniversalAccessFromFileURLs = false
                 }
 
                 webView.webViewClient = object : WebViewClient() {

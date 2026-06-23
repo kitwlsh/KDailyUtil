@@ -164,7 +164,9 @@ class StockRepository(private val context: Context) {
      * 해당 종목의 심볼을 기준으로 현재 거래소가 장중(영업시간)인지 판별합니다.
      */
     fun isMarketOpen(symbol: String): Boolean {
-        val isCrypto = symbol.contains("USD") || symbol.contains("=F") // 비트코인 등 암호화폐
+        // 암호화폐(예: BTC-USD)와 선물(=F)만 24시간 개장으로 판별.
+        // 단순 contains("USD")는 향후 환율(USD/KRW)·USDT 등을 잘못 잡을 수 있어 접미사로 정확히 매칭.
+        val isCrypto = symbol.endsWith("-USD") || symbol.endsWith("=F")
         val isKorean = symbol.endsWith(".KS") || symbol.endsWith(".KQ") || symbol == "^KS11" || symbol == "^KQ11"
         
         return when {
@@ -412,7 +414,7 @@ class StockRepository(private val context: Context) {
         endDe: String,
         apiKey: String
     ): List<EarningsDisclosure> = withContext(Dispatchers.IO) {
-        val resolvedKey = apiKey.ifBlank { "9c9196d12df614324f10184b78ca26707bd5a9da" }
+        val resolvedKey = apiKey.ifBlank { com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY }
         // 전체 시장 공시를 한꺼번에 가져오기 위해 corp_code 파라미터를 생략합니다.
         val url = "https://opendart.fss.or.kr/api/list.json?crtfc_key=$resolvedKey&bgn_de=$bgnDe&end_de=$endDe&pblntf_ty=I&page_count=100"
 
@@ -477,7 +479,7 @@ class StockRepository(private val context: Context) {
         rceptDt: String,
         apiKey: String
     ): String = withContext(Dispatchers.IO) {
-        val resolvedKey = apiKey.ifBlank { "9c9196d12df614324f10184b78ca26707bd5a9da" }
+        val resolvedKey = apiKey.ifBlank { com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY }
         
         // 공시 제출 날짜 기준으로 사업연도(bsns_year)와 보고서 구분(reprt_code)을 추정
         val year = rceptDt.take(4)
