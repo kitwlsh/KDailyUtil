@@ -520,24 +520,38 @@ fun StockPriceCard(
                         }
                     }
 
-                    // 오른쪽: 등락률
+                    // 오른쪽: 등락률 (증감금액 + 증감율 세로 표시)
                     Box(
                         modifier = Modifier
-                            .weight(0.75f)
+                            .weight(0.8f) // 크기를 0.8f로 약간 넓혀 가독성 향상
                             .clip(RoundedCornerShape(8.dp))
                             .background(trendColor.copy(alpha = 0.15f))
                             .border(1.dp, trendColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                            .padding(vertical = 8.dp, horizontal = 2.dp),
+                            .padding(vertical = 6.dp, horizontal = 2.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         val prefix = if (isPositive) "+" else ""
-                        Text(
-                            text = "${prefix}${String.format("%.2f", item.change)}%",
-                            color = trendColor,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center
-                        )
+                        val formattedAmount = formatStockPrice(item.changeAmount, item.currencyType)
+                        val finalAmountText = if (item.changeAmount > 0.0) "+$formattedAmount" else formattedAmount
+                        
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = finalAmountText,
+                                color = trendColor,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 9.5.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(1.dp))
+                            Text(
+                                text = "${prefix}${String.format("%.2f", item.change)}%",
+                                color = trendColor,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
 
@@ -637,7 +651,14 @@ fun StockChartBottomSheet(
                     val formattedPrice = formatStockPrice(item.price, item.currencyType)
                     Text(formattedPrice, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Color.White)
                     val prefix = if (isPositive) "+" else ""
-                    Text("${prefix}${String.format("%.2f", item.change)}%", color = trendColor, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    val formattedAmount = formatStockPrice(item.changeAmount, item.currencyType)
+                    val finalAmountText = if (item.changeAmount > 0.0) "+$formattedAmount" else formattedAmount
+                    Text(
+                        text = "$finalAmountText (${prefix}${String.format("%.2f", item.change)}%)",
+                        color = trendColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
                 }
             }
 

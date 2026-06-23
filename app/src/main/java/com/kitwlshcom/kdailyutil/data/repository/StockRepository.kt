@@ -80,6 +80,9 @@ class StockRepository(private val context: Context) {
 
     private val cachedPrices = ConcurrentHashMap<String, StockPriceItem>()
 
+    // 앱 기동 후 각 종목별 최초 1회 갱신을 추적하기 위한 인메모리 셋
+    private val fetchedOnLaunch = ConcurrentHashMap.newKeySet<String>()
+
     init {
         loadCachedPrices()
     }
@@ -96,6 +99,7 @@ class StockRepository(private val context: Context) {
                 val name = obj.getString("name")
                 val price = obj.getDouble("price")
                 val change = obj.getDouble("change")
+                val changeAmount = obj.optDouble("changeAmount", 0.0)
                 val updateTime = obj.optString("updateTime", "")
                 val delayInfo = obj.optString("delayInfo", "")
                 val currencyTypeStr = obj.optString("currencyType", "USD")
@@ -114,6 +118,7 @@ class StockRepository(private val context: Context) {
                     name = name,
                     price = price,
                     change = change,
+                    changeAmount = changeAmount,
                     sparkline = sparkline,
                     updateTime = updateTime,
                     delayInfo = delayInfo,
@@ -137,6 +142,7 @@ class StockRepository(private val context: Context) {
                     put("name", item.name)
                     put("price", item.price)
                     put("change", item.change)
+                    put("changeAmount", item.changeAmount)
                     put("updateTime", item.updateTime)
                     put("delayInfo", item.delayInfo)
                     put("currencyType", item.currencyType.name)
@@ -197,18 +203,19 @@ class StockRepository(private val context: Context) {
 
     /**
      * Yahoo Finance API를 통해 실시간 주가 시세 및 스파크라인 포인트를 조회합니다.
-     * 장중이 아닐 경우(장마감 상태) 캐싱된 로컬 데이터를 즉시 반환하여 네트워크 사용을 억제합니다.
+     * 장중이 아닐 경우(장마감 상태) 캐싱된 로컬 데이터를 즉시 반환하여 네트워크 사용을 억제하되,
+     * 앱 최초 기동 시 또는 강제 새로고침(forceRefresh=true) 시에는 1회 업데이트를 수행합니다.
      */
-    suspend fun getStockPrice(name: String): StockPriceItem = withContext(Dispatchers.IO) {
+    suspend fun getStockPrice(name: String, forceRefresh: Boolean = false): StockPriceItem = withContext(Dispatchers.IO) {
         val symbol = SYMBOL_MAP[name] ?: name
         val isOpen = isMarketOpen(symbol)
+        val isFirstFetch = !fetchedOnLaunch.contains(name)
 
         // ──────────────────────────────────────────────────
-        // 1. 장중이 아니고, 기존 캐시 데이터가 있으면 그대로 반환
-        //    (단, 캐시에 데이터가 전혀 없는 최초 로드 시에는 장외여도 1회 조회해 옴)
+        // 1. 장중이 아니고, 기존 캐시 데이터가 있으며, 최초 기동시 1회 조회도 완료했고, 강제 갱신이 아닌 경우 캐시 리턴
         // ──────────────────────────────────────────────────
         val existingCache = cachedPrices[name]
-        if (!isOpen && existingCache != null) {
+        if (!isOpen && existingCache != null && !isFirstFetch && !forceRefresh) {
             Log.d(TAG, "⏭️ Market CLOSED for $name ($symbol). Returning cached price.")
             return@withContext existingCache
         }
@@ -242,6 +249,13 @@ class StockRepository(private val context: Context) {
 
                 val change = if (prevClose != 0.0) {
                     ((price - prevClose) / prevClose) * 100.0
+                } else {
+                    0.0
+                }
+
+                // 주가 증감 금액 계산
+                val changeAmount = if (prevClose != 0.0) {
+                    price - prevClose
                 } else {
                     0.0
                 }
@@ -293,6 +307,7 @@ class StockRepository(private val context: Context) {
                     name = name,
                     price = price,
                     change = change,
+                    changeAmount = changeAmount,
                     sparkline = sparklinePoints,
                     updateTime = updateTimeStr,
                     delayInfo = delayInfoStr,
@@ -304,6 +319,7 @@ class StockRepository(private val context: Context) {
                 // ──────────────────────────────────────────────────
                 cachedPrices[name] = updatedItem
                 saveCachedPrices()
+                fetchedOnLaunch.add(name) // 최초 1회 업데이트 완료 처리
 
                 return@withContext updatedItem
             }

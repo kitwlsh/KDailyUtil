@@ -35,6 +35,7 @@ data class StockPriceItem(
     val name: String,
     val price: Double,
     val change: Double,
+    val changeAmount: Double = 0.0,
     val sparkline: List<Float> = emptyList(),
     val updateTime: String = "",
     val delayInfo: String = "15분+ 지연",

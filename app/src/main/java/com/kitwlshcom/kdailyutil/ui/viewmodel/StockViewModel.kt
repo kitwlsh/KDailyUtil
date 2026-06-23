@@ -102,7 +102,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 // ⚠️ watchStockKeywordsFlow 사용 — 뉴스탭 필터(stockKeywordsFlow)와 엄감히 분리
                 val keywords = settingsRepository.watchStockKeywordsFlow.first()
                 val list = keywords.map { keyword ->
-                    stockRepository.getStockPrice(keyword)
+                    stockRepository.getStockPrice(keyword, forceRefresh = showLoading)
                 }
                 _stockPrices.value = list
             } catch (e: Exception) {
