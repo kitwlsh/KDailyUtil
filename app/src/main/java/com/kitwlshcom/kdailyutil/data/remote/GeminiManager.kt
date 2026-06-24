@@ -62,6 +62,25 @@ class GeminiManager(private val apiKey: String?) {
     }
     
     /**
+     * 지문 내용 이해도를 확인하는 4지선다 객관식 문제 JSON 배열을 생성합니다.
+     * 반환 예: [{"question":"...","options":["a","b","c","d"],"answerIndex":0}, ...]
+     */
+    suspend fun generateComprehensionQuiz(passage: String, count: Int = 3): String = withContext(Dispatchers.IO) {
+        if (generativeModel == null || apiKey.isNullOrBlank()) return@withContext ""
+        val prompt = content {
+            text(
+                "다음 지문을 읽고 '내용 이해도'를 확인하는 4지선다 객관식 문제 ${count}개를 만들어 주세요. " +
+                "지문에 실제로 나온 내용만으로 출제하고, 각 문제는 보기 4개와 정답 1개(answerIndex는 0부터 시작)를 가집니다. " +
+                "반드시 아래 JSON 배열 형식으로만 응답하세요(설명·코드블록·마크다운 금지):\n" +
+                "[{\"question\":\"질문\",\"options\":[\"보기1\",\"보기2\",\"보기3\",\"보기4\"],\"answerIndex\":0}]\n\n" +
+                "지문:\n$passage"
+            )
+        }
+        val response = generativeModel?.generateContent(prompt)
+        (response?.text ?: "").trim()
+    }
+
+    /**
      * 사용자의 맞춤형 뉴스 브리핑 명령을 처리합니다.
      */
     suspend fun processAiCustomBriefing(command: String, referenceNews: List<NewsItem>): String = withContext(Dispatchers.IO) {

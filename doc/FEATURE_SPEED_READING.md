@@ -82,8 +82,11 @@
 
 ## 6. 단계별 로드맵
 
-- **MVP (1차)**: 허브 + ①집중 워밍업 ②리듬 페이서 ③단어 점멸(RSVP) + **WPM 측정** + 진척/streak + 면책/크레딧. (효용 대비 구현 빠름)
-- **Phase 2**: ④묶어 읽기 ⑤안구 추적 + **AI 이해도 채점** + WPM 추이 그래프 + 21일 챌린지.
+- **MVP (1차) — ✅ 완료**: 허브 + ①집중 워밍업 ②리듬 페이서(자동 스크롤) ③단어 점멸(RSVP) + WPM + 진척/streak + 면책/크레딧.
+- **Phase 2-a — ✅ 완료**: **사용자 텍스트 붙여넣기**(연습 지문 직접 입력) + **AI 이해도 채점**(읽기 후 Gemini가 4지선다 3문제 생성·채점 → WPM×이해도, 최고 이해도 기록).
+  - 흐름: 페이서/RSVP 완료 → 결과 화면(이번 WPM) → "이해도 퀴즈 풀기" → AI 문제 풀이·채점 → 최고 이해도 저장.
+  - 신규: `GeminiManager.generateComprehensionQuiz()`, `ReadingTrainingViewModel.generateComprehension()`, repo `best_comprehension`.
+- **Phase 2-b — 예정**: ④묶어 읽기 ⑤안구 추적 + WPM 추이 그래프 + 21일 챌린지.
 
 ---
 

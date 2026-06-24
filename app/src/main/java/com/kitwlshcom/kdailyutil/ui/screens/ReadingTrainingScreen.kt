@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitwlshcom.kdailyutil.ui.theme.DeepCharcoal
 import com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+import com.kitwlshcom.kdailyutil.ui.viewmodel.ComprehensionQuestion
 import com.kitwlshcom.kdailyutil.ui.viewmodel.ReadingTrainingViewModel
 import kotlinx.coroutines.delay
 
@@ -41,22 +42,23 @@ private val PRACTICE_PASSAGES = listOf(
     "좋은 독서는 속도와 이해가 함께 자라는 일이다. 너무 빨리 읽어 아무것도 남지 않는다면 그것은 진짜 읽기가 아니다. 반대로 한 글자씩 소리 내어 따라가느라 흐름을 놓친다면 그 또한 아쉬운 일이다. 시선을 부드럽게 미끄러뜨리되 핵심에서는 잠시 머무는 리듬을 익히면, 같은 시간에 더 많은 것을 얻을 수 있다. 오늘의 한 페이지가 내일의 한 권이 된다."
 )
 
-private enum class ReadingModule { HUB, WARMUP, PACER, RSVP }
+private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, RESULT, COMPREHENSION }
 
 @Composable
 fun ReadingTrainingScreen(
     viewModel: ReadingTrainingViewModel = viewModel()
 ) {
     var module by remember { mutableStateOf(ReadingModule.HUB) }
+    var passage by remember { mutableStateOf(PRACTICE_PASSAGES.random()) }
+    var lastWpm by remember { mutableStateOf(0) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Transparent)
-    ) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         when (module) {
             ReadingModule.HUB -> ReadingHub(
                 viewModel = viewModel,
+                passage = passage,
+                onUseRandom = { passage = PRACTICE_PASSAGES.random() },
+                onUseCustom = { passage = it },
                 onSelect = { module = it }
             )
             ReadingModule.WARMUP -> WarmupModule(
@@ -64,12 +66,24 @@ fun ReadingTrainingScreen(
                 onComplete = { viewModel.recordSession(0); module = ReadingModule.HUB }
             )
             ReadingModule.PACER -> PacerModule(
+                passage = passage,
                 onExit = { module = ReadingModule.HUB },
-                onComplete = { wpm -> viewModel.recordSession(wpm); module = ReadingModule.HUB }
+                onComplete = { wpm -> viewModel.recordSession(wpm); lastWpm = wpm; module = ReadingModule.RESULT }
             )
             ReadingModule.RSVP -> RsvpModule(
+                passage = passage,
                 onExit = { module = ReadingModule.HUB },
-                onComplete = { wpm -> viewModel.recordSession(wpm); module = ReadingModule.HUB }
+                onComplete = { wpm -> viewModel.recordSession(wpm); lastWpm = wpm; module = ReadingModule.RESULT }
+            )
+            ReadingModule.RESULT -> ResultModule(
+                wpm = lastWpm,
+                onQuiz = { module = ReadingModule.COMPREHENSION },
+                onDone = { module = ReadingModule.HUB }
+            )
+            ReadingModule.COMPREHENSION -> ComprehensionModule(
+                viewModel = viewModel,
+                passage = passage,
+                onDone = { module = ReadingModule.HUB }
             )
         }
     }
@@ -81,11 +95,18 @@ fun ReadingTrainingScreen(
 @Composable
 private fun ReadingHub(
     viewModel: ReadingTrainingViewModel,
+    passage: String,
+    onUseRandom: () -> Unit,
+    onUseCustom: (String) -> Unit,
     onSelect: (ReadingModule) -> Unit
 ) {
     val bestWpm by viewModel.bestWpm.collectAsState()
     val streak by viewModel.streak.collectAsState()
     val total by viewModel.totalSessions.collectAsState()
+    val bestComp by viewModel.bestComprehension.collectAsState()
+
+    var customText by remember { mutableStateOf("") }
+    var showCustomInput by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -111,9 +132,46 @@ private fun ReadingHub(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
-                StatItem("최고 속도", if (bestWpm > 0) "$bestWpm WPM" else "-")
-                StatItem("연속", if (streak > 0) "${streak}일" else "-")
-                StatItem("누적", "${total}회")
+                StatItem("최고 속도", if (bestWpm > 0) "$bestWpm" else "-", "WPM")
+                StatItem("최고 이해도", if (bestComp > 0) "$bestComp%" else "-", "정답률")
+                StatItem("연속", if (streak > 0) "$streak" else "-", "일")
+                StatItem("누적", "$total", "회")
+            }
+        }
+
+        // 연습 지문 선택
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(0.85f)),
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.15f))
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("연습 지문", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+                Text(
+                    passage.take(60) + if (passage.length > 60) "…" else "",
+                    fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onUseRandom) { Text("랜덤 지문", color = Gold24K, fontSize = 12.sp) }
+                    OutlinedButton(onClick = { showCustomInput = !showCustomInput }) {
+                        Text(if (showCustomInput) "닫기" else "내 텍스트 붙여넣기", color = Gold24K, fontSize = 12.sp)
+                    }
+                }
+                if (showCustomInput) {
+                    OutlinedTextField(
+                        value = customText,
+                        onValueChange = { customText = it },
+                        label = { Text("연습할 텍스트를 붙여넣으세요") },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp, max = 220.dp)
+                    )
+                    Button(
+                        onClick = {
+                            if (customText.isNotBlank()) { onUseCustom(customText.trim()); showCustomInput = false }
+                        },
+                        enabled = customText.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)
+                    ) { Text("이 텍스트로 연습", fontWeight = FontWeight.Bold) }
+                }
             }
         }
 
@@ -123,7 +181,6 @@ private fun ReadingHub(
         ModuleCard("⚡ 단어 점멸 (RSVP)", "한 곳에서 단어가 빠르게 바뀌어 안구 이동을 최소화해요.") { onSelect(ReadingModule.RSVP) }
 
         Spacer(Modifier.height(4.dp))
-        // 면책 / 추천 크레딧
         Text(
             "ⓘ 본 기능은 일반 속독 훈련 원리에 기반한 독자 구현이며 특정 도서·저자·프로그램과 무관합니다. 효과는 개인차가 있습니다.\n속독 원리에 관심이 있다면 김병완 「1시간에 1권 퀀텀 독서법」을 추천합니다.",
             fontSize = 11.sp, color = Color.Gray, lineHeight = 16.sp
@@ -132,10 +189,11 @@ private fun ReadingHub(
 }
 
 @Composable
-private fun StatItem(label: String, value: String) {
+private fun StatItem(label: String, value: String, unit: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Gold24K)
-        Text(label, fontSize = 11.sp, color = Color.White.copy(0.6f))
+        Text(value, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Gold24K)
+        Text(unit, fontSize = 9.sp, color = Color.White.copy(0.45f))
+        Text(label, fontSize = 10.sp, color = Color.White.copy(0.6f))
     }
 }
 
@@ -159,7 +217,6 @@ private fun ModuleCard(title: String, desc: String, onClick: () -> Unit) {
     }
 }
 
-// 모듈 공통 상단바
 @Composable
 private fun ModuleTopBar(title: String, onExit: () -> Unit) {
     Row(
@@ -175,7 +232,7 @@ private fun ModuleTopBar(title: String, onExit: () -> Unit) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// ① 집중 워밍업 — 호흡 원 + 카운트다운
+// ① 집중 워밍업
 // ────────────────────────────────────────────────────────────────
 @Composable
 private fun WarmupModule(onExit: () -> Unit, onComplete: () -> Unit) {
@@ -183,17 +240,13 @@ private fun WarmupModule(onExit: () -> Unit, onComplete: () -> Unit) {
     var running by remember { mutableStateOf(true) }
 
     LaunchedEffect(running) {
-        while (running && remaining > 0) {
-            delay(1000)
-            remaining--
-        }
+        while (running && remaining > 0) { delay(1000); remaining-- }
         if (remaining <= 0) onComplete()
     }
 
     val transition = rememberInfiniteTransition(label = "breath")
     val scale by transition.animateFloat(
-        initialValue = 0.55f,
-        targetValue = 1.0f,
+        initialValue = 0.55f, targetValue = 1.0f,
         animationSpec = infiniteRepeatable(tween(4000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "scale"
     )
@@ -208,12 +261,8 @@ private fun WarmupModule(onExit: () -> Unit, onComplete: () -> Unit) {
             Text(if (scale > 0.78f) "들숨 …" else "날숨 …", color = Gold24K, fontSize = 16.sp)
             Spacer(Modifier.height(28.dp))
             Box(
-                modifier = Modifier
-                    .size(200.dp)
-                    .scale(scale)
-                    .clip(CircleShape)
-                    .background(Gold24K.copy(0.25f))
-                    .border(2.dp, Gold24K.copy(0.6f), CircleShape),
+                modifier = Modifier.size(200.dp).scale(scale).clip(CircleShape)
+                    .background(Gold24K.copy(0.25f)).border(2.dp, Gold24K.copy(0.6f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text("$remaining", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
@@ -223,25 +272,20 @@ private fun WarmupModule(onExit: () -> Unit, onComplete: () -> Unit) {
                 color = Color.White.copy(0.7f), fontSize = 13.sp, textAlign = TextAlign.Center, lineHeight = 20.sp)
             Spacer(Modifier.height(32.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = { running = !running }) {
-                    Text(if (running) "일시정지" else "계속", color = Gold24K)
+                OutlinedButton(onClick = { running = !running }) { Text(if (running) "일시정지" else "계속", color = Gold24K) }
+                Button(onClick = onComplete, colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)) {
+                    Text("완료", fontWeight = FontWeight.Bold)
                 }
-                Button(
-                    onClick = onComplete,
-                    colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)
-                ) { Text("완료", fontWeight = FontWeight.Bold) }
             }
         }
     }
 }
 
 // ────────────────────────────────────────────────────────────────
-// ② 리듬 페이서 — 줄 단위 하이라이트 자동 이동
+// ② 리듬 페이서
 // ────────────────────────────────────────────────────────────────
 @Composable
-private fun PacerModule(onExit: () -> Unit, onComplete: (Int) -> Unit) {
-    val passage = remember { PRACTICE_PASSAGES.random() }
-    // 문장 단위로 줄 분할
+private fun PacerModule(passage: String, onExit: () -> Unit, onComplete: (Int) -> Unit) {
     val lines = remember(passage) {
         passage.split(Regex("(?<=[.!?])\\s+")).filter { it.isNotBlank() }
     }
@@ -259,12 +303,9 @@ private fun PacerModule(onExit: () -> Unit, onComplete: (Int) -> Unit) {
         }
     }
 
-    // 현재 줄이 바뀔 때마다 그 줄이 화면에 보이도록 자동 스크롤
     val listState = rememberLazyListState()
     LaunchedEffect(currentLine) {
-        if (currentLine in lines.indices) {
-            listState.animateScrollToItem(currentLine.coerceAtLeast(0))
-        }
+        if (currentLine in lines.indices) listState.animateScrollToItem(currentLine.coerceAtLeast(0))
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -278,26 +319,16 @@ private fun PacerModule(onExit: () -> Unit, onComplete: (Int) -> Unit) {
             itemsIndexed(lines) { i, line ->
                 val active = i == currentLine
                 Text(
-                    line.trim(),
-                    fontSize = 17.sp,
-                    lineHeight = 26.sp,
+                    line.trim(), fontSize = 17.sp, lineHeight = 26.sp,
                     fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
                     color = if (active) Color.Black else Color.White.copy(0.45f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(6.dp))
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp))
                         .background(if (active) Gold24K.copy(0.85f) else Color.Transparent)
                         .padding(horizontal = 8.dp, vertical = 6.dp)
                 )
             }
         }
-        ControlBar(
-            running = running,
-            wpm = wpm,
-            onToggle = { running = !running },
-            onWpm = { wpm = it },
-            onRestart = { currentLine = 0; running = true }
-        )
+        ControlBar(running, wpm, { running = !running }, { wpm = it }, { currentLine = 0; running = true })
     }
 }
 
@@ -305,8 +336,7 @@ private fun PacerModule(onExit: () -> Unit, onComplete: (Int) -> Unit) {
 // ③ 단어 점멸 (RSVP)
 // ────────────────────────────────────────────────────────────────
 @Composable
-private fun RsvpModule(onExit: () -> Unit, onComplete: (Int) -> Unit) {
-    val passage = remember { PRACTICE_PASSAGES.random() }
+private fun RsvpModule(passage: String, onExit: () -> Unit, onComplete: (Int) -> Unit) {
     val words = remember(passage) { passage.trim().split(Regex("\\s+")).filter { it.isNotBlank() } }
     var index by remember { mutableStateOf(0) }
     var running by remember { mutableStateOf(false) }
@@ -324,63 +354,157 @@ private fun RsvpModule(onExit: () -> Unit, onComplete: (Int) -> Unit) {
     Column(modifier = Modifier.fillMaxSize()) {
         ModuleTopBar("단어 점멸 (RSVP)", onExit)
         Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Text(
-                words.getOrElse(index) { "" },
-                fontSize = 40.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                textAlign = TextAlign.Center
-            )
+            Text(words.getOrElse(index) { "" }, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
         }
-        Text(
-            "${index + 1} / ${words.size}",
-            color = Color.White.copy(0.5f),
-            fontSize = 12.sp,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-            textAlign = TextAlign.Center
-        )
-        ControlBar(
-            running = running,
-            wpm = wpm,
-            onToggle = { running = !running },
-            onWpm = { wpm = it },
-            onRestart = { index = 0; running = true }
-        )
+        Text("${(index + 1).coerceAtMost(words.size)} / ${words.size}", color = Color.White.copy(0.5f), fontSize = 12.sp,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp), textAlign = TextAlign.Center)
+        ControlBar(running, wpm, { running = !running }, { wpm = it }, { index = 0; running = true })
     }
 }
 
-// 페이서/RSVP 공통 컨트롤 바
 @Composable
-private fun ControlBar(
-    running: Boolean,
-    wpm: Float,
-    onToggle: () -> Unit,
-    onWpm: (Float) -> Unit,
-    onRestart: () -> Unit
-) {
+private fun ControlBar(running: Boolean, wpm: Float, onToggle: () -> Unit, onWpm: (Float) -> Unit, onRestart: () -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.Black.copy(0.25f))
-            .padding(16.dp)
-            .padding(bottom = 80.dp),
+        modifier = Modifier.fillMaxWidth().background(Color.Black.copy(0.25f)).padding(16.dp).padding(bottom = 80.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text("속도: ${wpm.toInt()} WPM (분당 단어수)", color = Gold24K, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Slider(
-            value = wpm,
-            onValueChange = onWpm,
-            valueRange = 150f..700f,
-            colors = SliderDefaults.colors(thumbColor = Gold24K, activeTrackColor = Gold24K)
-        )
+        Slider(value = wpm, onValueChange = onWpm, valueRange = 150f..700f,
+            colors = SliderDefaults.colors(thumbColor = Gold24K, activeTrackColor = Gold24K))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(
-                onClick = onToggle,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)
-            ) { Text(if (running) "일시정지" else "시작", fontWeight = FontWeight.Bold) }
-            OutlinedButton(onClick = onRestart, modifier = Modifier.weight(1f)) {
-                Text("처음부터", color = Gold24K)
+            Button(onClick = onToggle, modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)) {
+                Text(if (running) "일시정지" else "시작", fontWeight = FontWeight.Bold)
+            }
+            OutlinedButton(onClick = onRestart, modifier = Modifier.weight(1f)) { Text("처음부터", color = Gold24K) }
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+// 읽기 완료 결과
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun ResultModule(wpm: Int, onQuiz: () -> Unit, onDone: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("훈련 완료! 🎉", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Gold24K)
+        Spacer(Modifier.height(12.dp))
+        Text("이번 속도", color = Color.White.copy(0.7f), fontSize = 13.sp)
+        Text("$wpm WPM", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(28.dp))
+        Text("얼마나 이해했는지 AI 퀴즈로 확인해볼까요?\n(속도만 빠른 건 의미가 없어요!)",
+            color = Color.White.copy(0.7f), fontSize = 13.sp, textAlign = TextAlign.Center, lineHeight = 20.sp)
+        Spacer(Modifier.height(20.dp))
+        Button(onClick = onQuiz, modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)) {
+            Text("📝 이해도 퀴즈 풀기", fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("건너뛰고 완료", color = Gold24K) }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+// AI 이해도 퀴즈
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun ComprehensionModule(viewModel: ReadingTrainingViewModel, passage: String, onDone: () -> Unit) {
+    val isLoading by viewModel.isGeneratingQuiz.collectAsState()
+    var questions by remember { mutableStateOf<List<ComprehensionQuestion>?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var answers by remember { mutableStateOf<Map<Int, Int>>(emptyMap()) }
+    var submitted by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.generateComprehension(passage) { list, err ->
+            questions = list; error = err
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        ModuleTopBar("이해도 퀴즈", onDone)
+        when {
+            isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Gold24K)
+                    Spacer(Modifier.height(12.dp))
+                    Text("AI가 이해도 문제를 만드는 중…", color = Color.White.copy(0.7f), fontSize = 13.sp)
+                }
+            }
+            error != null -> Box(Modifier.fillMaxSize().padding(24.dp), Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(error!!, color = Color.White.copy(0.8f), fontSize = 13.sp, textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = onDone, colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)) {
+                        Text("완료", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            questions != null -> {
+                val qs = questions!!
+                val score = qs.indices.count { answers[it] == qs[it].answerIndex }
+                val percent = if (qs.isNotEmpty()) score * 100 / qs.size else 0
+
+                Column(
+                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    if (submitted) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Gold24K.copy(0.15f)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Gold24K.copy(0.5f))
+                        ) {
+                            Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("이해도 $percent%", color = Gold24K, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                                Text("$score / ${qs.size} 정답", color = Color.White.copy(0.7f), fontSize = 13.sp)
+                            }
+                        }
+                    }
+                    qs.forEachIndexed { qi, q ->
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("${qi + 1}. ${q.question}", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            q.options.forEachIndexed { oi, opt ->
+                                val selected = answers[qi] == oi
+                                val isAnswer = q.answerIndex == oi
+                                val rowColor = when {
+                                    submitted && isAnswer -> Color(0xFF2ECC71).copy(0.25f)
+                                    submitted && selected && !isAnswer -> Color(0xFFFF4D4D).copy(0.25f)
+                                    selected -> Gold24K.copy(0.2f)
+                                    else -> Color.Transparent
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(rowColor)
+                                        .clickable(enabled = !submitted) { answers = answers + (qi to oi) }
+                                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(selected = selected, onClick = if (submitted) null else { { answers = answers + (qi to oi) } },
+                                        colors = RadioButtonDefaults.colors(selectedColor = Gold24K))
+                                    Text(opt, color = Color.White.copy(0.9f), fontSize = 14.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+                Column(Modifier.fillMaxWidth().padding(16.dp).padding(bottom = 80.dp)) {
+                    if (!submitted) {
+                        Button(
+                            onClick = { submitted = true; viewModel.recordComprehension(percent) },
+                            enabled = answers.size == qs.size,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)
+                        ) { Text(if (answers.size == qs.size) "채점하기" else "모든 문제에 답해주세요", fontWeight = FontWeight.Bold) }
+                    } else {
+                        Button(onClick = onDone, modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)) {
+                            Text("완료", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
         }
     }

@@ -20,11 +20,21 @@ class ReadingTrainingRepository(private val context: Context) {
         val STREAK = intPreferencesKey("streak_days")
         val LAST_DATE = stringPreferencesKey("last_trained_date") // yyyyMMdd
         val TOTAL = intPreferencesKey("total_sessions")
+        val BEST_COMPREHENSION = intPreferencesKey("best_comprehension") // 0~100
     }
 
     val bestWpmFlow: Flow<Int> = context.readingDataStore.data.map { it[Keys.BEST_WPM] ?: 0 }
     val streakFlow: Flow<Int> = context.readingDataStore.data.map { it[Keys.STREAK] ?: 0 }
     val totalSessionsFlow: Flow<Int> = context.readingDataStore.data.map { it[Keys.TOTAL] ?: 0 }
+    val bestComprehensionFlow: Flow<Int> = context.readingDataStore.data.map { it[Keys.BEST_COMPREHENSION] ?: 0 }
+
+    /** 이해도 점수(0~100) 기록 — 최고치만 갱신 */
+    suspend fun recordComprehension(scorePercent: Int) {
+        context.readingDataStore.edit { p ->
+            val prev = p[Keys.BEST_COMPREHENSION] ?: 0
+            if (scorePercent > prev) p[Keys.BEST_COMPREHENSION] = scorePercent
+        }
+    }
 
     /**
      * 한 세션 완료 기록. wpm=0이면 최고 WPM은 갱신하지 않음(워밍업 등).
