@@ -22,12 +22,16 @@ import com.kitwlshcom.kdailyutil.ui.MainScreen
 import com.kitwlshcom.kdailyutil.ui.screens.SplashScreen
 import com.kitwlshcom.kdailyutil.ui.theme.KDailyUtilTheme
 import com.kitwlshcom.kdailyutil.ui.viewmodel.AudioCaptureViewModel
+import com.kitwlshcom.kdailyutil.ui.viewmodel.StockViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class MainActivity : ComponentActivity() {
     private lateinit var audioViewModel: AudioCaptureViewModel
     private var startAutoBriefing by mutableStateOf(false)
     private var showSplash by mutableStateOf(true)
+    // 알림 탭으로 요청된 증시 서브탭 (null = 요청 없음)
+    private var navigateToStockSubTab by mutableStateOf<Int?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -35,6 +39,8 @@ class MainActivity : ComponentActivity() {
         
         checkAndRequestPermissions()
         startAutoBriefing = intent.getBooleanExtra("START_AUTO_BRIEFING", false)
+        navigateToStockSubTab = if (intent.getStringExtra("NAVIGATE_TO") == "stock")
+            intent.getIntExtra("STOCK_SUBTAB", 1) else null
         
         enableEdgeToEdge()
         setContent {
@@ -55,7 +61,9 @@ class MainActivity : ComponentActivity() {
                         MainScreen(
                             audioViewModel = audioViewModel,
                             startAutoBriefing = startAutoBriefing,
-                            onAutoBriefingHandled = { startAutoBriefing = false }
+                            onAutoBriefingHandled = { startAutoBriefing = false },
+                            navigateToStockSubTab = navigateToStockSubTab,
+                            onStockNavHandled = { navigateToStockSubTab = null }
                         )
                     }
                 }
@@ -69,21 +77,31 @@ class MainActivity : ComponentActivity() {
                     startService(Intent(this, AudioCaptureService::class.java).apply {
                         action = AudioCaptureService.ACTION_HIDE_FLOATING
                     })
+                    // 포그라운드 진입 → 인앱 배너로 안내 (시스템 알림 대신)
+                    runCatching { stockViewModelRef().setAppForeground(true) }
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     startService(Intent(this, AudioCaptureService::class.java).apply {
                         action = AudioCaptureService.ACTION_SHOW_FLOATING
                     })
+                    // 백그라운드 이탈 → 시스템 알림으로 안내
+                    runCatching { stockViewModelRef().setAppForeground(false) }
                 }
                 else -> {}
             }
         })
     }
 
+    // MainScreen이 viewModel()로 얻는 것과 동일한(Activity 스코프) StockViewModel 인스턴스
+    private fun stockViewModelRef(): StockViewModel =
+        ViewModelProvider(this)[StockViewModel::class.java]
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         startAutoBriefing = intent.getBooleanExtra("START_AUTO_BRIEFING", false)
+        navigateToStockSubTab = if (intent.getStringExtra("NAVIGATE_TO") == "stock")
+            intent.getIntExtra("STOCK_SUBTAB", 1) else null
     }
 
     private fun checkAndRequestPermissions() {

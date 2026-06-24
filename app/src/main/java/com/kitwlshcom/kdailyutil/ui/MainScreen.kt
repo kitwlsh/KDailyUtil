@@ -23,7 +23,9 @@ import kotlinx.coroutines.delay
 fun MainScreen(
     audioViewModel: AudioCaptureViewModel = viewModel(),
     startAutoBriefing: Boolean = false,
-    onAutoBriefingHandled: () -> Unit = {}
+    onAutoBriefingHandled: () -> Unit = {},
+    navigateToStockSubTab: Int? = null,
+    onStockNavHandled: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -31,6 +33,8 @@ fun MainScreen(
     
     val briefingViewModel: BriefingViewModel = viewModel()
     val shadowingViewModel: ShadowingViewModel = viewModel()
+    // 증시 VM을 Activity 스코프로 보유 → 탭 이동 시에도 AI 분석이 취소되지 않고 백그라운드 유지
+    val stockViewModel: StockViewModel = viewModel()
 
     LaunchedEffect(startAutoBriefing) {
         if (startAutoBriefing) {
@@ -52,6 +56,38 @@ fun MainScreen(
         }
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // 증시 서브탭으로 이동하는 공통 동작
+    fun navigateToStock(subTab: Int) {
+        stockViewModel.requestStockSubTab(subTab)
+        navController.navigate(NavScreen.StockDashboard.route) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
+    // 알림 탭으로 진입한 경우 해당 서브탭으로 이동
+    LaunchedEffect(navigateToStockSubTab) {
+        navigateToStockSubTab?.let {
+            navigateToStock(it)
+            onStockNavHandled()
+        }
+    }
+
+    // 인앱 완료 배너 (앱이 떠 있고 다른 메뉴를 보고 있을 때)
+    LaunchedEffect(Unit) {
+        stockViewModel.analysisCompletedEvent.collect { (msg, subTab) ->
+            val result = snackbarHostState.showSnackbar(
+                message = msg,
+                actionLabel = "보기",
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) navigateToStock(subTab)
+        }
+    }
+
     // 최상위 컨테이너에 다크 배경색 강제 적용
     Box(
         modifier = Modifier
@@ -59,9 +95,10 @@ fun MainScreen(
             .background(DeepCharcoal)
     ) {
         BrandWatermark()
-        
+
         Scaffold(
             containerColor = Color.Transparent,
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             bottomBar = {
                 NavigationBar(
                     containerColor = DeepCharcoal.copy(alpha = 0.92f),
@@ -113,8 +150,8 @@ fun MainScreen(
                         shadowingViewModel = shadowingViewModel
                     ) 
                 }
-                composable(NavScreen.StockDashboard.route) { 
-                    StockDashboardScreen(navController = navController)
+                composable(NavScreen.StockDashboard.route) {
+                    StockDashboardScreen(navController = navController, viewModel = stockViewModel)
                 }
                 composable(NavScreen.DrivingShadowing.route) { 
                     DrivingShadowingScreen(viewModel = shadowingViewModel) 

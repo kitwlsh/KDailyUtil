@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -85,6 +86,13 @@ fun formatChartPrice(price: Float, currencyType: CurrencyType): String = when (c
     CurrencyType.INDEX -> String.format("%,.2f", price)
 }
 
+// 거래량을 만/억 단위로 축약 표기 (크로스헤어 표시용)
+fun formatVolume(v: Long): String = when {
+    v >= 100_000_000 -> String.format("%.1f억", v / 100_000_000.0)
+    v >= 10_000      -> String.format("%.1f만", v / 10_000.0)
+    else             -> String.format("%,d", v)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StockDashboardScreen(
@@ -93,6 +101,15 @@ fun StockDashboardScreen(
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("시세 및 차트", "AI 실적 공시", "실적 예정 일정")
+
+    // 알림/인앱 배너에서 특정 서브탭으로 이동 요청을 받으면 전환
+    val requestedSubTab by viewModel.requestedStockSubTab.collectAsState()
+    LaunchedEffect(requestedSubTab) {
+        requestedSubTab?.let {
+            selectedTabIndex = it.coerceIn(0, tabs.lastIndex)
+            viewModel.consumeRequestedSubTab()
+        }
+    }
 
     val isPricesLoading by viewModel.isPricesLoading.collectAsState()
     val isDisclosuresLoading by viewModel.isDisclosuresLoading.collectAsState()
@@ -722,6 +739,7 @@ fun StockChartBottomSheet(
                     val lineColor = if (isPos) Color(0xFFFF4D4D) else Color(0xFF4D94FF)
                     val prices = chartData.prices
                     val timestamps = chartData.timestamps
+                    val volumes = chartData.volumes
 
                     // 제스처 상태: offsetX (팬), zoomX (줌)
                     var offsetX by remember { mutableStateOf(0f) }
@@ -864,8 +882,9 @@ fun StockChartBottomSheet(
                             val endIdx2 = (startIdx2 + visibleCount2).coerceAtMost(count2)
                             val visiblePrices2 = prices.subList(startIdx2, endIdx2)
 
-                            // 타임스탬프 계산
+                            // 타임스탬프 / 거래량 계산
                             val visibleTs = if (timestamps.size >= endIdx2) timestamps.subList(startIdx2, endIdx2) else emptyList()
+                            val visibleVols = if (volumes.size >= endIdx2) volumes.subList(startIdx2, endIdx2) else emptyList()
 
                             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                                 val canvasW = maxWidth
@@ -873,14 +892,19 @@ fun StockChartBottomSheet(
                                 val idx = idxFloat.toInt().coerceIn(0, visiblePrices2.lastIndex)
                                 val priceVal = visiblePrices2.getOrNull(idx)
                                 val tsVal = visibleTs.getOrNull(idx)
+                                val volVal = visibleVols.getOrNull(idx)
 
                                 if (priceVal != null) {
                                     val formP = formatChartPrice(priceVal, item.currencyType)
+                                    // 표시 구간 시작점 대비 등락률
+                                    val baseP = visiblePrices2.firstOrNull() ?: priceVal
+                                    val chgPct = if (baseP != 0f) (priceVal - baseP) / baseP * 100f else 0f
+                                    val chgColor = if (chgPct >= 0f) Color(0xFFFF4D4D) else Color(0xFF4D94FF)
                                     val timeStr = if (tsVal != null && tsVal > 0L) {
                                         val pattern = when (chartRange) {
-                                            ChartRange.TODAY -> "HH:mm"
+                                            ChartRange.TODAY -> "MM/dd HH:mm"
                                             ChartRange.WEEK -> "MM/dd HH:mm"
-                                            else -> "MM/dd"
+                                            else -> "yyyy/MM/dd"
                                         }
                                         SimpleDateFormat(pattern, Locale.KOREA).format(Date(tsVal * 1000L))
                                     } else ""
@@ -902,9 +926,18 @@ fun StockChartBottomSheet(
                                             shape = RoundedCornerShape(6.dp),
                                             elevation = CardDefaults.cardElevation(4.dp)
                                         ) {
-                                            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                                            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)) {
                                                 Text(formP, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                                if (timeStr.isNotEmpty()) Text(timeStr, fontSize = 10.sp, color = Color.Gray)
+                                                Text(
+                                                    text = "${if (chgPct >= 0f) "+" else ""}${String.format("%.2f", chgPct)}%",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = chgColor
+                                                )
+                                                if (volVal != null && volVal > 0L) {
+                                                    Text("거래량 ${formatVolume(volVal)}", fontSize = 9.sp, color = Color.LightGray.copy(0.7f))
+                                                }
+                                                if (timeStr.isNotEmpty()) Text(timeStr, fontSize = 9.sp, color = Color.Gray)
                                             }
                                         }
                                     }
@@ -933,6 +966,14 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
     val isAiSummarizing by viewModel.isAiSummarizing.collectAsState()
     val activeDisclosure by viewModel.activeAiSummaryDisclosure.collectAsState()
     val selectedFilterDays by viewModel.selectedDateFilterDays.collectAsState()
+    val showHidden by viewModel.showHidden.collectAsState()
+    val hiddenIds by viewModel.hiddenIds.collectAsState()
+
+    // 탭이 보이는 동안만 active=true → 백그라운드(다른 탭)에서 분석 완료 시 알림으로 안내
+    DisposableEffect(Unit) {
+        viewModel.setDisclosureTabActive(true)
+        onDispose { viewModel.setDisclosureTabActive(false) }
+    }
 
     var showReportDialog by remember { mutableStateOf(false) }
     var reportContent by remember { mutableStateOf("") }
@@ -1018,6 +1059,17 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
                 ) {
                     Text("확인", fontWeight = FontWeight.Bold)
                 }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    activeDisclosure?.let { d ->
+                        viewModel.summarizeDisclosure(d, forceRefresh = true) { success, result ->
+                            if (success) reportContent = result
+                        }
+                    }
+                }) {
+                    Text("🔄 재분석", color = Gold24K, fontWeight = FontWeight.Bold)
+                }
             }
         )
     }
@@ -1026,6 +1078,7 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .zIndex(1f)
                 .background(Color.Black.copy(alpha = 0.6f)),
             contentAlignment = Alignment.Center
         ) {
@@ -1084,6 +1137,37 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
             }
         }
 
+        // 숨긴 항목 보기 토글
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val hiddenCount = hiddenIds.size
+            FilterChip(
+                selected = showHidden,
+                onClick = { viewModel.toggleShowHidden() },
+                label = {
+                    Text(
+                        if (showHidden) "숨김 항목 표시 중" else "숨김 보기${if (hiddenCount > 0) " ($hiddenCount)" else ""}",
+                        fontSize = 11.sp
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Gold24K.copy(0.25f),
+                    selectedLabelColor = Gold24K,
+                    selectedLeadingIconColor = Gold24K
+                )
+            )
+        }
+
         if (isLoading && disclosures.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Gold24K)
@@ -1098,17 +1182,23 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(disclosures) { item ->
-                    DisclosureCard(item) {
-                        viewModel.summarizeDisclosure(item) { success, result ->
-                            if (success) {
-                                reportContent = result
-                                reportTitle = item.corp_name
-                                showReportDialog = true
-                            } else {
-                                android.widget.Toast.makeText(context, result, android.widget.Toast.LENGTH_LONG).show()
+                    DisclosureCard(
+                        item = item,
+                        isHidden = item.rcept_no in hiddenIds,
+                        onClick = {
+                            viewModel.summarizeDisclosure(item) { success, result ->
+                                if (success) {
+                                    reportContent = result
+                                    reportTitle = item.corp_name
+                                    showReportDialog = true
+                                } else {
+                                    android.widget.Toast.makeText(context, result, android.widget.Toast.LENGTH_LONG).show()
+                                }
                             }
-                        }
-                    }
+                        },
+                        onToggleFavorite = { viewModel.toggleFavorite(item) },
+                        onToggleHidden = { viewModel.toggleHidden(item) }
+                    )
                 }
             }
         }
@@ -1116,25 +1206,61 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
 }
 
 @Composable
-fun DisclosureCard(item: EarningsDisclosure, onClick: () -> Unit) {
+fun DisclosureCard(
+    item: EarningsDisclosure,
+    isHidden: Boolean = false,
+    onClick: () -> Unit,
+    onToggleFavorite: () -> Unit = {},
+    onToggleHidden: () -> Unit = {}
+) {
     val dateText = "${item.rcept_dt.take(4)}.${item.rcept_dt.substring(4, 6)}.${item.rcept_dt.substring(6)}"
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(alpha = 0.85f)),
+        colors = CardDefaults.cardColors(
+            containerColor = if (item.isFavorite) Gold24K.copy(alpha = 0.10f) else DeepCharcoal.copy(alpha = 0.85f)
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(alpha = 0.15f))
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(alpha = if (item.isFavorite) 0.4f else 0.15f))
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(item.corp_name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
-                Text(dateText, fontSize = 11.sp, color = Color.Gray)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    IconButton(onClick = onToggleFavorite, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            if (item.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                            contentDescription = "즐겨찾기",
+                            tint = if (item.isFavorite) Gold24K else Color.Gray,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        item.corp_name,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(dateText, fontSize = 11.sp, color = Color.Gray)
+                    IconButton(onClick = onToggleHidden, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            if (isHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (isHidden) "숨김 해제" else "숨기기",
+                            tint = if (isHidden) Gold24K else Color.Gray.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
             
             Spacer(modifier = Modifier.height(4.dp))
@@ -1197,11 +1323,19 @@ fun ExpectedCalendarTab(viewModel: StockViewModel, isLoading: Boolean) {
     var reportContent by remember { mutableStateOf("") }
     var reportTitle by remember { mutableStateOf("") }
     var isGeneratingReport by remember { mutableStateOf(false) }
+    var selectedExpected by remember { mutableStateOf<ExpectedEarnings?>(null) }
+
+    // 탭이 보이는 동안만 active=true → 백그라운드/다른 메뉴에서 완료 시 알림·배너로 안내
+    DisposableEffect(Unit) {
+        viewModel.setExpectedTabActive(true)
+        onDispose { viewModel.setExpectedTabActive(false) }
+    }
 
     if (isGeneratingReport) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .zIndex(1f)
                 .background(Color.Black.copy(alpha = 0.6f)),
             contentAlignment = Alignment.Center
         ) {
@@ -1290,6 +1424,19 @@ fun ExpectedCalendarTab(viewModel: StockViewModel, isLoading: Boolean) {
                 ) {
                     Text("확인", fontWeight = FontWeight.Bold)
                 }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    selectedExpected?.let { exp ->
+                        isGeneratingReport = true
+                        viewModel.generatePreReport(exp, forceRefresh = true) { report ->
+                            isGeneratingReport = false
+                            reportContent = report
+                        }
+                    }
+                }) {
+                    Text("🔄 재분석", color = Gold24K, fontWeight = FontWeight.Bold)
+                }
             }
         )
     }
@@ -1307,8 +1454,17 @@ fun ExpectedCalendarTab(viewModel: StockViewModel, isLoading: Boolean) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize()
         ) {
+            item {
+                Text(
+                    text = "ℹ️ 12월 결산 정기보고서 법정 제출기한 기준 예상일입니다. 실제 발표(잠정실적)는 기한보다 이를 수 있습니다.",
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
             items(expectedEarnings) { item ->
                 ExpectedEarningsCard(item) {
+                    selectedExpected = item
                     isGeneratingReport = true
                     viewModel.generatePreReport(item) { report ->
                         isGeneratingReport = false
@@ -1348,7 +1504,7 @@ fun ExpectedEarningsCard(item: ExpectedEarnings, onClick: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("발표", fontSize = 9.sp, color = Gold24K, fontWeight = FontWeight.Bold)
+                    Text("예상", fontSize = 9.sp, color = Gold24K, fontWeight = FontWeight.Bold)
                     Text(item.release_date, fontSize = 14.sp, color = Gold24K, fontWeight = FontWeight.ExtraBold)
                 }
             }
@@ -1360,10 +1516,18 @@ fun ExpectedEarningsCard(item: ExpectedEarnings, onClick: () -> Unit) {
                 Text(item.corp_name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("예상 매출: ${item.consensus_revenue}", fontSize = 12.sp, color = Color.Gray)
-                    Text("예상 이익: ${item.consensus_profit}", fontSize = 12.sp, color = Color.Gray)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Gold24K.copy(alpha = 0.12f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(item.consensus_revenue, fontSize = 11.sp, color = Gold24K, fontWeight = FontWeight.Bold)
+                    }
+                    Text(item.consensus_profit, fontSize = 11.sp, color = Color.Gray)
                 }
             }
 

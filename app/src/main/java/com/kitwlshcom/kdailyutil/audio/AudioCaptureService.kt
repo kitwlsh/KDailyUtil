@@ -174,7 +174,7 @@ class AudioCaptureService : Service() {
             ACTION_STOP_RECORDING -> {
                 stopRecording()
                 updateFloatingButtonIcon()
-                updateNotification("녹음 중지됨. 저장되었습니다.")
+                // 상주 알림은 stopRecording()에서 제거됨 (유휴 상태 알림 미표시)
             }
             ACTION_PLAY -> {
                 val filePath = intent.getStringExtra(EXTRA_FILE_PATH)
@@ -307,8 +307,11 @@ class AudioCaptureService : Service() {
         releaseWakeLock()
         
         updateFloatingButtonIcon()
-        updateNotification("녹음 대기 중... 언제든 다시 시작하세요.")
-        
+        // 녹음 종료 → 유휴 상태이므로 상주 포그라운드 알림 제거
+        // (백그라운드에서 '녹음 대기 중...' 알림이 계속 노출되지 않도록. 알림은 브리핑 시간에만 표시)
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        isForeground = false
+
         val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "KDailyUtil")
         if (!dir.exists()) dir.mkdirs()
         savedFilePath = File(dir, "capture_${System.currentTimeMillis()}.m4a").absolutePath

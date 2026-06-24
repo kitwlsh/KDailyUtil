@@ -1,7 +1,7 @@
 # 🛠 KDailyUtil - 개발자 가이드 (Developer Context Guide)
 
 > **신규 세션 또는 AI 어시스턴트가 이 파일을 먼저 읽으면 프로젝트 전체 맥락을 즉시 파악할 수 있습니다.**
-> 최종 업데이트: 2026-06-23
+> 최종 업데이트: 2026-06-24
 
 ---
 
@@ -399,6 +399,33 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 | `14c4489` | feat: 주관식 2단계 AI 채점 시스템 (verifySubjectiveAnswer) |
 | `4756ce3` | refactor: 고품질 MP3 효과음 교체 |
 | `964e830` | feat: KuizGenius 퀴즈 크리에이터 스위트 전체 구축 |
+
+---
+
+## 📈 증시 대시보드 기능 메모 (2026-06-24 기준)
+
+증시 탭은 `StockDashboardScreen` + `StockViewModel` + `StockRepository`로 구성. 3개 서브탭: `시세 및 차트(0) / AI 실적 공시(1) / 실적 예정 일정(2)`.
+
+### 데이터 소스
+- **시세/차트**: Yahoo Finance 차트 API(`query1.finance.yahoo.com/v8/finance/chart`, 인증 불필요). volume 포함 파싱.
+- **실적 공시**: Open DART `list.json` **`pblntf_ty=A`(정기공시)** → 항목 클릭 시 `fnlttSinglAcntAll.json`로 재무 조회. 보고서명 `(YYYY.MM)`으로 reprt_code 판별(`.03→11013 .06→11012 .09→11014 .12→11011`), **CFS→OFS 폴백**.
+- **실적 예정 일정**: 무료 컨센서스 소스가 없어, **정기보고서 법정 제출기한 역산**(분기말+45일 등)으로 예상일 표시.
+
+### 로컬 캐시 파일 (`filesDir`)
+- `stock_prices_cache.json` — 시세 인메모리+파일 캐시
+- `earnings_disclosures_cache.json` — 공시 AI 요약 캐시(rcept_no 기준, 90일 TTL)
+- `expected_reports_cache.json` — 사전 전망 리포트 캐시(corp_name 기준)
+- `favorite_disclosures.json` / `hidden_disclosures.json` — 즐겨찾기/숨김 공시
+
+### AI 분석 완료 안내 (StockViewModel)
+- VM은 **Activity 스코프**(MainScreen에서 hoisting)라 탭 이동 시에도 분석 유지.
+- 완료 위치 분기: `!appInForeground`→시스템 알림(채널 `ai_analysis_channel`, id 3001), 앱 내 다른 탭→인앱 스낵바(`analysisCompletedEvent`), 해당 탭→다이얼로그.
+- 포그라운드 여부는 MainActivity 생명주기(ON_RESUME/ON_PAUSE)에서 `setAppForeground()`로 전달.
+- 알림 탭 시 `MainActivity(launchMode=singleTask)` + `NAVIGATE_TO/STOCK_SUBTAB` extra → `requestStockSubTab()`로 서브탭 이동(새 실행 X).
+
+### 주의
+- 실적 공시 매출 계정 동의어는 `parseFinancialAccounts()`의 `setOf(...)`에서 관리(예: `수익(매출액)` 포함). 누락 계정명 발견 시 여기에 추가.
+- 공시 캐시 TTL 날짜 포맷은 반드시 `yyyyMMdd`(소문자 dd). `DD`는 연중 일수라 오삭제 발생.
 
 ---
 

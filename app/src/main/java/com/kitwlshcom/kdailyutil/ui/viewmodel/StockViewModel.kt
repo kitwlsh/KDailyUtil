@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -60,6 +61,38 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _activeAiSummaryDisclosure = MutableStateFlow<EarningsDisclosure?>(null)
     val activeAiSummaryDisclosure: StateFlow<EarningsDisclosure?> = _activeAiSummaryDisclosure.asStateFlow()
+
+    // 즐겨찾기 / 숨김 상태
+    private val _favoriteIds = MutableStateFlow<Set<String>>(emptySet())
+    val favoriteIds: StateFlow<Set<String>> = _favoriteIds.asStateFlow()
+
+    private val _hiddenIds = MutableStateFlow<Set<String>>(emptySet())
+    val hiddenIds: StateFlow<Set<String>> = _hiddenIds.asStateFlow()
+
+    private val _showHidden = MutableStateFlow(false)
+    val showHidden: StateFlow<Boolean> = _showHidden.asStateFlow()
+
+    // 실적 공시 탭이 현재 화면에 보이는지 (false면 분석 완료 시 알림/배너로 안내)
+    @Volatile private var disclosureTabActive = false
+    fun setDisclosureTabActive(active: Boolean) { disclosureTabActive = active }
+
+    // 실적 예정 일정(사전 전망) 탭이 보이는지
+    @Volatile private var expectedTabActive = false
+    fun setExpectedTabActive(active: Boolean) { expectedTabActive = active }
+
+    // 앱이 포그라운드(화면에 보이는 상태)인지 — 백그라운드면 시스템 알림, 포그라운드면 인앱 배너
+    @Volatile private var appInForeground = true
+    fun setAppForeground(active: Boolean) { appInForeground = active }
+
+    // 인앱 완료 배너 이벤트 (메시지, 이동할 증시 서브탭 인덱스)
+    private val _analysisCompletedEvent = kotlinx.coroutines.flow.MutableSharedFlow<Pair<String, Int>>(extraBufferCapacity = 4)
+    val analysisCompletedEvent = _analysisCompletedEvent.asSharedFlow()
+
+    // 알림/배너에서 요청한 증시 서브탭 (StockDashboardScreen이 소비)
+    private val _requestedStockSubTab = MutableStateFlow<Int?>(null)
+    val requestedStockSubTab: StateFlow<Int?> = _requestedStockSubTab.asStateFlow()
+    fun requestStockSubTab(index: Int) { _requestedStockSubTab.value = index }
+    fun consumeRequestedSubTab() { _requestedStockSubTab.value = null }
 
     private var pollingJob: kotlinx.coroutines.Job? = null
 
@@ -231,8 +264,24 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 cal.add(Calendar.DATE, -days)
                 val bgnDe = sdf.format(cal.time) // 시작일
                 
-                val list = stockRepository.fetchRecentDisclosures(bgnDe, endDe, apiKey)
-                _disclosures.value = list
+                val raw = stockRepository.fetchRecentDisclosures(bgnDe, endDe, apiKey).toMutableList()
+                val favorites = stockRepository.loadFavorites()
+                val favIds = favorites.map { it.rcept_no }.toSet()
+                val hidden = stockRepository.loadHidden()
+                _favoriteIds.value = favIds
+                _hiddenIds.value = hidden
+
+                // 즐겨찾기 항목이 조회 기간 밖이라 목록에 없으면 추가 (계속 보이도록)
+                val ids = raw.map { it.rcept_no }.toSet()
+                favorites.forEach { if (it.rcept_no !in ids) raw.add(it) }
+
+                var merged = raw.map { it.copy(isFavorite = it.rcept_no in favIds) }
+                if (!_showHidden.value) merged = merged.filter { it.rcept_no !in hidden }
+                // 즐겨찾기 우선 → 최신 날짜순
+                merged = merged.sortedWith(
+                    compareByDescending<EarningsDisclosure> { it.isFavorite }.thenByDescending { it.rcept_dt }
+                )
+                _disclosures.value = merged
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to load disclosures: ${e.message}")
             } finally {
@@ -248,7 +297,8 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isExpectedLoading.value = true
             try {
-                val list = stockRepository.fetchExpectedEarnings()
+                val keywords = settingsRepository.watchStockKeywordsFlow.first()
+                val list = stockRepository.fetchExpectedEarnings(keywords.toList())
                 _expectedEarnings.value = list
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to load expected earnings: ${e.message}")
@@ -266,14 +316,92 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
         loadDisclosures()
     }
 
+    /** 공시 즐겨찾기 토글 (즐겨찾기 항목은 조회 기간과 무관하게 계속 표시) */
+    fun toggleFavorite(item: EarningsDisclosure) {
+        viewModelScope.launch {
+            val favs = stockRepository.loadFavorites().toMutableList()
+            val nowFav: Boolean
+            if (favs.any { it.rcept_no == item.rcept_no }) {
+                favs.removeAll { it.rcept_no == item.rcept_no }
+                nowFav = false
+            } else {
+                favs.add(item.copy(isFavorite = true))
+                nowFav = true
+            }
+            stockRepository.saveFavorites(favs)
+            _favoriteIds.value = favs.map { it.rcept_no }.toSet()
+            _disclosures.value = _disclosures.value
+                .map { if (it.rcept_no == item.rcept_no) it.copy(isFavorite = nowFav) else it }
+                .sortedWith(compareByDescending<EarningsDisclosure> { it.isFavorite }.thenByDescending { it.rcept_dt })
+        }
+    }
+
+    /** 공시 숨김 토글 */
+    fun toggleHidden(item: EarningsDisclosure) {
+        viewModelScope.launch {
+            val hidden = stockRepository.loadHidden().toMutableSet()
+            if (item.rcept_no in hidden) hidden.remove(item.rcept_no) else hidden.add(item.rcept_no)
+            stockRepository.saveHidden(hidden)
+            _hiddenIds.value = hidden
+            if (!_showHidden.value) {
+                _disclosures.value = _disclosures.value.filter { it.rcept_no !in hidden }
+            }
+        }
+    }
+
+    /** 숨긴 항목 표시 여부 토글 */
+    fun toggleShowHidden() {
+        _showHidden.value = !_showHidden.value
+        loadDisclosures()
+    }
+
+    /**
+     * AI 분석이 백그라운드(앱이 화면에 없을 때)에서 끝났을 때 시스템 알림 표시.
+     * 알림 탭 시 앱을 새로 실행하지 않고 기존 인스턴스로 복귀(singleTask) + 해당 서브탭으로 이동.
+     */
+    private fun notifyAnalysisDone(corpName: String, subTab: Int) {
+        val ctx = getApplication<Application>()
+        val channelId = "ai_analysis_channel"
+        val nm = ctx.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(
+                android.app.NotificationChannel(channelId, "AI 실적 분석", android.app.NotificationManager.IMPORTANCE_DEFAULT)
+                    .apply { description = "백그라운드 AI 실적 분석 완료 알림" }
+            )
+        }
+        // CLEAR_TASK 제거 → 기존 액티비티(singleTask)를 그대로 앞으로 가져오고 onNewIntent로 전달
+        val intent = android.content.Intent(ctx, com.kitwlshcom.kdailyutil.MainActivity::class.java).apply {
+            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("NAVIGATE_TO", "stock")
+            putExtra("STOCK_SUBTAB", subTab)
+        }
+        val pi = android.app.PendingIntent.getActivity(
+            ctx, 3001, intent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+        val noti = androidx.core.app.NotificationCompat.Builder(ctx, channelId)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("AI 분석 완료 📊")
+            .setContentText("$corpName 분석이 완료되었습니다. 터치하여 확인하세요.")
+            .setAutoCancel(true)
+            .setContentIntent(pi)
+            .build()
+        try {
+            nm.notify(3001, noti)
+        } catch (e: SecurityException) {
+            Log.e(TAG, "알림 권한 없음: ${e.message}")
+        }
+    }
+
     /**
      * 특정 실적 공시건에 대해 AI 3줄 요약 분석을 수행하고, 캐싱 및 상태를 갱신합니다.
      * 429 트래픽 한도 초과 오류 발생 시 지수 백오프 기반 재시도 처리를 적용합니다.
      */
-    fun summarizeDisclosure(disclosure: EarningsDisclosure, onComplete: (Boolean, String) -> Unit) {
+    fun summarizeDisclosure(disclosure: EarningsDisclosure, forceRefresh: Boolean = false, onComplete: (Boolean, String) -> Unit) {
         viewModelScope.launch {
             // 1. 이미 캐시된 내용이 있다면 로컬 데이터를 즉시 UI에 반영 (로딩 속도 0.1초 미만)
-            if (disclosure.aiSummary != null) {
+            //    단, 강제 재분석(forceRefresh) 시에는 캐시를 무시하고 새로 분석.
+            if (!forceRefresh && disclosure.aiSummary != null) {
                 _activeAiSummaryDisclosure.value = disclosure
                 onComplete(true, disclosure.aiSummary!!)
                 return@launch
@@ -302,7 +430,8 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 val financialJson = stockRepository.fetchCompanyFinancialJson(
                     disclosure.corp_code,
                     disclosure.rcept_dt,
-                    dartKey
+                    dartKey,
+                    disclosure.report_nm
                 )
 
                 val gemini = GeminiManager(geminiKey)
@@ -360,6 +489,11 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 if (success) {
+                    // 백그라운드면 시스템 알림, 앱 내 다른 메뉴면 인앱 배너, 해당 탭이면 콜백(다이얼로그)로 표시
+                    when {
+                        !appInForeground -> notifyAnalysisDone(disclosure.corp_name, 1)
+                        !disclosureTabActive -> _analysisCompletedEvent.tryEmit("${disclosure.corp_name} 실적 분석 완료" to 1)
+                    }
                     onComplete(true, finalResult)
                 } else {
                     onComplete(false, "실적 분석 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.")
@@ -377,9 +511,10 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * 공시 예정 종목에 대한 AI 사전 전망 리포트를 생성합니다.
      */
-    fun generatePreReport(item: ExpectedEarnings, onComplete: (String) -> Unit) {
+    fun generatePreReport(item: ExpectedEarnings, forceRefresh: Boolean = false, onComplete: (String) -> Unit) {
         viewModelScope.launch {
-            if (item.aiReport != null) {
+            // 캐시된 리포트가 있으면 즉시 반환 (강제 재분석 시 제외)
+            if (!forceRefresh && item.aiReport != null) {
                 onComplete(item.aiReport!!)
                 return@launch
             }
@@ -398,12 +533,19 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                     item.consensus_profit
                 )
                 
-                // 인메모리 저장
+                // 인메모리 + 파일 영속 저장 (앱 재시작 후에도 유지)
                 item.aiReport = report
+                stockRepository.saveExpectedReport(item.corp_name, report)
                 _expectedEarnings.value = _expectedEarnings.value.map {
                     if (it.corp_name == item.corp_name) item else it
                 }
-                
+
+                // 백그라운드면 시스템 알림, 앱 내 다른 메뉴면 인앱 배너 (예정 일정 탭 = 서브탭 2)
+                when {
+                    !appInForeground -> notifyAnalysisDone(item.corp_name, 2)
+                    !expectedTabActive -> _analysisCompletedEvent.tryEmit("${item.corp_name} 사전 전망 완료" to 2)
+                }
+
                 onComplete(report)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to generate pre-report: ${e.message}")

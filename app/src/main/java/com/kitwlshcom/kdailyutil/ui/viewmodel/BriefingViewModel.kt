@@ -72,6 +72,9 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     private val _isBriefingPlaying = MutableStateFlow(false)
     val isBriefingPlaying: StateFlow<Boolean> = _isBriefingPlaying.asStateFlow()
 
+    private val _isBriefingPaused = MutableStateFlow(false)
+    val isBriefingPaused: StateFlow<Boolean> = _isBriefingPaused.asStateFlow()
+
     private val _isRecordingCommand = MutableStateFlow(false)
     val isRecordingCommand: StateFlow<Boolean> = _isRecordingCommand.asStateFlow()
 
@@ -552,12 +555,30 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         }
 
         _isBriefingPlaying.value = true
+        _isBriefingPaused.value = false
         currentBriefingIndex = -1
         playNextBriefingPart()
     }
 
+    /**
+     * 브리핑을 일시정지합니다. 현재 읽던 뉴스 항목 위치(currentBriefingIndex)를 유지하여,
+     * 재개 시 처음이 아닌 멈춘 항목부터 다시 읽습니다. (Android TTS는 단어 단위 정지를 지원하지 않아 항목 단위로 처리)
+     */
+    fun pauseBriefing() {
+        if (!_isBriefingPlaying.value || _isBriefingPaused.value) return
+        ttsManager.stop()
+        _isBriefingPaused.value = true
+    }
+
+    /** 일시정지된 브리핑을 멈춘 항목부터 다시 재생합니다. */
+    fun resumeBriefing() {
+        if (!_isBriefingPlaying.value || !_isBriefingPaused.value) return
+        _isBriefingPaused.value = false
+        playNextBriefingPart()
+    }
+
     private fun playNextBriefingPart() {
-        if (!_isBriefingPlaying.value) return
+        if (!_isBriefingPlaying.value || _isBriefingPaused.value) return
 
         val items = newsItems.value
 
@@ -620,6 +641,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     fun stopBriefing() {
         ttsManager.stop()
         _isBriefingPlaying.value = false
+        _isBriefingPaused.value = false
     }
 
     override fun onCleared() {

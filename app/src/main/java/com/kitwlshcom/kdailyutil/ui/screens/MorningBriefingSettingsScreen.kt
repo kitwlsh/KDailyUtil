@@ -86,17 +86,36 @@ fun MorningBriefingSettingsScreen(
     var showIconGalleryDialog by remember { mutableStateOf(false) }
     var showLegalNoticeDialog by remember { mutableStateOf(false) }
     var showFullScreenIcon by remember { mutableStateOf<Int?>(null) }
+    var selectedSettingsTab by remember { mutableStateOf(0) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
             .padding(bottom = 80.dp) // 네비게이션 바 고려
-            .verticalScroll(rememberScrollState())
     ) {
         Text("오전 브리핑 설정", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
+        val settingsTabs = listOf("브리핑", "증시", "AI·키", "화면", "앱정보")
+        ScrollableTabRow(selectedTabIndex = selectedSettingsTab) {
+            settingsTabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedSettingsTab == index,
+                    onClick = { selectedSettingsTab = index },
+                    text = { Text(title) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Column(
+            modifier = Modifier.verticalScroll(rememberScrollState())
+        ) {
+
+        // ===== 브리핑 탭 (0) =====
+        if (selectedSettingsTab == 0) {
         // 브리핑 활성화 스위치
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -211,7 +230,10 @@ fun MorningBriefingSettingsScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+        } // end 브리핑 탭 (0) - 키워드까지
 
+        // ===== 증시 탭 (1) =====
+        if (selectedSettingsTab == 1) {
         // 증시 키워드 관리
         Text("관심 증시/종목 (증시 서브 탭)", style = MaterialTheme.typography.titleMedium)
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -254,10 +276,10 @@ fun MorningBriefingSettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(24.dp))
+        } // end 증시 탭 (1)
 
+        // ===== 브리핑 탭 (0) - 기본 뉴스 서비스 설정 =====
+        if (selectedSettingsTab == 0) {
         // 기본 뉴스 서비스 설정
         Text("기본 뉴스 서비스 설정", style = MaterialTheme.typography.titleMedium, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
         Spacer(modifier = Modifier.height(16.dp))
@@ -357,10 +379,10 @@ fun MorningBriefingSettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(24.dp))
+        } // end 브리핑 탭 (0) - 기본 뉴스 서비스 설정
 
+        // ===== 화면 탭 (3) =====
+        if (selectedSettingsTab == 3) {
         // 3. 스플래시 화면 테마 설정
         val splashTheme by viewModel.splashTheme.collectAsState()
 
@@ -443,10 +465,10 @@ fun MorningBriefingSettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(24.dp))
+        } // end 화면 탭 (3)
 
+        // ===== AI·키 탭 (2) =====
+        if (selectedSettingsTab == 2) {
         // Gemini API Key
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -549,10 +571,10 @@ fun MorningBriefingSettingsScreen(
             }
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(24.dp))
+        } // end AI·키 탭 (2)
 
+        // ===== 브리핑 탭 (0) - AI 커스텀 브리핑 명령어 =====
+        if (selectedSettingsTab == 0) {
         // AI 커스텀 브리핑 명령어 설정
         Text("나만의 AI 브리핑 명령어", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
         Text(
@@ -664,10 +686,10 @@ fun MorningBriefingSettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(24.dp))
+        } // end 브리핑 탭 (0) - AI 명령어
 
+        // ===== 앱정보 탭 (4) =====
+        if (selectedSettingsTab == 4) {
         Text("앱 정보 및 라이선스", style = MaterialTheme.typography.titleMedium, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -760,6 +782,9 @@ fun MorningBriefingSettingsScreen(
                 color = Color.White.copy(alpha = 0.3f)
             )
         }
+        } // end 앱정보 탭 (4)
+
+        } // end inner scrollable Column
     }
 
     if (showHelpDialog) {

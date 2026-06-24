@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
@@ -46,6 +47,7 @@ fun NewsBriefingScreen(
     val categories by viewModel.categories.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val isPlaying by viewModel.isBriefingPlaying.collectAsState()
+    val isPaused by viewModel.isBriefingPaused.collectAsState()
     val isAiLoading by viewModel.isAiAnalysisLoading.collectAsState()
     val aiCommands by viewModel.aiBriefingCommands.collectAsState()
     val selectedAiCommand by viewModel.selectedAiCommand.collectAsState()
@@ -70,20 +72,31 @@ fun NewsBriefingScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (isPlaying) {
+                        // 다음 뉴스 건너뛰기
                         FloatingActionButton(
                             onClick = { viewModel.skipToNextNews() },
                             containerColor = MaterialTheme.colorScheme.secondaryContainer
                         ) {
                             Icon(Icons.Default.SkipNext, contentDescription = "다음 뉴스 건너뛰기")
                         }
+                        // 일시정지 / 재개 (멈춘 뉴스 항목부터 다시 재생)
+                        FloatingActionButton(
+                            onClick = { if (isPaused) viewModel.resumeBriefing() else viewModel.pauseBriefing() },
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        ) {
+                            Icon(
+                                if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                contentDescription = if (isPaused) "브리핑 재개" else "브리핑 일시정지"
+                            )
+                        }
                     }
                     ExtendedFloatingActionButton(
                         onClick = { viewModel.startLiveBriefing() },
-                        icon = { 
+                        icon = {
                             Icon(
-                                if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow, 
+                                if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
                                 contentDescription = null
-                            ) 
+                            )
                         },
                         text = { Text(if (isPlaying) "브리핑 중지" else "전체 브리핑 시작") },
                         containerColor = if (isPlaying) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer

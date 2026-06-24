@@ -19,7 +19,8 @@ data class StockChartData(
     val name: String,
     val prices: List<Float>,
     val timestamps: List<Long>,  // Unix epoch (seconds)
-    val range: ChartRange
+    val range: ChartRange,
+    val volumes: List<Long> = emptyList()  // 각 포인트의 거래량 (크로스헤어 표시용)
 )
 
 /**
@@ -52,7 +53,8 @@ data class EarningsDisclosure(
     val rcept_dt: String,
     var aiSummary: String? = null,
     var isSurprise: Boolean? = null, // True: 서프라이즈 (상승), False: 쇼크 (하락), null: 부합/기타
-    var isTurnaround: Boolean = false // 적자 -> 흑자 전환 여부
+    var isTurnaround: Boolean = false, // 적자 -> 흑자 전환 여부
+    var isFavorite: Boolean = false   // 즐겨찾기 여부 (날짜창 밖에서도 계속 표시)
 )
 
 data class ExpectedEarnings(

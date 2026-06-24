@@ -382,21 +382,24 @@ class StockRepository(private val context: Context) {
 
                 val prices = mutableListOf<Float>()
                 val timestamps = mutableListOf<Long>()
+                val volumes = mutableListOf<Long>()
 
                 if (quoteList != null && quoteList.length() > 0) {
                     val quote = quoteList.getJSONObject(0)
                     val closeArray = quote.optJSONArray("close")
+                    val volumeArray = quote.optJSONArray("volume")
                     if (closeArray != null && timestampsArray != null) {
                         for (i in 0 until closeArray.length()) {
                             val v = closeArray.optDouble(i)
                             if (!v.isNaN() && v > 0.0) {
                                 prices.add(v.toFloat())
                                 timestamps.add(timestampsArray.optLong(i, 0L))
+                                volumes.add(volumeArray?.optLong(i, 0L) ?: 0L)
                             }
                         }
                     }
                 }
-                return@withContext StockChartData(symbol, name, prices, timestamps, range)
+                return@withContext StockChartData(symbol, name, prices, timestamps, range, volumes)
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to fetch chart data for $name ($symbol) range=$range: ${e.message}")
@@ -415,8 +418,9 @@ class StockRepository(private val context: Context) {
         apiKey: String
     ): List<EarningsDisclosure> = withContext(Dispatchers.IO) {
         val resolvedKey = apiKey.ifBlank { com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY }
-        // 전체 시장 공시를 한꺼번에 가져오기 위해 corp_code 파라미터를 생략합니다.
-        val url = "https://opendart.fss.or.kr/api/list.json?crtfc_key=$resolvedKey&bgn_de=$bgnDe&end_de=$endDe&pblntf_ty=I&page_count=100"
+        // pblntf_ty=A : 정기공시(사업/반기/분기보고서) — 실제 매출액/영업이익이 재무제표 API로 조회 가능한 공시만 수집.
+        // (기존 pblntf_ty=I 거래소공시는 공급계약·소송 등 비실적 공시가 대부분이고 잠정실적은 재무 API에 데이터가 없었음)
+        val url = "https://opendart.fss.or.kr/api/list.json?crtfc_key=$resolvedKey&bgn_de=$bgnDe&end_de=$endDe&pblntf_ty=A&page_count=100"
 
         try {
             val responseJson = Jsoup.connect(url)
@@ -436,13 +440,10 @@ class StockRepository(private val context: Context) {
                     val obj = list.getJSONObject(i)
                     val reportNm = obj.optString("report_nm", "")
                     
-                    // 실적 관련 공시인지 제목 키워드 필터링 (잠정실적, 연결재무제표, 매출액또는손익구조 등)
-                    val isEarningsReport = reportNm.contains("실적") || 
-                                           reportNm.contains("분기보고서") || 
-                                           reportNm.contains("반기보고서") || 
-                                           reportNm.contains("사업보고서") || 
-                                           reportNm.contains("매출액") || 
-                                           reportNm.contains("손익구조")
+                    // 정기보고서(사업/반기/분기)만 수집 — 재무제표 API로 매출액/영업이익 조회가 보장되는 공시.
+                    val isEarningsReport = reportNm.contains("사업보고서") ||
+                                           reportNm.contains("반기보고서") ||
+                                           reportNm.contains("분기보고서")
 
                     if (isEarningsReport) {
                         val rceptNo = obj.optString("rcept_no", "")
@@ -477,83 +478,46 @@ class StockRepository(private val context: Context) {
     suspend fun fetchCompanyFinancialJson(
         corpCode: String,
         rceptDt: String,
-        apiKey: String
+        apiKey: String,
+        reportNm: String = ""
     ): String = withContext(Dispatchers.IO) {
         val resolvedKey = apiKey.ifBlank { com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY }
-        
-        // 공시 제출 날짜 기준으로 사업연도(bsns_year)와 보고서 구분(reprt_code)을 추정
-        val year = rceptDt.take(4)
+
+        val year = rceptDt.take(4).toIntOrNull() ?: 2026
         val month = rceptDt.substring(4, 6).toIntOrNull() ?: 6
-        
-        // 보고서 매핑: 1분기(4~5월): 11013, 반기(7~8월): 11012, 3분기(10~11월): 11014, 사업보고서(기타/3월): 11011
-        val (bsnsYear, reprtCode, reportName) = when (month) {
-            in 4..5 -> Triple(year, "11013", "1분기보고서")
-            in 7..8 -> Triple(year, "11012", "반기보고서")
-            in 10..11 -> Triple(year, "11014", "3분기보고서")
-            in 1..3 -> Triple((year.toInt() - 1).toString(), "11011", "사업보고서")
-            else -> Triple(year, "11012", "분기/반기보고서") // 기본값 반기
-        }
 
-        val url = "https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json?crtfc_key=$resolvedKey&corp_code=$corpCode&bsns_year=$bsnsYear&reprt_code=$reprtCode&fs_div=OFS"
-
-        try {
-            val responseJson = Jsoup.connect(url)
-                .ignoreContentType(true)
-                .timeout(8000)
-                .execute()
-                .body()
-
-            val root = JSONObject(responseJson)
-            val list = root.optJSONArray("list")
-            if (list != null && list.length() > 0) {
-                var revenueCurrent = 0L
-                var revenuePrevious = 0L
-                var opProfitCurrent = 0L
-                var opProfitPrevious = 0L
-                var netIncomeCurrent = 0L
-                var netIncomePrevious = 0L
-                var companyName = ""
-
-                for (i in 0 until list.length()) {
-                    val row = list.getJSONObject(i)
-                    companyName = row.optString("corp_name", "")
-                    val accName = row.optString("account_nm", "").trim().replace(" ", "")
-                    val currentVal = row.optString("thstrm_amount", "0").replace(",", "").toLongOrNull() ?: 0L
-                    val previousVal = row.optString("frmtrm_amount", "0").replace(",", "").toLongOrNull() ?: 0L
-
-                    // 1. 매출액 매핑 (동의어 대응)
-                    if (accName in setOf("매출액", "매출", "영업수익", "영업매출", "매출수익")) {
-                        revenueCurrent = currentVal
-                        revenuePrevious = previousVal
-                    }
-                    // 2. 영업이익 매핑
-                    else if (accName in setOf("영업이익", "영업이익(손실)", "영업손실")) {
-                        opProfitCurrent = currentVal
-                        opProfitPrevious = previousVal
-                    }
-                    // 3. 당기순이익 매핑
-                    else if (accName in setOf("당기순이익", "당기순이익(손실)", "분기순이익", "반기순이익")) {
-                        netIncomeCurrent = currentVal
-                        netIncomePrevious = previousVal
-                    }
-                }
-
-                val resultObj = JSONObject().apply {
-                    put("company", companyName.ifBlank { corpCode })
-                    put("year", bsnsYear)
-                    put("report", reportName)
-                    put("revenue", JSONObject().put("current", revenueCurrent).put("previous", revenuePrevious))
-                    put("operating_profit", JSONObject().put("current", opProfitCurrent).put("previous", opProfitPrevious))
-                    put("net_income", JSONObject().put("current", netIncomeCurrent).put("previous", netIncomePrevious))
-                }
-                return@withContext resultObj.toString()
+        // 보고서명에 포함된 (YYYY.MM)으로 사업연도/보고서코드를 정확히 판별.
+        //   .03→1분기(11013) .06→반기(11012) .09→3분기(11014) .12→사업보고서(11011)
+        val periodMatch = Regex("\\((\\d{4})[.,](\\d{2})\\)").find(reportNm)
+        val (bsnsYear, reprtCode, reportName) = if (periodMatch != null) {
+            val y = periodMatch.groupValues[1]
+            when (periodMatch.groupValues[2].toIntOrNull() ?: 12) {
+                3 -> Triple(y, "11013", "1분기보고서")
+                6 -> Triple(y, "11012", "반기보고서")
+                9 -> Triple(y, "11014", "3분기보고서")
+                12 -> Triple(y, "11011", "사업보고서")
+                else -> Triple(y, "11014", "분기보고서")
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to parse financial accounts for corpCode $corpCode: ${e.message}")
+        } else when {
+            reportNm.contains("반기") -> Triple(year.toString(), "11012", "반기보고서")
+            reportNm.contains("사업보고서") -> Triple((if (month <= 4) year - 1 else year).toString(), "11011", "사업보고서")
+            reportNm.contains("3분기") -> Triple(year.toString(), "11014", "3분기보고서")
+            reportNm.contains("분기") -> Triple(year.toString(), "11013", "1분기보고서")
+            // 보고서명 단서가 전혀 없을 때 제출월 기반 최후 추정
+            month in 4..5 -> Triple(year.toString(), "11013", "1분기보고서")
+            month in 7..8 -> Triple(year.toString(), "11012", "반기보고서")
+            month in 10..11 -> Triple(year.toString(), "11014", "3분기보고서")
+            month in 1..3 -> Triple((year - 1).toString(), "11011", "사업보고서")
+            else -> Triple(year.toString(), "11012", "분기/반기보고서")
         }
 
-        // 정형 파싱 실패 시: 잠정실적 등 비정형 공시는 재무 API에 데이터가 없을 수 있음
-        // Gemini에게 데이터 없음을 알리는 JSON 반환
+        // 연결재무제표(CFS) 우선 조회 후, 없으면 개별재무제표(OFS)로 폴백.
+        for (fsDiv in listOf("CFS", "OFS")) {
+            val parsed = parseFinancialAccounts(resolvedKey, corpCode, bsnsYear, reprtCode, reportName, fsDiv)
+            if (parsed != null) return@withContext parsed
+        }
+
+        // 정형 파싱 실패 시: Gemini에게 데이터 없음을 알리는 JSON 반환
         return@withContext JSONObject().apply {
             put("corp_code", corpCode)
             put("rcept_dt", rceptDt)
@@ -563,56 +527,221 @@ class StockRepository(private val context: Context) {
     }
 
     /**
-     * 네이버 페이 증권 실적 발표 일정표를 Jsoup으로 크롤링하여 예정된 실적 공시 일정을 반환합니다.
+     * DART 단일회사 전체 재무제표 API를 fs_div(CFS/OFS)별로 조회·파싱합니다.
+     * 매출액/영업이익/당기순이익이 모두 0이거나 데이터가 없으면 null을 반환(폴백 유도).
      */
-    suspend fun fetchExpectedEarnings(): List<ExpectedEarnings> = withContext(Dispatchers.IO) {
-        val list = mutableListOf<ExpectedEarnings>()
+    private fun parseFinancialAccounts(
+        key: String,
+        corpCode: String,
+        bsnsYear: String,
+        reprtCode: String,
+        reportName: String,
+        fsDiv: String
+    ): String? {
+        val url = "https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json?crtfc_key=$key&corp_code=$corpCode&bsns_year=$bsnsYear&reprt_code=$reprtCode&fs_div=$fsDiv"
         try {
-            // 네이버 금융 국내 증시 주요 일정 페이지 크롤링 시도
-            val url = "https://finance.naver.com/disclosure/disclosure_list.naver"
-            val doc = Jsoup.connect(url)
-                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                .timeout(8000)
-                .get()
+            val responseJson = Jsoup.connect(url).ignoreContentType(true).timeout(8000).execute().body()
+            val root = JSONObject(responseJson)
+            if (root.optString("status") != "000") return null
+            val list = root.optJSONArray("list") ?: return null
+            if (list.length() == 0) return null
 
-            // 실제 페이지에 일정이 노출되는 테이블 파싱
-            val rows = doc.select(".type_5 tr")
-            for (row in rows) {
-                val cols = row.select("td")
-                if (cols.size >= 4) {
-                    val company = cols[1].text().trim()
-                    val title = cols[2].text().trim()
-                    val date = cols[0].text().trim()
-                    if (title.contains("매출액") || title.contains("실적") || title.contains("보고서")) {
-                        list.add(ExpectedEarnings(company, date, "-", "-"))
-                    }
+            var revenueCurrent = 0L; var revenuePrevious = 0L
+            var opProfitCurrent = 0L; var opProfitPrevious = 0L
+            var netIncomeCurrent = 0L; var netIncomePrevious = 0L
+            var companyName = ""
+
+            for (i in 0 until list.length()) {
+                val row = list.getJSONObject(i)
+                companyName = row.optString("corp_name", "")
+                val accName = row.optString("account_nm", "").trim().replace(" ", "")
+                val currentVal = row.optString("thstrm_amount", "0").replace(",", "").toLongOrNull() ?: 0L
+                val previousVal = row.optString("frmtrm_amount", "0").replace(",", "").toLongOrNull() ?: 0L
+
+                if (accName in setOf("매출액", "매출", "영업수익", "영업매출", "매출수익", "수익(매출액)", "영업수익(매출액)")) {
+                    revenueCurrent = currentVal; revenuePrevious = previousVal
+                } else if (accName in setOf("영업이익", "영업이익(손실)", "영업손실")) {
+                    opProfitCurrent = currentVal; opProfitPrevious = previousVal
+                } else if (accName in setOf("당기순이익", "당기순이익(손실)", "분기순이익", "반기순이익")) {
+                    netIncomeCurrent = currentVal; netIncomePrevious = previousVal
                 }
             }
+
+            // 핵심 3계정이 모두 0이면 의미 없는(매핑 실패) 데이터로 보고 폴백 유도
+            if (revenueCurrent == 0L && opProfitCurrent == 0L && netIncomeCurrent == 0L) return null
+
+            return JSONObject().apply {
+                put("company", companyName.ifBlank { corpCode })
+                put("year", bsnsYear)
+                put("report", reportName)
+                put("fs_div", if (fsDiv == "CFS") "연결" else "개별")
+                put("revenue", JSONObject().put("current", revenueCurrent).put("previous", revenuePrevious))
+                put("operating_profit", JSONObject().put("current", opProfitCurrent).put("previous", opProfitPrevious))
+                put("net_income", JSONObject().put("current", netIncomeCurrent).put("previous", netIncomePrevious))
+            }.toString()
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Naver Finance Expected Earnings Scrape Failed: ${e.message}")
+            Log.e(TAG, "❌ Financial fetch failed ($fsDiv) for $corpCode: ${e.message}")
+            return null
+        }
+    }
+
+    /**
+     * 정기보고서 법정 제출기한(12월 결산 기준)으로 역산한 "예상 실적 발표 일정"을 반환합니다.
+     *
+     * ⚠️ 한국은 미국과 달리 정확한 실적 발표 예정일·컨센서스를 무료 공개 API로 제공하지 않습니다.
+     * 따라서 가짜 예시 대신, 법으로 정해진 보고서 제출기한(분기말+45일, 사업연도말+90일)을 기준으로
+     * 다가오는 발표 시즌을 안내합니다. (실제 발표는 기한보다 이를 수 있음)
+     *
+     * @param watchNames 관심종목명 목록. DART 고유번호가 매핑된 한국 종목만 표시 대상이 됩니다.
+     */
+    suspend fun fetchExpectedEarnings(watchNames: List<String> = emptyList()): List<ExpectedEarnings> = withContext(Dispatchers.IO) {
+        val (nextDate, reportType) = nextStatutoryDeadline()
+
+        // 관심종목 중 DART에 매핑된 한국 종목만, 없으면 대표 종목으로 폴백
+        val koreanWatch = watchNames.filter { CORP_CODE_MAP.containsKey(it) }.distinct()
+        val targets = koreanWatch.ifEmpty {
+            listOf("삼성전자", "SK하이닉스", "현대차", "기아", "네이버", "카카오")
         }
 
-        // 웹 크롤링 결과가 없는 경우 Fallback — [예시] 표기로 더미임을 명확히 알림
-        if (list.isEmpty()) {
-            val cal = Calendar.getInstance()
-            val sdf = SimpleDateFormat("MM.dd", Locale.getDefault())
+        val cachedReports = loadExpectedReports()
+        return@withContext targets.map { name ->
+            ExpectedEarnings(
+                corp_name = name,
+                release_date = nextDate,
+                consensus_revenue = reportType,
+                consensus_profit = "법정 제출기한",
+                aiReport = cachedReports[name]
+            )
+        }
+    }
 
-            fun getFutureDate(daysAhead: Int): String {
-                val c = cal.clone() as Calendar
-                c.add(Calendar.DATE, daysAhead)
-                return sdf.format(c.time)
+    // ── AI 사전 전망 리포트 영속 캐시 (corp_name → report) ──────────────
+    private val expectedReportCacheFile: File
+        get() = File(context.filesDir, "expected_reports_cache.json")
+
+    @Synchronized
+    fun loadExpectedReports(): Map<String, String> {
+        if (!expectedReportCacheFile.exists()) return emptyMap()
+        return try {
+            val obj = JSONObject(expectedReportCacheFile.readText(StandardCharsets.UTF_8))
+            obj.keys().asSequence().associateWith { obj.getString(it) }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to load expected reports cache: ${e.message}")
+            emptyMap()
+        }
+    }
+
+    @Synchronized
+    fun saveExpectedReport(corpName: String, report: String) {
+        try {
+            val obj = if (expectedReportCacheFile.exists())
+                JSONObject(expectedReportCacheFile.readText(StandardCharsets.UTF_8)) else JSONObject()
+            obj.put(corpName, report)
+            expectedReportCacheFile.writeText(obj.toString(), StandardCharsets.UTF_8)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to save expected report: ${e.message}")
+        }
+    }
+
+    // ── 즐겨찾기 / 숨김 공시 영속 저장 ──────────────────────────────
+    private val favoritesFile: File get() = File(context.filesDir, "favorite_disclosures.json")
+    private val hiddenFile: File get() = File(context.filesDir, "hidden_disclosures.json")
+
+    private fun disclosureToJson(item: EarningsDisclosure): JSONObject = JSONObject().apply {
+        put("rcept_no", item.rcept_no)
+        put("corp_code", item.corp_code)
+        put("corp_name", item.corp_name)
+        put("report_nm", item.report_nm)
+        put("flr_nm", item.flr_nm)
+        put("rcept_dt", item.rcept_dt)
+        put("aiSummary", item.aiSummary)
+        item.isSurprise?.let { put("isSurprise", it) }
+        put("isTurnaround", item.isTurnaround)
+    }
+
+    private fun jsonToDisclosure(obj: JSONObject): EarningsDisclosure = EarningsDisclosure(
+        rcept_no = obj.optString("rcept_no", ""),
+        corp_code = obj.optString("corp_code", ""),
+        corp_name = obj.optString("corp_name", ""),
+        report_nm = obj.optString("report_nm", ""),
+        flr_nm = obj.optString("flr_nm", ""),
+        rcept_dt = obj.optString("rcept_dt", ""),
+        aiSummary = obj.optString("aiSummary").takeIf { it.isNotBlank() },
+        isSurprise = if (obj.has("isSurprise")) obj.optBoolean("isSurprise") else null,
+        isTurnaround = obj.optBoolean("isTurnaround", false)
+    )
+
+    @Synchronized
+    fun loadFavorites(): List<EarningsDisclosure> {
+        if (!favoritesFile.exists()) return emptyList()
+        return try {
+            val arr = JSONArray(favoritesFile.readText(StandardCharsets.UTF_8))
+            (0 until arr.length()).map { jsonToDisclosure(arr.getJSONObject(it)) }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to load favorites: ${e.message}"); emptyList()
+        }
+    }
+
+    @Synchronized
+    fun saveFavorites(list: List<EarningsDisclosure>) {
+        try {
+            val arr = JSONArray()
+            list.forEach { arr.put(disclosureToJson(it)) }
+            favoritesFile.writeText(arr.toString(), StandardCharsets.UTF_8)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to save favorites: ${e.message}")
+        }
+    }
+
+    @Synchronized
+    fun loadHidden(): Set<String> {
+        if (!hiddenFile.exists()) return emptySet()
+        return try {
+            val arr = JSONArray(hiddenFile.readText(StandardCharsets.UTF_8))
+            (0 until arr.length()).map { arr.getString(it) }.toSet()
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to load hidden: ${e.message}"); emptySet()
+        }
+    }
+
+    @Synchronized
+    fun saveHidden(ids: Set<String>) {
+        try {
+            val arr = JSONArray()
+            ids.forEach { arr.put(it) }
+            hiddenFile.writeText(arr.toString(), StandardCharsets.UTF_8)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to save hidden: ${e.message}")
+        }
+    }
+
+    /**
+     * 오늘 이후 가장 가까운 정기보고서 법정 제출기한과 보고서 종류를 반환합니다. (12월 결산 기준)
+     */
+    private fun nextStatutoryDeadline(): Pair<String, String> {
+        val today = Calendar.getInstance()
+        val sdf = SimpleDateFormat("MM.dd", Locale.getDefault())
+        // (월, 일, 보고서명)
+        val deadlines = listOf(
+            Triple(3, 31, "사업보고서"),
+            Triple(5, 15, "1분기보고서"),
+            Triple(8, 14, "반기보고서"),
+            Triple(11, 14, "3분기보고서")
+        )
+        val baseYear = today.get(Calendar.YEAR)
+        val candidates = mutableListOf<Pair<Calendar, String>>()
+        for (y in listOf(baseYear, baseYear + 1)) {
+            for ((m, d, label) in deadlines) {
+                val c = Calendar.getInstance()
+                c.set(y, m - 1, d, 0, 0, 0)
+                candidates.add(c to label)
             }
-
-            // ⚠️ 아래는 네이버 크롤링 실패 시 표시되는 예시 데이터입니다.
-            list.add(ExpectedEarnings("[예시] 삼성전자", getFutureDate(2), "74.2조원", "8.9조원"))
-            list.add(ExpectedEarnings("[예시] SK하이닉스", getFutureDate(4), "12.4조원", "1.2조원"))
-            list.add(ExpectedEarnings("[예시] 현대차", getFutureDate(5), "41.5조원", "3.8조원"))
-            list.add(ExpectedEarnings("[예시] 카카오", getFutureDate(7), "2.1조원", "1,800억원"))
-            list.add(ExpectedEarnings("[예시] 네이버", getFutureDate(9), "2.6조원", "3,900억원"))
-            list.add(ExpectedEarnings("[예시] 켄코아에어로스페이스", getFutureDate(11), "240억원", "12억원"))
         }
-
-        return@withContext list
+        val next = candidates
+            .filter { it.first.timeInMillis >= today.timeInMillis }
+            .minByOrNull { it.first.timeInMillis }
+            ?: candidates.first()
+        return sdf.format(next.first.time) to next.second
     }
 
 
@@ -660,7 +789,8 @@ class StockRepository(private val context: Context) {
             val limitMillis = 90L * 24 * 60 * 60 * 1000 // 90일 밀리초
 
             // 1. 유효 기간(90일) 내의 공시만 필터링 (TTL Auto-purge)
-            val sdf = SimpleDateFormat("yyyyMMDD", Locale.getDefault())
+            //    주의: 'dd'(일)이어야 함. 'DD'(연중 일수)면 날짜가 1월로 잘못 파싱돼 유효 캐시가 오삭제됨.
+            val sdf = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
             val filtered = disclosures.filter { disclosure ->
                 try {
                     val date = sdf.parse(disclosure.rcept_dt)
