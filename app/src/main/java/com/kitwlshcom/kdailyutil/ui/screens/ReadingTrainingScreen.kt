@@ -10,6 +10,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -256,13 +259,23 @@ private fun PacerModule(onExit: () -> Unit, onComplete: (Int) -> Unit) {
         }
     }
 
+    // 현재 줄이 바뀔 때마다 그 줄이 화면에 보이도록 자동 스크롤
+    val listState = rememberLazyListState()
+    LaunchedEffect(currentLine) {
+        if (currentLine in lines.indices) {
+            listState.animateScrollToItem(currentLine.coerceAtLeast(0))
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         ModuleTopBar("리듬 페이서", onExit)
-        Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(vertical = 12.dp)
         ) {
-            lines.forEachIndexed { i, line ->
+            itemsIndexed(lines) { i, line ->
                 val active = i == currentLine
                 Text(
                     line.trim(),
