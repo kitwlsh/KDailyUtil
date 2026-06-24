@@ -23,62 +23,52 @@
 ```
 KDailyUtil/
 ├── app/src/main/java/com/kitwlshcom/kdailyutil/
-│   ├── MainActivity.kt                     # 앱 진입점, 네비게이션 호스트
+│   ├── MainActivity.kt                     # 앱 진입점(launchMode=singleTask), 알림→복귀 처리
 │   ├── audio/
-│   │   └── AudioCaptureService.kt          # 포그라운드 오디오 캡처 서비스
+│   │   ├── AudioCaptureService.kt          # 포그라운드 오디오 캡처 서비스(유휴 시 알림 해제)
+│   │   └── TtsManager.kt                   # TTS 낭독
 │   ├── data/
 │   │   ├── model/
 │   │   │   ├── QuizQuestion.kt             # 퀴즈 데이터 모델 (imageUrl 필드 포함)
+│   │   │   ├── StockModels.kt              # 시세/차트/공시/예정 모델 (EarningsDisclosure 등)
 │   │   │   ├── AudioItem.kt
 │   │   │   └── NewsItem.kt
 │   │   ├── remote/
-│   │   │   └── GeminiManager.kt            # Gemini AI API 통합 (퀴즈 생성/채점)
+│   │   │   └── GeminiManager.kt            # Gemini 통합 (퀴즈/요약/공시/OCR/이해도 채점)
 │   │   ├── repository/
 │   │   │   ├── QuizRepository.kt           # 퀴즈 CRUD, 원격 동기화, 커스텀 저장
+│   │   │   ├── StockRepository.kt          # Yahoo 시세/차트 + DART 공시/재무 + 캐시/즐겨찾기/숨김
+│   │   │   ├── ReadingTrainingRepository.kt# 빠른 독서 훈련 진척/보관함/WPM이력
 │   │   │   ├── AudioRepository.kt          # 오디오 파일 관리
 │   │   │   ├── NewsRepository.kt           # 뉴스 RSS 수집 및 크롤링
-│   │   │   └── SettingsRepository.kt       # DataStore 기반 설정 저장
+│   │   │   └── SettingsRepository.kt       # DataStore 기반 설정 저장 (Gemini/DART 키 등)
 │   │   ├── QuizFileHandler.kt              # .kquiz 파일 export/import
 │   │   └── QuizStatsManager.kt             # 퀴즈 정답률/도전 이력 추적
-│   ├── domain/                             # 도메인 로직 (UseCase 등)
-│   ├── receiver/
-│   │   └── BriefingReceiver.kt             # 예약 브리핑 알림 수신
-│   ├── scheduler/                          # WorkManager 예약 작업
+│   ├── receiver/  BriefingReceiver.kt      # 예약 브리핑 알림 수신
+│   ├── scheduler/ BriefingScheduler.kt     # WorkManager/AlarmManager 예약
 │   └── ui/
-│       ├── MainScreen.kt                   # 하단 네비게이션 바 메인 화면
-│       ├── components/                     # 공통 Composable 컴포넌트
-│       ├── navigation/                     # NavGraph 정의
+│       ├── MainScreen.kt                   # 하단 네비 + NavHost (VM hoisting: stock/briefing/...)
+│       ├── components/  navigation/        # 공통 컴포넌트 / NavGraph
 │       ├── screens/
-│       │   ├── QuizScreen.kt               # 퀴즈 플레이 전체 화면 (카테고리 선택~결과)
-│       │   ├── QuizCreatorScreen.kt        # AI 퀴즈 제작소 (사진/링크/수동)
-│       │   ├── AudioCaptureScreen.kt       # 오디오 녹음/재생 화면
-│       │   ├── AudioSubScreens.kt          # 오디오 서브 화면들
-│       │   ├── DrivingShadowingScreen.kt   # 뉴스 쉐도잉 화면
-│       │   ├── LearningHubScreen.kt        # 배움터 허브 화면
-│       │   ├── MorningBriefingSettingsScreen.kt # 설정 화면
-│       │   ├── NewsBriefingScreen.kt       # 뉴스 브리핑 메인 화면
-│       │   ├── NewsDetailScreen.kt         # 뉴스 상세 화면
-│       │   ├── SplashScreen.kt             # 스플래시 (유성 스파이럴 애니메이션)
-│       │   └── PlaceholderScreen.kt        # 빈 플레이스홀더
-│       ├── theme/
-│       │   ├── Color.kt                    # Gold24K, DeepCharcoal 등 컬러 상수
-│       │   ├── Theme.kt                    # MaterialTheme 설정
-│       │   └── Type.kt                     # 타이포그래피
+│       │   ├── QuizScreen.kt  QuizCreatorScreen.kt   # 퀴즈 플레이/제작
+│       │   ├── StockDashboardScreen.kt     # 증시: 시세·차트(크로스헤어)/AI 실적공시/예정일정
+│       │   ├── ReadingTrainingScreen.kt    # ⚡ 빠른 독서 훈련 (배움터 탭1, 드릴5+OCR+이해도)
+│       │   ├── LearningHubScreen.kt        # 배움터 허브 (탭0 퀴즈 / 탭1 빠른 독서 훈련)
+│       │   ├── AudioCaptureScreen.kt  AudioSubScreens.kt  DrivingShadowingScreen.kt
+│       │   ├── MorningBriefingSettingsScreen.kt # 설정 화면 (5탭: 브리핑/증시/AI·키/화면/앱정보)
+│       │   ├── NewsBriefingScreen.kt  NewsDetailScreen.kt  SplashScreen.kt  PlaceholderScreen.kt
+│       ├── theme/  (Color.kt: Gold24K/DeepCharcoal, Theme.kt, Type.kt)
 │       └── viewmodel/
-│           ├── QuizViewModel.kt            # 퀴즈 상태 관리 (QuizState enum)
-│           ├── BriefingViewModel.kt        # 뉴스 브리핑 상태 관리
-│           ├── AudioCaptureViewModel.kt    # 오디오 상태 관리
-│           └── ShadowingViewModel.kt       # 쉐도잉 상태 관리
-├── app/src/main/res/
-│   ├── raw/                                # quiz_correct.mp3, quiz_wrong.mp3, quiz_finish.mp3
-│   ├── drawable/                           # 앱 아이콘, 로고 등
-│   └── xml/
-│       ├── file_paths.xml                  # FileProvider 경로 (cache + files)
-│       └── backup_rules.xml
-├── app/build.gradle.kts                    # 의존성 관리
-├── gradle/libs.versions.toml              # 버전 카탈로그
-├── README.md                               # 사용자/앱 소개 문서
-└── DEVELOPER_GUIDE.md                      # 이 파일 - 개발자 컨텍스트 가이드
+│           ├── QuizViewModel.kt  BriefingViewModel.kt(브리핑 일시정지)  AudioCaptureViewModel.kt
+│           ├── StockViewModel.kt            # 증시 상태 + 백그라운드 분석/알림/인앱배너
+│           ├── ReadingTrainingViewModel.kt  # 빠른 독서 훈련 상태/AI 호출
+│           └── ShadowingViewModel.kt
+├── app/src/main/res/xml/
+│   ├── file_paths.xml                      # FileProvider (cache+files, path=".")
+│   ├── backup_rules.xml / data_extraction_rules.xml  # DataStore(키 저장) 백업 제외
+├── app/build.gradle.kts                    # 의존성 + BuildConfig.DART_DEFAULT_KEY(local.properties 주입)
+├── local.properties                        # (VCS 제외) dart.default.key=...
+├── README.md / DEVELOPER_GUIDE.md / doc/FEATURE_SPEED_READING.md / doc/FEATURE_DART_AI_SUMMARY.md
 ```
 
 ---
@@ -376,29 +366,32 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 
 ---
 
-## 🚀 다음 구현 예정 과제 (Phase 2)
+## 🚀 다음 구현 예정 과제
 
-- [ ] **독립된 증시 대시보드**: 야후 파이낸스 API 연동 (실시간 주가/환율)
-- [ ] **프리미엄 미니 차트**: Compose `Canvas` 기반 스파크라인 차트
-- [ ] **AI 마크다운 렌더링**: 브리핑 결과에 Rich Text 뷰어 적용
+> 증시 대시보드·스파크라인 차트는 **완료**. 현재 남은 후보:
+
+- [ ] **AI 스마트 관심종목 포트폴리오 분석**: 보유 종목 실적 트렌드 종합 리포트 (README Phase 3)
+- [ ] **빠른 독서**: 보관함 제목 편집, 통계 상세 화면, 난이도 자동 추천
 - [ ] **이미지 퀴즈 공유 개선**: 크롭 이미지를 Base64로 인코딩하여 `.kquiz` 파일에 내장
+- [ ] **AI 마크다운 렌더링**: 브리핑 결과에 Rich Text 뷰어 적용
 
 ---
 
-## 🔄 최근 커밋 이력 (최신순)
+## 🔄 최근 커밋 이력 (최신순, 2026-06-24 세션)
+
+> 최신 상태는 항상 `git log --oneline -20` 으로 확인. 아래는 이번 세션 주요 작업.
 
 | 커밋 | 내용 |
 |------|------|
-| `b02450b` | docs: README 업데이트 (AI 이미지 퀴즈 완성 반영) |
-| `46b1f03` | feat: AI 이미지 크롭 기반 시각 퀴즈 + Coil 라이브러리 연동 |
-| `fa2548d` | docs: README + MP3 효과음 리소스 추가 |
-| `a0f6ab2` | feat: 퀴즈 카테고리 공식/클라우드/커스텀 유형 분리 |
-| `32ae6d8` | feat: AI 퀴즈 생성 실패 상세 에러 Toast |
-| `2eacd27` | feat: .kquiz 가져오기 중복 카테고리 처리 (합치기/별도/덮어쓰기) |
-| `304250a` | feat: AI 문제 수 선택(5/10/15/20/30개) |
-| `14c4489` | feat: 주관식 2단계 AI 채점 시스템 (verifySubjectiveAnswer) |
-| `4756ce3` | refactor: 고품질 MP3 효과음 교체 |
-| `964e830` | feat: KuizGenius 퀴즈 크리에이터 스위트 전체 구축 |
+| `59eb82a` | fix: 증시 차트 크로스헤어 값 드래그 실시간 갱신 (px/dp 단위 버그) |
+| `7b42f9a` | feat: 빠른 독서 — 보관함 선택 표시 + WPM 추이 그래프 + 21일 챌린지 |
+| `9ea14f4` | feat: 빠른 독서 — 안구 추적 + 워밍업 호흡 신호 개선 + OCR 안정화 |
+| `23ec7c2` | feat: 빠른 독서 — 지문 보관함 + 묶어 읽기(청크) |
+| `23a141f` | feat: 빠른 독서 — 책 페이지 촬영/업로드 OCR 지문 추출 |
+| `a28ddde` | feat: 빠른 독서 — 사용자 텍스트 + AI 이해도 채점 |
+| `5fda049` | feat: 배움터 '빠른 독서 훈련' 탭 MVP (워밍업/페이서/RSVP) |
+| `1fa2992` | feat: 증시 실적 정상화·AI 백그라운드/캐싱·브리핑 일시정지·설정 5탭 |
+| `9e29ca3` | fix: 보안 강화(DART 키 분리/백업·WebView 보호) + 증시 카드 버그 |
 
 ---
 
@@ -451,8 +444,13 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 2. **`git log -n 10 --oneline`** - 최신 커밋 확인
 3. **`git status`** - 미커밋 변경사항 확인
 4. 작업 관련 파일 직접 열기 (위 디렉토리 구조 참조)
-5. 퀴즈 관련 작업 시 → `QuizQuestion.kt`, `QuizRepository.kt`, `GeminiManager.kt`, `QuizViewModel.kt`, `QuizScreen.kt`, `QuizCreatorScreen.kt` 순서로 파악
+5. 영역별 진입 파일:
+   - 퀴즈 → `QuizRepository.kt`, `GeminiManager.kt`, `QuizViewModel.kt`, `QuizScreen.kt`, `QuizCreatorScreen.kt`
+   - 증시 → `StockRepository.kt`, `StockViewModel.kt`, `StockDashboardScreen.kt` (+ 위 "증시 메모")
+   - 빠른 독서 → `ReadingTrainingScreen/ViewModel/Repository.kt` (+ "빠른 독서 메모", `doc/FEATURE_SPEED_READING.md`)
+   - 브리핑/설정 → `BriefingViewModel.kt`, `NewsBriefingScreen.kt`, `MorningBriefingSettingsScreen.kt`(5탭)
+6. **빌드 시**: `local.properties`에 `dart.default.key` 필요(없으면 DART 기본키 빈값). 빌드 확인은 `./gradlew.bat :app:assembleDebug`.
 
 ---
 
-> 이 문서는 개발 진행에 따라 지속적으로 업데이트됩니다.
+> 이 문서는 개발 진행에 따라 지속적으로 업데이트됩니다. (최신 커밋은 `git log`로 확인)
