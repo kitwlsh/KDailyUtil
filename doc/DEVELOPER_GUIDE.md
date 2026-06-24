@@ -429,6 +429,20 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 
 ---
 
+## ⚡ 빠른 독서 훈련 (배움터 탭) 메모 (2026-06-24 추가)
+
+- 진입: `LearningHubScreen` 탭1 → `ReadingTrainingScreen` (기존 '지식 플러스' placeholder 교체).
+- 파일: `ui/screens/ReadingTrainingScreen.kt`(허브 + 모듈: 워밍업/페이서/RSVP/청크/안구추적/결과/이해도),
+  `ui/viewmodel/ReadingTrainingViewModel.kt`, `data/repository/ReadingTrainingRepository.kt`.
+- 저장:
+  - DataStore `reading_training`: best_wpm / streak_days / last_trained_date / total_sessions / best_comprehension / trained_dates(집합)
+  - `filesDir/reading_passages.json`(지문 보관함) + `filesDir/reading_pages/`(썸네일 JPEG)
+  - `filesDir/reading_wpm_history.json`(WPM 최근 30회)
+- AI: `GeminiManager.extractTextFromImage()`(책 페이지 OCR), `generateComprehensionQuiz()`(이해도 4지선다). 이미지 OCR은 전송 전 최대 2048px 축소.
+- ⚠️ 저작권: 일반 속독 기법 + 직접 작성/공개/사용자 텍스트만 사용. '퀀텀독서법'은 브랜드명으로 쓰지 않고 추천 도서로만 언급. 상세 설계: `doc/FEATURE_SPEED_READING.md`.
+
+---
+
 ## 💡 새 세션 시작 체크리스트
 
 새 AI 세션에서 개발을 시작할 때 반드시 확인할 사항:

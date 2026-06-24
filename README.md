@@ -18,6 +18,7 @@
 | **뉴스 우회 보고서** | [Google_News_Redirect_Issue_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/Google_News_Redirect_Issue_Report.md) | 구글 뉴스 수집 시 발생하는 리디렉션 이슈 분석 및 해결책 |
 | **오디오 개선 보고서** | [20260422_Audio_System_Enhancement_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/20260422_Audio_System_Enhancement_Report.md) | 미니 플레이어 및 오디오 수집 성능 최적화 개선 보고서 |
 | **공시 AI 요약 가이드** | [FEATURE_DART_AI_SUMMARY.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/FEATURE_DART_AI_SUMMARY.md) | Open DART API + Gemini 실적 공시 자동 요약 설계 가이드 |
+| **빠른 독서 훈련 설계** | [FEATURE_SPEED_READING.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/FEATURE_SPEED_READING.md) | 배움터 속독 훈련(드릴/OCR/AI 이해도/보관함) 기능 설계서 |
 
 ---
 
@@ -44,6 +45,13 @@
 - **시각 매칭형 퀴즈**: AI Bounding Box 디텍션을 통해 이미지 영역을 자동 크롭하여 문제 출제.
 - **크리에이터 스위트**: 사진 촬영 스캔 및 웹 크롤러 스캔을 통해 저작권 우회형 독창적 퀴즈 창작.
 - **누적 성취도**: 도전 통계 및 정답률에 연동된 프리미엄 골드 배지 엔진 탑재.
+
+### 6. ⚡ 빠른 독서 훈련 (배움터 > Speed Reading)
+- **5종 훈련 드릴**: 집중 워밍업(호흡), 리듬 페이서, 단어 점멸(RSVP), 묶어 읽기(청크), 안구 추적.
+- **책 페이지 OCR**: 촬영/업로드한 책 페이지를 Gemini Vision으로 본문 추출 → 바로 연습. 직접 텍스트 붙여넣기도 지원.
+- **AI 이해도 채점**: 읽은 뒤 Gemini가 4지선다 문제를 생성·채점하여 "속도(WPM) × 이해도"를 함께 측정.
+- **지문 보관함·진척**: 촬영/입력 지문을 썸네일과 함께 보관·선택, WPM 추이 그래프와 21일 챌린지 제공.
+- ⓘ 일반 속독 원리에 기반한 독자 구현(특정 도서·저자와 무관, 효과는 개인차).
 
 ---
 
@@ -85,6 +93,14 @@
 ---
 
 ## 🛠 최근 업데이트 및 작업 현황 (2026-06-24)
+
+### ⚡ 배움터 '빠른 독서 훈련' 신규 탭 (2026.06.24)
+- '지식 플러스(준비 중)' 자리를 **빠른 독서 훈련**으로 대체.
+- **드릴 5종**(집중 워밍업·리듬 페이서·단어 점멸 RSVP·묶어 읽기·안구 추적) + WPM 측정.
+- **책 페이지 촬영/업로드 OCR**(Gemini Vision)로 본문 추출, 직접 텍스트 붙여넣기 지원.
+- **AI 이해도 채점**(읽은 뒤 4지선다 자동 생성·채점) → 속도×이해도 측정.
+- **지문 보관함**(썸네일·선택 표시), **WPM 추이 그래프**, **21일 챌린지**.
+- 저작권 안전: 일반 속독 원리 기반 독자 구현(특정 도서·저자와 무관). 설계서 [doc/FEATURE_SPEED_READING.md](doc/FEATURE_SPEED_READING.md).
 
 ### 📈 증시·브리핑·오디오 기능 대폭 개선 (2026.06.24)
 - **실적 공시 — 실데이터 정상화**: 거래소 수시공시(잠정실적) 기반에서 **정기공시(사업/반기/분기보고서) 기반**으로 전환. 보고서명의 `(YYYY.MM)`으로 보고서코드를 정확히 판별하고 **연결(CFS)→개별(OFS) 폴백**을 적용하여, 누르면 "분석 대상 아님" 대신 실제 **매출액·영업이익·당기순이익**이 조회됩니다.
