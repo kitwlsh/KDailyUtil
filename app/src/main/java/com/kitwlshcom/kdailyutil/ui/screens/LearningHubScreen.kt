@@ -23,7 +23,7 @@ fun LearningHubScreen(
 )
 {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("우리말 퀴즈", "지식 플러스 (준비 중)")
+    val tabs = listOf("우리말 퀴즈", "빠른 독서 훈련")
 
     val quizState by quizViewModel.quizState.collectAsState()
     val isMainHubActive = quizState == QuizState.IDLE || quizState == QuizState.CATEGORY_SELECTION
@@ -91,10 +91,7 @@ fun LearningHubScreen(
                     when (selectedTabIndex)
                     {
                         0 -> QuizScreen(viewModel = quizViewModel)
-                        1 -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center)
-                        {
-                            Text("새로운 학습 기능이 추가될 예정입니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        1 -> ReadingTrainingScreen()
                     }
                 }
             }
