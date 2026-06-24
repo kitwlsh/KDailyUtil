@@ -69,13 +69,16 @@ class GeminiManager(private val apiKey: String?) {
         val prompt = content {
             image(image)
             text(
-                "이 이미지는 책의 한 페이지입니다. 페이지의 '본문 텍스트'만 정확히 추출해 주세요. " +
-                "쪽번호·머리말·꼬리말·그림 캡션·광고는 제외하고, 문장을 원래 순서대로 자연스럽게 이어서 " +
-                "일반 텍스트로만 반환하세요. 설명·따옴표·마크다운 없이 본문만 출력하세요."
+                "이 이미지는 책의 펼친 지면입니다(한 쪽 또는 두 쪽, 여러 단일 수 있음). " +
+                "보이는 '본문 텍스트 전체'를 빠짐없이 읽어 주세요. " +
+                "두 쪽이면 왼쪽 쪽을 위에서 아래로 읽은 뒤 오른쪽 쪽을 읽고, 읽는 순서대로 문장을 자연스럽게 이어 주세요. " +
+                "쪽번호·장 제목 머리말·꼬리말은 제외하고, 일반 텍스트(평문)로만 반환하세요. " +
+                "설명·따옴표·마크다운 없이 본문만 출력하세요."
             )
         }
-        val response = generativeModel?.generateContent(prompt)
-        (response?.text ?: "").trim()
+        val out = (generativeModel?.generateContent(prompt)?.text ?: "").trim()
+        android.util.Log.d("GeminiOCR", "extractTextFromImage 결과 길이=${out.length}")
+        out
     }
 
     /**

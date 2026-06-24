@@ -91,7 +91,8 @@
   - 이미지는 전송 전 최대 1600px로 자동 축소(요청 용량 최소화). 한 번에 1페이지 권장.
 - **Phase 2-c — ✅ 완료**: **지문 보관함**(촬영/붙여넣은 지문을 썸네일과 함께 저장 → 리스트에서 선택/삭제) + **④묶어 읽기(청크)** 드릴(묶음 크기 2~5단어 조절).
   - 신규: `ReadingTrainingRepository`의 `SavedPassage` 저장(`reading_passages.json` + `reading_pages/` 이미지), VM `savedPassages`/`savePassageFromImage`/`savePassageText`/`deletePassage`.
-- **Phase 2-d — 예정**: ⑤안구 추적 + WPM 추이 그래프 + 21일 챌린지.
+- **Phase 2-d — ✅ 완료**: ⑤**안구 추적** 드릴(움직이는 점 따라가기, 속도 조절) + 집중 워밍업 호흡 신호 개선(시선 분산 방지: 원의 크기+밝기 변화로 들숨/날숨 표현, 라벨은 원 중앙) + OCR 안정화(해상도 2048, 두 쪽 펼침 프롬프트).
+- **Phase 2-e — 예정**: WPM 추이 그래프 + 21일 챌린지.
 
 ---
 

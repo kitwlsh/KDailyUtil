@@ -96,7 +96,7 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
                     return@launch
                 }
                 val text = GeminiManager(key).extractTextFromImage(bitmap)
-                if (text.isBlank()) onResult(null, "이미지에서 글자를 찾지 못했습니다. 더 선명하게 다시 시도해 주세요.")
+                if (text.isBlank()) onResult(null, "글자를 추출하지 못했습니다. 글자가 선명하게 나오도록 다시 촬영하거나, AI 사용량 초과일 수 있으니 잠시 후 다시 시도해 주세요.")
                 else onResult(text, null)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ extractTextFromImage 실패: ${e.message}")

@@ -59,7 +59,7 @@ private val PRACTICE_PASSAGES = listOf(
     "좋은 독서는 속도와 이해가 함께 자라는 일이다. 너무 빨리 읽어 아무것도 남지 않는다면 그것은 진짜 읽기가 아니다. 반대로 한 글자씩 소리 내어 따라가느라 흐름을 놓친다면 그 또한 아쉬운 일이다. 시선을 부드럽게 미끄러뜨리되 핵심에서는 잠시 머무는 리듬을 익히면, 같은 시간에 더 많은 것을 얻을 수 있다. 오늘의 한 페이지가 내일의 한 권이 된다."
 )
 
-private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, CHUNK, RESULT, COMPREHENSION }
+private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, CHUNK, EYE, RESULT, COMPREHENSION }
 
 @Composable
 fun ReadingTrainingScreen(
@@ -96,6 +96,10 @@ fun ReadingTrainingScreen(
                 passage = passage,
                 onExit = { module = ReadingModule.HUB },
                 onComplete = { wpm -> viewModel.recordSession(wpm); lastWpm = wpm; module = ReadingModule.RESULT }
+            )
+            ReadingModule.EYE -> EyeTrackModule(
+                onExit = { module = ReadingModule.HUB },
+                onComplete = { viewModel.recordSession(0); module = ReadingModule.HUB }
             )
             ReadingModule.RESULT -> ResultModule(
                 wpm = lastWpm,
@@ -310,6 +314,7 @@ private fun ReadingHub(
         ModuleCard("🎯 리듬 페이서", "하이라이트를 따라 줄 단위로 읽으며 묵독을 줄여요.") { onSelect(ReadingModule.PACER) }
         ModuleCard("⚡ 단어 점멸 (RSVP)", "한 곳에서 단어가 빠르게 바뀌어 안구 이동을 최소화해요.") { onSelect(ReadingModule.RSVP) }
         ModuleCard("🔭 묶어 읽기 (청크)", "여러 단어를 한 묶음으로 보며 시야 폭을 넓혀요.") { onSelect(ReadingModule.CHUNK) }
+        ModuleCard("👀 안구 추적", "움직이는 점을 눈으로 따라가며 안구 근육을 풀어줘요.") { onSelect(ReadingModule.EYE) }
 
         Spacer(Modifier.height(4.dp))
         Text(
@@ -389,17 +394,23 @@ private fun WarmupModule(onExit: () -> Unit, onComplete: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(if (scale > 0.78f) "들숨 …" else "날숨 …", color = Gold24K, fontSize = 16.sp)
-            Spacer(Modifier.height(28.dp))
+            // 호흡 위상(0=날숨, 1=들숨). 시선을 옮기지 않도록 '원 자체의 크기+밝기'로 신호를 주고,
+            // 들숨/날숨 라벨은 응시점인 원 중앙에 작게 표시.
+            val t = ((scale - 0.55f) / 0.45f).coerceIn(0f, 1f)
+            val phaseText = if (t > 0.5f) "들숨" else "날숨"
             Box(
-                modifier = Modifier.size(200.dp).scale(scale).clip(CircleShape)
-                    .background(Gold24K.copy(0.25f)).border(2.dp, Gold24K.copy(0.6f), CircleShape),
+                modifier = Modifier.size(210.dp).scale(scale).clip(CircleShape)
+                    .background(Gold24K.copy(alpha = 0.12f + 0.40f * t))
+                    .border(2.dp, Gold24K.copy(alpha = 0.30f + 0.50f * t), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text("$remaining", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$remaining", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                    Text(phaseText, color = Color.White.copy(alpha = 0.55f + 0.35f * t), fontSize = 13.sp)
+                }
             }
             Spacer(Modifier.height(28.dp))
-            Text("원의 리듬에 맞춰 천천히 호흡하며\n화면 중앙을 가만히 응시하세요.",
+            Text("원이 커지고 밝아지면 들숨, 작아지고 옅어지면 날숨.\n눈은 옮기지 말고 원 중앙을 가만히 응시하세요.",
                 color = Color.White.copy(0.7f), fontSize = 13.sp, textAlign = TextAlign.Center, lineHeight = 20.sp)
             Spacer(Modifier.height(32.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -690,6 +701,65 @@ private fun ComprehensionModule(viewModel: ReadingTrainingViewModel, passage: St
     }
 }
 
+// ────────────────────────────────────────────────────────────────
+// ⑤ 안구 추적 — 움직이는 점을 눈으로 따라가기
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun EyeTrackModule(onExit: () -> Unit, onComplete: () -> Unit) {
+    var remaining by remember { mutableStateOf(45) }
+    var running by remember { mutableStateOf(true) }
+    var speed by remember { mutableStateOf(1f) }
+
+    LaunchedEffect(running) {
+        while (running && remaining > 0) { delay(1000); remaining-- }
+        if (remaining <= 0) onComplete()
+    }
+
+    val transition = rememberInfiniteTransition(label = "eye")
+    val durationMs = (1600f / speed).toInt().coerceIn(400, 4000)
+    val fraction by transition.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(durationMs, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "pos"
+    )
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        ModuleTopBar("안구 추적", onExit)
+        Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp), contentAlignment = Alignment.CenterStart) {
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val dot = 30.dp
+                val maxOffset = maxWidth - dot
+                Box(
+                    modifier = Modifier
+                        .offset(x = maxOffset * fraction)
+                        .size(dot)
+                        .clip(CircleShape)
+                        .background(Gold24K)
+                        .border(2.dp, Color.White.copy(0.5f), CircleShape)
+                )
+            }
+        }
+        Text("$remaining 초 · 점을 눈으로만 부드럽게 따라가세요(고개는 고정).",
+            color = Color.White.copy(0.6f), fontSize = 12.sp,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), textAlign = TextAlign.Center)
+        Column(
+            modifier = Modifier.fillMaxWidth().background(Color.Black.copy(0.25f)).padding(16.dp).padding(bottom = 80.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text("속도", color = Gold24K, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Slider(value = speed, onValueChange = { speed = it }, valueRange = 0.5f..2.5f,
+                colors = SliderDefaults.colors(thumbColor = Gold24K, activeTrackColor = Gold24K))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = { running = !running }, modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)) {
+                    Text(if (running) "일시정지" else "계속", fontWeight = FontWeight.Bold)
+                }
+                OutlinedButton(onClick = onComplete, modifier = Modifier.weight(1f)) { Text("완료", color = Gold24K) }
+            }
+        }
+    }
+}
+
 // ── 이미지 로드/압축 & 임시 URI (책 페이지 OCR용) ─────────────────────
 private suspend fun loadAndCompressImageForReading(context: Context, uri: Uri): Bitmap? = withContext(Dispatchers.IO) {
     try {
@@ -699,7 +769,7 @@ private suspend fun loadAndCompressImageForReading(context: Context, uri: Uri): 
         BitmapFactory.decodeStream(input, null, bounds)
         input?.close()
 
-        val maxDim = 1600 // 글자 인식을 위해 충분한 해상도
+        val maxDim = 2048 // 글자 인식을 위해 충분한 해상도(두 쪽 펼침 대응)
         var sample = 1
         val larger = maxOf(bounds.outWidth, bounds.outHeight)
         if (larger > maxDim) sample = larger / maxDim
