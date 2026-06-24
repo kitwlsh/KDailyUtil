@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -37,12 +38,14 @@ class ReadingTrainingRepository(private val context: Context) {
         val LAST_DATE = stringPreferencesKey("last_trained_date") // yyyyMMdd
         val TOTAL = intPreferencesKey("total_sessions")
         val BEST_COMPREHENSION = intPreferencesKey("best_comprehension") // 0~100
+        val TRAINED_DATES = stringSetPreferencesKey("trained_dates") // yyyyMMdd 집합
     }
 
     val bestWpmFlow: Flow<Int> = context.readingDataStore.data.map { it[Keys.BEST_WPM] ?: 0 }
     val streakFlow: Flow<Int> = context.readingDataStore.data.map { it[Keys.STREAK] ?: 0 }
     val totalSessionsFlow: Flow<Int> = context.readingDataStore.data.map { it[Keys.TOTAL] ?: 0 }
     val bestComprehensionFlow: Flow<Int> = context.readingDataStore.data.map { it[Keys.BEST_COMPREHENSION] ?: 0 }
+    val trainedDatesFlow: Flow<Set<String>> = context.readingDataStore.data.map { it[Keys.TRAINED_DATES] ?: emptySet() }
 
     /** 이해도 점수(0~100) 기록 — 최고치만 갱신 */
     suspend fun recordComprehension(scorePercent: Int) {
@@ -69,6 +72,34 @@ class ReadingTrainingRepository(private val context: Context) {
                 else -> 1
             }
             p[Keys.LAST_DATE] = today
+            // 훈련일 집합에 오늘 추가 (21일 챌린지용)
+            p[Keys.TRAINED_DATES] = (p[Keys.TRAINED_DATES] ?: emptySet()) + today
+        }
+    }
+
+    // ── WPM 추이 이력 (최근 30회, 파일 기반) ──────────────────
+    private val wpmHistoryFile: File get() = File(context.filesDir, "reading_wpm_history.json")
+
+    @Synchronized
+    fun loadWpmHistory(): List<Int> {
+        if (!wpmHistoryFile.exists()) return emptyList()
+        return try {
+            val arr = JSONArray(wpmHistoryFile.readText())
+            (0 until arr.length()).map { arr.getInt(it) }
+        } catch (e: Exception) { emptyList() }
+    }
+
+    @Synchronized
+    fun addWpmHistory(wpm: Int) {
+        try {
+            val list = loadWpmHistory().toMutableList()
+            list.add(wpm)
+            while (list.size > 30) list.removeAt(0)
+            val arr = JSONArray()
+            list.forEach { arr.put(it) }
+            wpmHistoryFile.writeText(arr.toString())
+        } catch (e: Exception) {
+            Log.e("ReadingRepo", "addWpmHistory 실패: ${e.message}")
         }
     }
 

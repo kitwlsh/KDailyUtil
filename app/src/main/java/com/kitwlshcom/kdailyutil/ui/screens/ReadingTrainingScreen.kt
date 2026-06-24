@@ -14,6 +14,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,6 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -49,6 +52,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -131,6 +135,8 @@ private fun ReadingHub(
     val total by viewModel.totalSessions.collectAsState()
     val bestComp by viewModel.bestComprehension.collectAsState()
     val savedPassages by viewModel.savedPassages.collectAsState()
+    val wpmHistory by viewModel.wpmHistory.collectAsState()
+    val trainedDates by viewModel.trainedDates.collectAsState()
 
     var customText by remember { mutableStateOf("") }
     var showCustomInput by remember { mutableStateOf(false) }
@@ -206,6 +212,57 @@ private fun ReadingHub(
             }
         }
 
+        // 기록: WPM 추이 + 21일 챌린지
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(0.85f)),
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.15f))
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("📈 기록", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+                if (wpmHistory.size >= 2) {
+                    Canvas(modifier = Modifier.fillMaxWidth().height(54.dp)) {
+                        val data = wpmHistory
+                        val maxV = data.max().toFloat()
+                        val minV = data.min().toFloat()
+                        val range = (maxV - minV).coerceAtLeast(1f)
+                        val stepX = size.width / (data.size - 1)
+                        val path = Path()
+                        data.forEachIndexed { i, v ->
+                            val x = i * stepX
+                            val y = size.height - ((v - minV) / range) * (size.height - 8f) - 4f
+                            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                        }
+                        drawPath(path, color = Gold24K, style = Stroke(width = 2.dp.toPx()))
+                    }
+                    Text("WPM 추이 · 최근 ${wpmHistory.size}회 (최고 ${wpmHistory.max()})", fontSize = 11.sp, color = Color.White.copy(0.5f))
+                } else {
+                    Text("읽기 훈련을 완료하면 WPM 추이가 표시됩니다.", fontSize = 12.sp, color = Color.Gray)
+                }
+
+                val last21 = remember(trainedDates) {
+                    val sdf = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+                    val cal = Calendar.getInstance()
+                    (0 until 21).map {
+                        val c = cal.clone() as Calendar
+                        c.add(Calendar.DATE, -(20 - it))
+                        sdf.format(c.time)
+                    }
+                }
+                val doneCount = last21.count { it in trainedDates }
+                Text("🔥 21일 챌린지 · $doneCount/21일", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    last21.forEach { d ->
+                        val done = d in trainedDates
+                        Box(
+                            modifier = Modifier.weight(1f).height(14.dp).clip(RoundedCornerShape(3.dp))
+                                .background(if (done) Gold24K else Color.White.copy(0.10f))
+                        )
+                    }
+                }
+            }
+        }
+
         // 연습 지문 선택
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -275,13 +332,19 @@ private fun ReadingHub(
         if (savedPassages.isNotEmpty()) {
             Text("📚 내 지문 보관함", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
             savedPassages.forEach { p ->
+                val selected = p.text.trim() == passage.trim()
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable {
                         onUseCustom(p.text)
                         android.widget.Toast.makeText(context, "「${p.title}」 선택됨", android.widget.Toast.LENGTH_SHORT).show()
                     },
-                    colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(0.85f)),
-                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.12f))
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (selected) Gold24K.copy(0.14f) else DeepCharcoal.copy(0.85f)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        if (selected) 1.5.dp else 0.5.dp,
+                        Gold24K.copy(if (selected) 0.7f else 0.12f)
+                    )
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (p.imagePath != null) {
@@ -299,8 +362,19 @@ private fun ReadingHub(
                         }
                         Spacer(Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(p.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
-                            Text(p.text.take(40) + if (p.text.length > 40) "…" else "", fontSize = 11.sp, color = Color.White.copy(0.55f), maxLines = 1)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                if (selected) Text("✓", color = Gold24K, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text(
+                                    p.title, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                                    color = if (selected) Gold24K else Color.White, maxLines = 1
+                                )
+                            }
+                            Text(
+                                if (selected) "사용 중" else (p.text.take(40) + if (p.text.length > 40) "…" else ""),
+                                fontSize = 11.sp,
+                                color = if (selected) Gold24K.copy(0.8f) else Color.White.copy(0.55f),
+                                maxLines = 1
+                            )
                         }
                         Text("✕", color = Color.White.copy(0.5f), fontSize = 16.sp,
                             modifier = Modifier.clip(CircleShape).clickable { viewModel.deletePassage(p.id) }.padding(8.dp))

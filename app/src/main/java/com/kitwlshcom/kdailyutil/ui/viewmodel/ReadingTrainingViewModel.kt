@@ -41,6 +41,10 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     val streak: StateFlow<Int> = repo.streakFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val totalSessions: StateFlow<Int> = repo.totalSessionsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val bestComprehension: StateFlow<Int> = repo.bestComprehensionFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    val trainedDates: StateFlow<Set<String>> = repo.trainedDatesFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    private val _wpmHistory = MutableStateFlow<List<Int>>(emptyList())
+    val wpmHistory: StateFlow<List<Int>> = _wpmHistory.asStateFlow()
 
     private val _isGeneratingQuiz = MutableStateFlow(false)
     val isGeneratingQuiz: StateFlow<Boolean> = _isGeneratingQuiz.asStateFlow()
@@ -52,10 +56,14 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     private val _savedPassages = MutableStateFlow<List<SavedPassage>>(emptyList())
     val savedPassages: StateFlow<List<SavedPassage>> = _savedPassages.asStateFlow()
 
-    init { refreshPassages() }
+    init { refreshPassages(); refreshWpmHistory() }
 
     fun refreshPassages() {
         viewModelScope.launch { _savedPassages.value = withContext(Dispatchers.IO) { repo.loadPassages() } }
+    }
+
+    fun refreshWpmHistory() {
+        viewModelScope.launch { _wpmHistory.value = withContext(Dispatchers.IO) { repo.loadWpmHistory() } }
     }
 
     /** 촬영/추출한 페이지를 이미지 썸네일과 함께 보관함에 저장 */
@@ -116,6 +124,10 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
             cal.add(Calendar.DATE, -1)
             val yesterday = sdf.format(cal.time)
             repo.recordSession(wpm, today, yesterday)
+            if (wpm > 0) {
+                withContext(Dispatchers.IO) { repo.addWpmHistory(wpm) }
+                refreshWpmHistory()
+            }
         }
     }
 
