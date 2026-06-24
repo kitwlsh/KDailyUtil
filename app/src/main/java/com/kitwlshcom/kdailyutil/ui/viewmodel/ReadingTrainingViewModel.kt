@@ -1,6 +1,7 @@
 package com.kitwlshcom.kdailyutil.ui.viewmodel
 
 import android.app.Application
+import android.graphics.Bitmap
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -40,6 +41,31 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
 
     private val _isGeneratingQuiz = MutableStateFlow(false)
     val isGeneratingQuiz: StateFlow<Boolean> = _isGeneratingQuiz.asStateFlow()
+
+    private val _isExtractingText = MutableStateFlow(false)
+    val isExtractingText: StateFlow<Boolean> = _isExtractingText.asStateFlow()
+
+    /** 책 페이지 사진에서 본문 텍스트를 OCR 추출 (@param onResult (text, error)) */
+    fun extractTextFromImage(bitmap: Bitmap, onResult: (String?, String?) -> Unit) {
+        viewModelScope.launch {
+            _isExtractingText.value = true
+            try {
+                val key = settingsRepository.geminiApiKeyFlow.first()
+                if (key.isNullOrBlank()) {
+                    onResult(null, "설정 > AI·키 에서 Gemini API Key를 먼저 등록해 주세요.")
+                    return@launch
+                }
+                val text = GeminiManager(key).extractTextFromImage(bitmap)
+                if (text.isBlank()) onResult(null, "이미지에서 글자를 찾지 못했습니다. 더 선명하게 다시 시도해 주세요.")
+                else onResult(text, null)
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ extractTextFromImage 실패: ${e.message}")
+                onResult(null, "텍스트 추출 오류: ${e.message}")
+            } finally {
+                _isExtractingText.value = false
+            }
+        }
+    }
 
     /** 한 세션 완료 기록 (wpm=0이면 워밍업 등 속도 무관 세션) */
     fun recordSession(wpm: Int) {

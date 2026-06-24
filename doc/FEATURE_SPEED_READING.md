@@ -86,7 +86,10 @@
 - **Phase 2-a — ✅ 완료**: **사용자 텍스트 붙여넣기**(연습 지문 직접 입력) + **AI 이해도 채점**(읽기 후 Gemini가 4지선다 3문제 생성·채점 → WPM×이해도, 최고 이해도 기록).
   - 흐름: 페이서/RSVP 완료 → 결과 화면(이번 WPM) → "이해도 퀴즈 풀기" → AI 문제 풀이·채점 → 최고 이해도 저장.
   - 신규: `GeminiManager.generateComprehensionQuiz()`, `ReadingTrainingViewModel.generateComprehension()`, repo `best_comprehension`.
-- **Phase 2-b — 예정**: ④묶어 읽기 ⑤안구 추적 + WPM 추이 그래프 + 21일 챌린지.
+- **Phase 2-b(일부) — ✅ 완료**: **책 페이지 촬영/이미지 업로드 → Gemini Vision OCR로 본문 추출 → 그 텍스트로 훈련**.
+  - 퀴즈 생성기의 카메라/갤러리·이미지 압축 패턴 재활용. 신규: `GeminiManager.extractTextFromImage()`, `ReadingTrainingViewModel.extractTextFromImage()`.
+  - 이미지는 전송 전 최대 1600px로 자동 축소(요청 용량 최소화). 한 번에 1페이지 권장.
+- **Phase 2-c — 예정**: ④묶어 읽기 ⑤안구 추적 + WPM 추이 그래프 + 21일 챌린지.
 
 ---
 

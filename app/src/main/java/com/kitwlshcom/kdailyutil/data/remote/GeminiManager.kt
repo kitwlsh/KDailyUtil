@@ -62,6 +62,23 @@ class GeminiManager(private val apiKey: String?) {
     }
     
     /**
+     * 책 페이지 사진에서 본문 텍스트만 OCR로 추출합니다. (빠른 독서 훈련 지문용)
+     */
+    suspend fun extractTextFromImage(image: android.graphics.Bitmap): String = withContext(Dispatchers.IO) {
+        if (generativeModel == null || apiKey.isNullOrBlank()) return@withContext ""
+        val prompt = content {
+            image(image)
+            text(
+                "이 이미지는 책의 한 페이지입니다. 페이지의 '본문 텍스트'만 정확히 추출해 주세요. " +
+                "쪽번호·머리말·꼬리말·그림 캡션·광고는 제외하고, 문장을 원래 순서대로 자연스럽게 이어서 " +
+                "일반 텍스트로만 반환하세요. 설명·따옴표·마크다운 없이 본문만 출력하세요."
+            )
+        }
+        val response = generativeModel?.generateContent(prompt)
+        (response?.text ?: "").trim()
+    }
+
+    /**
      * 지문 내용 이해도를 확인하는 4지선다 객관식 문제 JSON 배열을 생성합니다.
      * 반환 예: [{"question":"...","options":["a","b","c","d"],"answerIndex":0}, ...]
      */

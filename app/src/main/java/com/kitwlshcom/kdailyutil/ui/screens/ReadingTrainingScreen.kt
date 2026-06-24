@@ -1,5 +1,13 @@
 package com.kitwlshcom.kdailyutil.ui.screens
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -24,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,7 +42,14 @@ import com.kitwlshcom.kdailyutil.ui.theme.DeepCharcoal
 import com.kitwlshcom.kdailyutil.ui.theme.Gold24K
 import com.kitwlshcom.kdailyutil.ui.viewmodel.ComprehensionQuestion
 import com.kitwlshcom.kdailyutil.ui.viewmodel.ReadingTrainingViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // ── 연습 지문 (직접 작성한 원문 — 저작권 안전) ─────────────────────────
 private val PRACTICE_PASSAGES = listOf(
@@ -108,6 +124,45 @@ private fun ReadingHub(
     var customText by remember { mutableStateOf("") }
     var showCustomInput by remember { mutableStateOf(false) }
 
+    // 책 페이지 촬영/업로드 → OCR
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val isExtracting by viewModel.isExtractingText.collectAsState()
+    var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
+
+    fun handleImage(uri: Uri) {
+        scope.launch {
+            val bmp = loadAndCompressImageForReading(context, uri)
+            if (bmp == null) {
+                Toast.makeText(context, "이미지를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            viewModel.extractTextFromImage(bmp) { text, err ->
+                if (text != null) {
+                    onUseCustom(text)
+                    Toast.makeText(context, "책 본문을 가져왔어요. 바로 연습해 보세요!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, err ?: "추출 실패", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        if (ok) tempPhotoUri?.let { handleImage(it) }
+    }
+    val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) handleImage(uri)
+    }
+    val cameraPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            tempPhotoUri = getTempImageUriForReading(context)
+            tempPhotoUri?.let { takePicture.launch(it) }
+        } else {
+            pickImage.launch("image/*")
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -157,6 +212,30 @@ private fun ReadingHub(
                         Text(if (showCustomInput) "닫기" else "내 텍스트 붙여넣기", color = Gold24K, fontSize = 12.sp)
                     }
                 }
+                // 책 페이지 촬영 / 이미지에서 가져오기 (OCR)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+                            context, android.Manifest.permission.CAMERA
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        if (granted) {
+                            tempPhotoUri = getTempImageUriForReading(context)
+                            tempPhotoUri?.let { takePicture.launch(it) }
+                        } else {
+                            cameraPerm.launch(android.Manifest.permission.CAMERA)
+                        }
+                    }) { Text("📷 책 페이지 촬영", color = Gold24K, fontSize = 12.sp) }
+                    OutlinedButton(onClick = { pickImage.launch("image/*") }) {
+                        Text("🖼 이미지에서", color = Gold24K, fontSize = 12.sp)
+                    }
+                }
+                if (isExtracting) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CircularProgressIndicator(color = Gold24K, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Text("책 페이지에서 글자를 읽는 중…", color = Color.White.copy(0.7f), fontSize = 12.sp)
+                    }
+                }
+                Text("※ 한 번에 1페이지, 글자가 선명하게 나오도록 촬영하세요.", fontSize = 10.sp, color = Color.Gray)
                 if (showCustomInput) {
                     OutlinedTextField(
                         value = customText,
@@ -508,4 +587,45 @@ private fun ComprehensionModule(viewModel: ReadingTrainingViewModel, passage: St
             }
         }
     }
+}
+
+// ── 이미지 로드/압축 & 임시 URI (책 페이지 OCR용) ─────────────────────
+private suspend fun loadAndCompressImageForReading(context: Context, uri: Uri): Bitmap? = withContext(Dispatchers.IO) {
+    try {
+        // 1) 크기만 먼저 측정
+        var input = context.contentResolver.openInputStream(uri)
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeStream(input, null, bounds)
+        input?.close()
+
+        val maxDim = 1600 // 글자 인식을 위해 충분한 해상도
+        var sample = 1
+        val larger = maxOf(bounds.outWidth, bounds.outHeight)
+        if (larger > maxDim) sample = larger / maxDim
+
+        input = context.contentResolver.openInputStream(uri)
+        val loaded = BitmapFactory.decodeStream(input, null, BitmapFactory.Options().apply { inSampleSize = if (sample < 1) 1 else sample })
+        input?.close()
+        loaded ?: return@withContext null
+
+        if (loaded.width > maxDim || loaded.height > maxDim) {
+            val ratio = loaded.width.toFloat() / loaded.height.toFloat()
+            val w = if (loaded.width > loaded.height) maxDim else (maxDim * ratio).toInt()
+            val h = if (loaded.width > loaded.height) (maxDim / ratio).toInt() else maxDim
+            val resized = Bitmap.createScaledBitmap(loaded, w.coerceAtLeast(1), h.coerceAtLeast(1), true)
+            if (resized != loaded) loaded.recycle()
+            return@withContext resized
+        }
+        return@withContext loaded
+    } catch (e: Exception) {
+        return@withContext null
+    }
+}
+
+private fun getTempImageUriForReading(context: Context): Uri? = try {
+    val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val tempFile = File.createTempFile("READ_${stamp}_", ".jpg", context.cacheDir)
+    FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+} catch (e: Exception) {
+    null
 }
