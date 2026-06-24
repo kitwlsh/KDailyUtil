@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
@@ -875,21 +876,24 @@ fun StockChartBottomSheet(
                         // 크로스헤어 가격 말풍선
 
                         touchX?.let { tx ->
-                            val count2 = prices.size
-                            val visibleCount2 = (count2 / zoomX).toInt().coerceIn(5, count2)
-                            val maxStart2 = (count2 - visibleCount2).coerceAtLeast(0)
-                            val startIdx2 = ((-offsetX / 1f) * count2 / 1f).toFloat().coerceIn(0f, maxStart2.toFloat()).toInt()
-                            val endIdx2 = (startIdx2 + visibleCount2).coerceAtMost(count2)
-                            val visiblePrices2 = prices.subList(startIdx2, endIdx2)
-
-                            // 타임스탬프 / 거래량 계산
-                            val visibleTs = if (timestamps.size >= endIdx2) timestamps.subList(startIdx2, endIdx2) else emptyList()
-                            val visibleVols = if (volumes.size >= endIdx2) volumes.subList(startIdx2, endIdx2) else emptyList()
-
                             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                                val canvasW = maxWidth
-                                val idxFloat = (tx / canvasW.value.coerceAtLeast(1f)) * (visiblePrices2.size - 1)
-                                val idx = idxFloat.toInt().coerceIn(0, visiblePrices2.lastIndex)
+                                val density = LocalDensity.current
+                                val wPx = with(density) { maxWidth.toPx() }.coerceAtLeast(1f)
+
+                                // 캔버스와 동일하게 픽셀 폭 기준으로 보이는 구간/인덱스 계산
+                                val count2 = prices.size
+                                val visibleCount2 = (count2 / zoomX).toInt().coerceIn(5, count2)
+                                val maxStart2 = (count2 - visibleCount2).coerceAtLeast(0)
+                                val startIdx2 = ((-offsetX / wPx) * count2).coerceIn(0f, maxStart2.toFloat()).toInt()
+                                val endIdx2 = (startIdx2 + visibleCount2).coerceAtMost(count2)
+                                val visiblePrices2 = prices.subList(startIdx2, endIdx2)
+                                val visibleTs = if (timestamps.size >= endIdx2) timestamps.subList(startIdx2, endIdx2) else emptyList()
+                                val visibleVols = if (volumes.size >= endIdx2) volumes.subList(startIdx2, endIdx2) else emptyList()
+
+                                // tx(픽셀) ÷ wPx(픽셀) → 0~1 비율 → 인덱스 (드래그 시 실시간 반영)
+                                val idx = if (visiblePrices2.size > 1)
+                                    ((tx / wPx) * (visiblePrices2.size - 1)).toInt().coerceIn(0, visiblePrices2.lastIndex)
+                                else 0
                                 val priceVal = visiblePrices2.getOrNull(idx)
                                 val tsVal = visibleTs.getOrNull(idx)
                                 val volVal = visibleVols.getOrNull(idx)
@@ -909,8 +913,8 @@ fun StockChartBottomSheet(
                                         SimpleDateFormat(pattern, Locale.KOREA).format(Date(tsVal * 1000L))
                                     } else ""
 
-                                    val xDp = (tx / maxWidth.value.coerceAtLeast(1f) * maxWidth.value).dp
-                                    val bubbleAlignEnd = tx > maxWidth.value * 0.6f
+                                    val xDp = with(density) { tx.toDp() }
+                                    val bubbleAlignEnd = tx > wPx * 0.6f
 
                                     Box(
                                         modifier = Modifier
