@@ -7,7 +7,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
 import com.kitwlshcom.kdailyutil.data.repository.ReadingTrainingRepository
+import com.kitwlshcom.kdailyutil.data.repository.SavedPassage
 import com.kitwlshcom.kdailyutil.data.repository.SettingsRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -44,6 +47,43 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
 
     private val _isExtractingText = MutableStateFlow(false)
     val isExtractingText: StateFlow<Boolean> = _isExtractingText.asStateFlow()
+
+    // 지문 보관함
+    private val _savedPassages = MutableStateFlow<List<SavedPassage>>(emptyList())
+    val savedPassages: StateFlow<List<SavedPassage>> = _savedPassages.asStateFlow()
+
+    init { refreshPassages() }
+
+    fun refreshPassages() {
+        viewModelScope.launch { _savedPassages.value = withContext(Dispatchers.IO) { repo.loadPassages() } }
+    }
+
+    /** 촬영/추출한 페이지를 이미지 썸네일과 함께 보관함에 저장 */
+    fun savePassageFromImage(bitmap: android.graphics.Bitmap, text: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val path = repo.saveImage(bitmap)
+                repo.addPassage(text, path, System.currentTimeMillis())
+            }
+            refreshPassages()
+        }
+    }
+
+    /** 붙여넣은 텍스트를 보관함에 저장 */
+    fun savePassageText(text: String) {
+        if (text.isBlank()) return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { repo.addPassage(text, null, System.currentTimeMillis()) }
+            refreshPassages()
+        }
+    }
+
+    fun deletePassage(id: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { repo.deletePassage(id) }
+            refreshPassages()
+        }
+    }
 
     /** 책 페이지 사진에서 본문 텍스트를 OCR 추출 (@param onResult (text, error)) */
     fun extractTextFromImage(bitmap: Bitmap, onResult: (String?, String?) -> Unit) {

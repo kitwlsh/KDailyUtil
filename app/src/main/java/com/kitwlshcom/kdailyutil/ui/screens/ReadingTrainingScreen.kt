@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.kitwlshcom.kdailyutil.ui.theme.DeepCharcoal
 import com.kitwlshcom.kdailyutil.ui.theme.Gold24K
 import com.kitwlshcom.kdailyutil.ui.viewmodel.ComprehensionQuestion
@@ -58,7 +59,7 @@ private val PRACTICE_PASSAGES = listOf(
     "좋은 독서는 속도와 이해가 함께 자라는 일이다. 너무 빨리 읽어 아무것도 남지 않는다면 그것은 진짜 읽기가 아니다. 반대로 한 글자씩 소리 내어 따라가느라 흐름을 놓친다면 그 또한 아쉬운 일이다. 시선을 부드럽게 미끄러뜨리되 핵심에서는 잠시 머무는 리듬을 익히면, 같은 시간에 더 많은 것을 얻을 수 있다. 오늘의 한 페이지가 내일의 한 권이 된다."
 )
 
-private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, RESULT, COMPREHENSION }
+private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, CHUNK, RESULT, COMPREHENSION }
 
 @Composable
 fun ReadingTrainingScreen(
@@ -87,6 +88,11 @@ fun ReadingTrainingScreen(
                 onComplete = { wpm -> viewModel.recordSession(wpm); lastWpm = wpm; module = ReadingModule.RESULT }
             )
             ReadingModule.RSVP -> RsvpModule(
+                passage = passage,
+                onExit = { module = ReadingModule.HUB },
+                onComplete = { wpm -> viewModel.recordSession(wpm); lastWpm = wpm; module = ReadingModule.RESULT }
+            )
+            ReadingModule.CHUNK -> ChunkModule(
                 passage = passage,
                 onExit = { module = ReadingModule.HUB },
                 onComplete = { wpm -> viewModel.recordSession(wpm); lastWpm = wpm; module = ReadingModule.RESULT }
@@ -120,6 +126,7 @@ private fun ReadingHub(
     val streak by viewModel.streak.collectAsState()
     val total by viewModel.totalSessions.collectAsState()
     val bestComp by viewModel.bestComprehension.collectAsState()
+    val savedPassages by viewModel.savedPassages.collectAsState()
 
     var customText by remember { mutableStateOf("") }
     var showCustomInput by remember { mutableStateOf(false) }
@@ -139,8 +146,9 @@ private fun ReadingHub(
             }
             viewModel.extractTextFromImage(bmp) { text, err ->
                 if (text != null) {
+                    viewModel.savePassageFromImage(bmp, text) // 보관함에 썸네일과 함께 저장
                     onUseCustom(text)
-                    Toast.makeText(context, "책 본문을 가져왔어요. 바로 연습해 보세요!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "책 본문을 가져와 보관함에 저장했어요!", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(context, err ?: "추출 실패", Toast.LENGTH_LONG).show()
                 }
@@ -245,11 +253,54 @@ private fun ReadingHub(
                     )
                     Button(
                         onClick = {
-                            if (customText.isNotBlank()) { onUseCustom(customText.trim()); showCustomInput = false }
+                            if (customText.isNotBlank()) {
+                                val t = customText.trim()
+                                viewModel.savePassageText(t) // 보관함에 저장
+                                onUseCustom(t)
+                                showCustomInput = false
+                            }
                         },
                         enabled = customText.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)
-                    ) { Text("이 텍스트로 연습", fontWeight = FontWeight.Bold) }
+                    ) { Text("이 텍스트로 연습 (보관함 저장)", fontWeight = FontWeight.Bold) }
+                }
+            }
+        }
+
+        // 지문 보관함
+        if (savedPassages.isNotEmpty()) {
+            Text("📚 내 지문 보관함", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+            savedPassages.forEach { p ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        onUseCustom(p.text)
+                        android.widget.Toast.makeText(context, "「${p.title}」 선택됨", android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(0.85f)),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.12f))
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (p.imagePath != null) {
+                            AsyncImage(
+                                model = java.io.File(p.imagePath),
+                                contentDescription = null,
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp))
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(Gold24K.copy(0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) { Text("📄", fontSize = 18.sp) }
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(p.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                            Text(p.text.take(40) + if (p.text.length > 40) "…" else "", fontSize = 11.sp, color = Color.White.copy(0.55f), maxLines = 1)
+                        }
+                        Text("✕", color = Color.White.copy(0.5f), fontSize = 16.sp,
+                            modifier = Modifier.clip(CircleShape).clickable { viewModel.deletePassage(p.id) }.padding(8.dp))
+                    }
                 }
             }
         }
@@ -258,6 +309,7 @@ private fun ReadingHub(
         ModuleCard("🧘 집중 워밍업", "한 점을 응시하며 호흡으로 집중력을 끌어올려요.") { onSelect(ReadingModule.WARMUP) }
         ModuleCard("🎯 리듬 페이서", "하이라이트를 따라 줄 단위로 읽으며 묵독을 줄여요.") { onSelect(ReadingModule.PACER) }
         ModuleCard("⚡ 단어 점멸 (RSVP)", "한 곳에서 단어가 빠르게 바뀌어 안구 이동을 최소화해요.") { onSelect(ReadingModule.RSVP) }
+        ModuleCard("🔭 묶어 읽기 (청크)", "여러 단어를 한 묶음으로 보며 시야 폭을 넓혀요.") { onSelect(ReadingModule.CHUNK) }
 
         Spacer(Modifier.height(4.dp))
         Text(
@@ -437,6 +489,55 @@ private fun RsvpModule(passage: String, onExit: () -> Unit, onComplete: (Int) ->
         }
         Text("${(index + 1).coerceAtMost(words.size)} / ${words.size}", color = Color.White.copy(0.5f), fontSize = 12.sp,
             modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp), textAlign = TextAlign.Center)
+        ControlBar(running, wpm, { running = !running }, { wpm = it }, { index = 0; running = true })
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+// ④ 묶어 읽기 (청크)
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun ChunkModule(passage: String, onExit: () -> Unit, onComplete: (Int) -> Unit) {
+    val words = remember(passage) { passage.trim().split(Regex("\\s+")).filter { it.isNotBlank() } }
+    var chunkSize by remember { mutableStateOf(3) }
+    val chunks = remember(words, chunkSize) { words.chunked(chunkSize) }
+    var index by remember { mutableStateOf(0) }
+    var running by remember { mutableStateOf(false) }
+    var wpm by remember { mutableStateOf(300f) }
+
+    // 묶음 크기 변경 시 처음부터
+    LaunchedEffect(chunkSize) { index = 0; running = false }
+
+    LaunchedEffect(running, index, wpm, chunkSize) {
+        if (running && index <= chunks.lastIndex) {
+            val perWord = 60000f / wpm
+            val interval = (perWord * chunks[index].size).toLong().coerceAtLeast(180L)
+            delay(interval)
+            if (index < chunks.lastIndex) index++
+            else { running = false; onComplete(wpm.toInt()) }
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        ModuleTopBar("묶어 읽기 (청크)", onExit)
+        Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+            Text(
+                chunks.getOrElse(index) { emptyList() }.joinToString(" "),
+                fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White,
+                textAlign = TextAlign.Center, lineHeight = 40.sp
+            )
+        }
+        Text("${(index + 1).coerceAtMost(chunks.size)} / ${chunks.size}", color = Color.White.copy(0.5f), fontSize = 12.sp,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp), textAlign = TextAlign.Center)
+        // 묶음 크기 선택
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            Text("묶음 크기: ${chunkSize}단어", color = Gold24K, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Slider(
+                value = chunkSize.toFloat(), onValueChange = { chunkSize = it.toInt() },
+                valueRange = 2f..5f, steps = 2,
+                colors = SliderDefaults.colors(thumbColor = Gold24K, activeTrackColor = Gold24K)
+            )
+        }
         ControlBar(running, wpm, { running = !running }, { wpm = it }, { index = 0; running = true })
     }
 }

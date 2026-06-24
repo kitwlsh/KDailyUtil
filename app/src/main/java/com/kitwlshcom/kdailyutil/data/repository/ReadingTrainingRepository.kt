@@ -1,14 +1,30 @@
 package com.kitwlshcom.kdailyutil.data.repository
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.util.Log
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
+import java.util.UUID
 
 private val Context.readingDataStore by preferencesDataStore(name = "reading_training")
+
+/** 보관함에 저장된 연습 지문 (촬영/붙여넣기) */
+data class SavedPassage(
+    val id: String,
+    val title: String,
+    val text: String,
+    val imagePath: String?,
+    val createdAt: Long
+)
 
 /**
  * 빠른 독서 훈련 진척(최고 WPM / 연속일 / 누적 세션)을 DataStore에 영속 저장.
@@ -54,5 +70,67 @@ class ReadingTrainingRepository(private val context: Context) {
             }
             p[Keys.LAST_DATE] = today
         }
+    }
+
+    // ── 지문 보관함 (파일 기반) ────────────────────────────────
+    private val passagesFile: File get() = File(context.filesDir, "reading_passages.json")
+    private val pagesDir: File get() = File(context.filesDir, "reading_pages").apply { if (!exists()) mkdirs() }
+
+    @Synchronized
+    fun loadPassages(): List<SavedPassage> {
+        if (!passagesFile.exists()) return emptyList()
+        return try {
+            val arr = JSONArray(passagesFile.readText())
+            (0 until arr.length()).map { i ->
+                val o = arr.getJSONObject(i)
+                SavedPassage(
+                    id = o.optString("id"),
+                    title = o.optString("title"),
+                    text = o.optString("text"),
+                    imagePath = o.optString("imagePath").takeIf { it.isNotBlank() },
+                    createdAt = o.optLong("createdAt")
+                )
+            }.sortedByDescending { it.createdAt }
+        } catch (e: Exception) {
+            Log.e("ReadingRepo", "loadPassages 실패: ${e.message}"); emptyList()
+        }
+    }
+
+    @Synchronized
+    private fun saveAll(list: List<SavedPassage>) {
+        try {
+            val arr = JSONArray()
+            list.forEach { p ->
+                arr.put(JSONObject().apply {
+                    put("id", p.id); put("title", p.title); put("text", p.text)
+                    put("imagePath", p.imagePath ?: ""); put("createdAt", p.createdAt)
+                })
+            }
+            passagesFile.writeText(arr.toString())
+        } catch (e: Exception) {
+            Log.e("ReadingRepo", "saveAll 실패: ${e.message}")
+        }
+    }
+
+    /** 비트맵을 reading_pages/에 JPEG로 저장하고 경로 반환 (썸네일/원본용) */
+    fun saveImage(bitmap: Bitmap): String? = try {
+        val f = File(pagesDir, "page_${System.currentTimeMillis()}.jpg")
+        FileOutputStream(f).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 80, it) }
+        f.absolutePath
+    } catch (e: Exception) {
+        Log.e("ReadingRepo", "saveImage 실패: ${e.message}"); null
+    }
+
+    fun addPassage(text: String, imagePath: String?, now: Long): SavedPassage {
+        val title = text.trim().take(24).replace("\n", " ").ifBlank { "지문" }
+        val item = SavedPassage(UUID.randomUUID().toString(), title, text.trim(), imagePath, now)
+        saveAll(listOf(item) + loadPassages())
+        return item
+    }
+
+    fun deletePassage(id: String) {
+        val target = loadPassages().find { it.id == id }
+        target?.imagePath?.let { runCatching { File(it).delete() } }
+        saveAll(loadPassages().filter { it.id != id })
     }
 }
