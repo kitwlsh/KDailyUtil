@@ -258,11 +258,13 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 
 ### AndroidManifest.xml 권한
 - `INTERNET` - 뉴스 크롤링, Gemini API, 원격 퀴즈 동기화
-- `CAMERA` - 퀴즈 이미지 촬영
-- `READ_MEDIA_IMAGES` - 갤러리 이미지 선택
+- `CAMERA` - 퀴즈/책 페이지 이미지 촬영
 - `RECORD_AUDIO` - 오디오 캡처
-- `READ_EXTERNAL_STORAGE` (API ≤32) / `WRITE_EXTERNAL_STORAGE` (API ≤29)
+- `READ_EXTERNAL_STORAGE` (API ≤32) / `WRITE_EXTERNAL_STORAGE` (API ≤29) - 공용 Download의 이전 녹음 마이그레이션 전용(버전 상한)
 - `SCHEDULE_EXACT_ALARM`, `POST_NOTIFICATIONS` - 예약 브리핑
+
+> ⚠️ **READ_MEDIA_IMAGES / READ_MEDIA_VIDEO / READ_MEDIA_AUDIO 제거됨 (2026-06-25)**
+> Google Play '사진·동영상 권한 정책' 거부(versionCode 1) 대응. 이미지 선택은 **Android Photo Picker**(`PickVisualMedia`/`PickMultipleVisualMedia`, 권한 불필요)로, 오디오/파일 가져오기는 시스템 문서 피커(`GetContent`)로 처리. 기기 전체 MediaStore 스캔(`AudioRepository`)도 제거 — 녹음/가져온 파일은 앱 전용 폴더에서만 관리.
 
 ### FileProvider
 - **Authority**: `com.kitwlshcom.kdailyutil.fileprovider`
@@ -362,7 +364,7 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 
 4. **카테고리 유형 구분**: 공식/클라우드 카테고리 이름이 하드코딩되어 있음. 새 카테고리를 원격에 추가할 때 `QuizScreen`의 `isDefault` 목록도 함께 업데이트 필요.
 
-5. **Android 13+ 미디어 권한**: `READ_MEDIA_IMAGES` 권한 필요. 갤러리 접근 시 자동으로 요청됨.
+5. **이미지 선택은 권한 없이**: `READ_MEDIA_*` 권한을 쓰지 않음. 이미지 가져오기는 **Photo Picker**(`PickVisualMedia`)로만 처리하므로 갤러리 권한 요청 없음. 새 이미지 진입점을 추가할 때도 `GetContent("image/*")`가 아니라 Photo Picker를 사용할 것(정책 준수).
 
 ---
 

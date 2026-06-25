@@ -22,12 +22,28 @@ android {
         minSdk = 26
 
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "DART_DEFAULT_KEY", "\"$dartDefaultKey\"")
+    }
+
+    // 릴리즈 서명: local.properties(VCS 제외)에 키 정보가 있을 때만 활성화.
+    // 필요한 키: release.store.file / release.store.password / release.key.alias / release.key.password
+    val hasReleaseSigning = listOf(
+        "release.store.file", "release.store.password", "release.key.alias", "release.key.password"
+    ).all { !localProperties.getProperty(it).isNullOrBlank() }
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(localProperties.getProperty("release.store.file"))
+                storePassword = localProperties.getProperty("release.store.password")
+                keyAlias = localProperties.getProperty("release.key.alias")
+                keyPassword = localProperties.getProperty("release.key.password")
+            }
+        }
     }
 
     buildTypes {
@@ -38,6 +54,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {

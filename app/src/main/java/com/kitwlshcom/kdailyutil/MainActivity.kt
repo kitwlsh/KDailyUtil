@@ -112,8 +112,7 @@ class MainActivity : ComponentActivity() {
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
-            permissions.add(android.Manifest.permission.READ_MEDIA_AUDIO)
-            permissions.add(android.Manifest.permission.READ_MEDIA_VIDEO)
+            // READ_MEDIA_* 권한 제거: 이미지=Photo Picker, 오디오/파일=문서 피커로 권한 없이 접근.
         }
         val needed = permissions.filter {
             androidx.core.content.ContextCompat.checkSelfPermission(this, it) != android.content.pm.PackageManager.PERMISSION_GRANTED

@@ -10,6 +10,7 @@ import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
@@ -438,7 +439,7 @@ fun ImageScannerTab(
     }
 
     val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
+        contract = ActivityResultContracts.PickMultipleVisualMedia(5)
     ) { uris ->
         scope.launch {
             var addedCount = 0
@@ -477,7 +478,7 @@ fun ImageScannerTab(
         else
         {
             Toast.makeText(context, "카메라 권한이 거부되어 갤러리로 대체합니다.", Toast.LENGTH_LONG).show()
-            galleryLauncher.launch("image/*")
+            galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
     }
 
@@ -685,7 +686,7 @@ fun ImageScannerTab(
 
             OutlinedButton(
                 onClick = {
-                    galleryLauncher.launch("image/*")
+                    galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
                 border = BorderStroke(1.5.dp, Gold24K),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Gold24K),

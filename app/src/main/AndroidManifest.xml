@@ -7,14 +7,17 @@
     
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     
+    <!-- 레거시 저장소(공용 Download의 이전 녹음 마이그레이션 전용, 버전 상한 적용) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
-    
-    <!-- Android 13+ Granular Media Permissions -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    
+
+    <!--
+      참고: READ_MEDIA_IMAGES / READ_MEDIA_VIDEO / READ_MEDIA_AUDIO 권한은 제거됨.
+      - 이미지: Android Photo Picker(PickVisualMedia) 사용 — 권한 불필요.
+      - 오디오/파일 가져오기: 시스템 문서 피커(GetContent) 사용 — 권한 불필요.
+      Google Play 사진·동영상 권한 정책 준수.
+    -->
+
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />

@@ -165,11 +165,9 @@ class AudioRepository(private val context: Context) {
             // File API로 먼저 시도 (앱이 생성한 파일들)
             val rootFiles = captureDir.listFiles()?.filter { it.isFile && it.extension.lowercase() in supportedExtensions } ?: emptyList()
             val importedFiles = importsDir.listFiles()?.filter { it.isFile && it.extension.lowercase() in supportedExtensions } ?: emptyList()
-            
-            // MediaStore로 추가 시도 (사용자가 수동으로 옮긴 파일들)
-            val mediaStoreFiles = queryMediaStoreFiles(supportedExtensions)
-            
-            val allFiles = (rootFiles + importedFiles + mediaStoreFiles).distinctBy { 
+
+            // 앱 전용 폴더(외부 앱별 저장소 + 내부 imports)만 스캔 — 권한 불필요.
+            val allFiles = (rootFiles + importedFiles).distinctBy {
                 try { it.canonicalPath } catch (e: Exception) { it.absolutePath }
             }
             val items = allFiles.map { mapToFileItem(it) }
@@ -200,11 +198,7 @@ class AudioRepository(private val context: Context) {
                     file = when {
                         resolvedInCapture.exists() -> resolvedInCapture
                         resolvedInImports.exists() -> resolvedInImports
-                        else -> {
-                            // MediaStore에서 파일명으로 전역 검색 시도
-                            val foundViaMediaStore = findFileGlobally(fileName)
-                            foundViaMediaStore ?: file
-                        }
+                        else -> file
                     }
                 }
                 
@@ -250,94 +244,9 @@ class AudioRepository(private val context: Context) {
             ?: emptyList()
     }
 
-    private fun findFileGlobally(fileName: String): File? {
-        val projection = arrayOf(android.provider.MediaStore.Audio.Media.DATA)
-        val selection = "${android.provider.MediaStore.Audio.Media.DISPLAY_NAME} = ?"
-        val selectionArgs = arrayOf(fileName)
-        
-        try {
-            // 오디오 쿼리
-            context.contentResolver.query(
-                android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    return File(cursor.getString(0))
-                }
-            }
-            
-            // 비디오 쿼리
-            context.contentResolver.query(
-                android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    return File(cursor.getString(0))
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return null
-    }
-
-    private fun queryMediaStoreFiles(extensions: List<String>): List<File> {
-        val files = mutableListOf<File>()
-        val projection = arrayOf(
-            android.provider.MediaStore.Audio.Media.DATA,
-            android.provider.MediaStore.Audio.Media.DISPLAY_NAME
-        )
-        
-        // KDailyUtil 폴더 내의 파일들 쿼리 (RELATIVE_PATH는 API 29+)
-        val selection = "${android.provider.MediaStore.Audio.Media.DATA} LIKE ?"
-        val selectionArgs = arrayOf("%/KDailyUtil/%")
-        
-        try {
-            context.contentResolver.query(
-                android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                null
-            )?.use { cursor ->
-                val dataIndex = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA)
-                while (cursor.moveToNext()) {
-                    val path = cursor.getString(dataIndex)
-                    val file = File(path)
-                    if (file.exists() && file.extension.lowercase() in extensions) {
-                        files.add(file)
-                    }
-                }
-            }
-            
-            // 비디오 파일도 쿼리 (mp4, mkv 등)
-            context.contentResolver.query(
-                android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                null
-            )?.use { cursor ->
-                val dataIndex = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA)
-                while (cursor.moveToNext()) {
-                    val path = cursor.getString(dataIndex)
-                    val file = File(path)
-                    if (file.exists() && file.extension.lowercase() in extensions) {
-                        files.add(file)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return files
-    }
+    // 기기 전체 MediaStore 스캔(findFileGlobally/queryMediaStoreFiles)은 제거됨.
+    // Google Play 사진·동영상 권한 정책 준수를 위해 READ_MEDIA_* 권한을 더 이상 사용하지 않음.
+    // 녹음/가져온 파일은 앱 전용 폴더(captureDir/importsDir)에서만 관리한다.
 
     private fun mapToFileItem(file: File): AudioItem {
         return AudioItem(

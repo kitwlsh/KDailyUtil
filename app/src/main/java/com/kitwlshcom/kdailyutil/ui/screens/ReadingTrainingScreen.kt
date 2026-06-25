@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -169,7 +170,7 @@ private fun ReadingHub(
     val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         if (ok) tempPhotoUri?.let { handleImage(it) }
     }
-    val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) handleImage(uri)
     }
     val cameraPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -177,7 +178,7 @@ private fun ReadingHub(
             tempPhotoUri = getTempImageUriForReading(context)
             tempPhotoUri?.let { takePicture.launch(it) }
         } else {
-            pickImage.launch("image/*")
+            pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
     }
 
@@ -294,7 +295,7 @@ private fun ReadingHub(
                             cameraPerm.launch(android.Manifest.permission.CAMERA)
                         }
                     }) { Text("📷 책 페이지 촬영", color = Gold24K, fontSize = 12.sp) }
-                    OutlinedButton(onClick = { pickImage.launch("image/*") }) {
+                    OutlinedButton(onClick = { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
                         Text("🖼 이미지에서", color = Gold24K, fontSize = 12.sp)
                     }
                 }
