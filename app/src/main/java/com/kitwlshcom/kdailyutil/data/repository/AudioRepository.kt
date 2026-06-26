@@ -6,6 +6,11 @@ import java.io.File
 
 class AudioRepository(private val context: Context) {
 
+    companion object {
+        /** 목록/스캔/복구에서 인식하는 오디오 확장자 (소문자). */
+        val SUPPORTED_AUDIO_EXTENSIONS = listOf("m4a", "wav", "mp3", "mp4", "mkv", "aac", "3gp")
+    }
+
     private val captureDir: File
         get() = File(context.getExternalFilesDir(null), "KDailyUtil").apply { if (!exists()) mkdirs() }
 
@@ -158,7 +163,7 @@ class AudioRepository(private val context: Context) {
     }
 
     fun getRecordedFiles(playlistName: String? = null): List<AudioItem> {
-        val supportedExtensions = listOf("m4a", "wav", "mp3", "mp4", "mkv", "aac", "3gp")
+        val supportedExtensions = SUPPORTED_AUDIO_EXTENSIONS
         
         if (playlistName == null) {
             // 전체 리스트 (루트 폴더 + imports 폴더 파일들)
@@ -188,23 +193,22 @@ class AudioRepository(private val context: Context) {
             
             val paths = playlistFile.readLines().filter { it.isNotBlank() }
             val items = paths.mapNotNull { originalPath ->
-                var file = File(originalPath)
-                if (!file.exists()) {
-                    // 경로가 유효하지 않으면 현재 캡처/임포트 폴더에서 파일명으로 찾아봄
-                    val fileName = file.name
-                    val resolvedInCapture = File(captureDir, fileName)
-                    val resolvedInImports = File(importsDir, fileName)
-                    
-                    file = when {
-                        resolvedInCapture.exists() -> resolvedInCapture
-                        resolvedInImports.exists() -> resolvedInImports
-                        else -> file
-                    }
+                // 앱 전용 폴더(캡처/임포트)의 복사본을 우선 사용한다.
+                // 옛 공용 저장소 경로는 권한이 없어 stat은 되더라도 재생(read)이 막히므로,
+                // 동일 파일명이 앱 전용 폴더에 있으면 그쪽을 재생 대상으로 삼는다.
+                val fileName = File(originalPath).name
+                val resolvedInCapture = File(captureDir, fileName)
+                val resolvedInImports = File(importsDir, fileName)
+                val original = File(originalPath)
+
+                val file = when {
+                    resolvedInCapture.exists() -> resolvedInCapture
+                    resolvedInImports.exists() -> resolvedInImports
+                    original.exists() -> original
+                    else -> null
                 }
-                
-                if (file.exists()) {
-                    mapToFileItem(file)
-                } else null
+
+                file?.let { mapToFileItem(it) }
             }
             return items
         }
@@ -223,7 +227,7 @@ class AudioRepository(private val context: Context) {
     }
 
     fun getHiddenFiles(): List<AudioItem> {
-        val supportedExtensions = listOf("m4a", "wav", "mp3", "mp4", "mkv", "aac", "3gp")
+        val supportedExtensions = SUPPORTED_AUDIO_EXTENSIONS
         return hiddenDir.listFiles()
             ?.filter { it.isFile && it.extension.lowercase() in supportedExtensions }
             ?.map { file ->
@@ -234,7 +238,7 @@ class AudioRepository(private val context: Context) {
     }
 
     fun getTrashFiles(): List<AudioItem> {
-        val supportedExtensions = listOf("m4a", "wav", "mp3", "mp4", "mkv", "aac", "3gp")
+        val supportedExtensions = SUPPORTED_AUDIO_EXTENSIONS
         return trashDir.listFiles()
             ?.filter { it.isFile && it.extension.lowercase() in supportedExtensions }
             ?.map { file ->
@@ -247,6 +251,65 @@ class AudioRepository(private val context: Context) {
     // 기기 전체 MediaStore 스캔(findFileGlobally/queryMediaStoreFiles)은 제거됨.
     // Google Play 사진·동영상 권한 정책 준수를 위해 READ_MEDIA_* 권한을 더 이상 사용하지 않음.
     // 녹음/가져온 파일은 앱 전용 폴더(captureDir/importsDir)에서만 관리한다.
+
+    /**
+     * SAF(Storage Access Framework)로 사용자가 직접 선택한 폴더(트리)에서
+     * 오디오 파일을 앱 전용 폴더(captureDir)로 복사해 복구한다.
+     *
+     * 옛 버전(v1.0)이 공용 Download/KDailyUtil 폴더에 저장한 녹음을, READ_MEDIA_* 권한 없이
+     * (사용자가 부여한 폴더 URI 권한만으로) 되살리기 위한 경로. 하위 폴더까지 재귀 순회한다.
+     *
+     * @return 새로 복사된 파일 수
+     */
+    fun recoverFromTreeUri(treeUri: android.net.Uri): Int {
+        val supportedExtensions = SUPPORTED_AUDIO_EXTENSIONS
+        val root = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, treeUri) ?: return 0
+        var count = 0
+        val stack = ArrayDeque<androidx.documentfile.provider.DocumentFile>()
+        stack.addLast(root)
+        while (stack.isNotEmpty()) {
+            val dir = stack.removeLast()
+            for (child in dir.listFiles()) {
+                if (child.isDirectory) {
+                    stack.addLast(child)
+                } else if (child.isFile) {
+                    val name = child.name ?: continue
+                    if (name.substringAfterLast('.', "").lowercase() !in supportedExtensions) continue
+                    if (copyDocumentToCapture(child, name)) count++
+                }
+            }
+        }
+        return count
+    }
+
+    private fun copyDocumentToCapture(doc: androidx.documentfile.provider.DocumentFile, name: String): Boolean {
+        var target = File(captureDir, name)
+        // 동일 이름+크기 파일이 이미 있으면 중복 복구로 보고 스킵.
+        if (target.exists() && target.length() == doc.length()) return false
+        if (target.exists()) {
+            val base = name.substringBeforeLast(".")
+            val ext = name.substringAfterLast(".", "")
+            target = File(captureDir, "${base}_${doc.lastModified()}.$ext")
+            if (target.exists()) return false
+        }
+        return try {
+            var copied = false
+            context.contentResolver.openInputStream(doc.uri)?.use { input ->
+                target.outputStream().use { output -> input.copyTo(output) }
+                copied = true
+            }
+            if (copied) {
+                scanFile(target)
+            } else if (target.exists()) {
+                target.delete() // 스트림 열기 실패로 빈 파일이 생겼으면 정리
+            }
+            copied
+        } catch (e: Exception) {
+            android.util.Log.e("AudioRepository", "Recover copy failed: $name", e)
+            if (target.exists() && target.length() == 0L) target.delete()
+            false
+        }
+    }
 
     private fun mapToFileItem(file: File): AudioItem {
         return AudioItem(

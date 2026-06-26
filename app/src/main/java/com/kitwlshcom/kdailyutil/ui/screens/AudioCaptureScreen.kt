@@ -114,6 +114,15 @@ fun AudioCaptureScreen(
         }
     }
 
+    // SAF 폴더 선택 → 옛 공용 폴더(예: Download/KDailyUtil)의 녹음을 권한 없이 복구
+    val folderRecoverLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.recoverFromFolder(uri)
+        }
+    }
+
     val listState = rememberLazyListState()
     
     // 현재 재생 중인 곡이 바뀌면 해당 위치로 자동 스크롤
@@ -607,13 +616,15 @@ fun AudioCaptureScreen(
                                 )
                                 AudioTab.FILES -> FileManagerTabContent(
                                     viewModel = viewModel,
-                                    onRenameClick = { 
+                                    onRenameClick = {
                                         newFileName = it.name.substringBeforeLast(".")
-                                        showRenameDialog = it 
+                                        showRenameDialog = it
                                     },
                                     onDeleteClick = { showDeleteConfirmDialog = it },
                                     onPlaylistClick = { showPlaylistMoveDialog = it },
-                                    onInfoClick = { showInfoDialog = it }
+                                    onInfoClick = { showInfoDialog = it },
+                                    onImportFiles = { filePickerLauncher.launch("audio/*") },
+                                    onRecoverFolder = { folderRecoverLauncher.launch(null) }
                                 )
                                 AudioTab.PLAYLISTS -> PlaylistTabContent(
                                     viewModel = viewModel,

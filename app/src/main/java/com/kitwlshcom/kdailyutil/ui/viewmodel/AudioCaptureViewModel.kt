@@ -8,8 +8,10 @@ import com.kitwlshcom.kdailyutil.audio.AudioCaptureService
 import com.kitwlshcom.kdailyutil.data.model.AudioItem
 import com.kitwlshcom.kdailyutil.data.repository.AudioRepository
 import com.kitwlshcom.kdailyutil.data.repository.SettingsRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.random.Random
 
 enum class PlaybackMode {
@@ -431,6 +433,19 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
         viewModelScope.launch {
             if (repository.importFiles(uris) > 0) {
                 loadRecordings()
+            }
+        }
+    }
+
+    /** SAF 폴더 선택 결과(트리 URI)로 옛 공용 폴더의 녹음을 앱 전용 폴더로 복구한다. */
+    fun recoverFromFolder(treeUri: android.net.Uri) {
+        viewModelScope.launch {
+            val count = withContext(Dispatchers.IO) { repository.recoverFromTreeUri(treeUri) }
+            if (count > 0) {
+                android.widget.Toast.makeText(getApplication(), "${count}개 파일을 복구했습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                loadRecordings()
+            } else {
+                android.widget.Toast.makeText(getApplication(), "복구할 새 오디오 파일이 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }

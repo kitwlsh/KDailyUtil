@@ -1,7 +1,7 @@
 # 🛠 KDailyUtil - 개발자 가이드 (Developer Context Guide)
 
 > **신규 세션 또는 AI 어시스턴트가 이 파일을 먼저 읽으면 프로젝트 전체 맥락을 즉시 파악할 수 있습니다.**
-> 최종 업데이트: 2026-06-24
+> 최종 업데이트: 2026-06-25 (v1.1 — Google Play 사진·동영상 권한 정책 준수 릴리즈)
 
 ---
 
@@ -11,6 +11,7 @@
 - **패키지**: `com.kitwlshcom.kdailyutil`
 - **언어**: Kotlin (Jetpack Compose)
 - **최소 SDK**: 26 / 타겟 SDK: 36
+- **버전**: versionCode 2 / versionName 1.1 (2026-06-25 릴리즈)
 - **빌드 도구**: AGP 8.13.2, Kotlin 2.0.21
 - **GitHub**: `kitwlsh/KDailyUtil`
 - **로컬 경로**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil`
@@ -266,6 +267,9 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 > ⚠️ **READ_MEDIA_IMAGES / READ_MEDIA_VIDEO / READ_MEDIA_AUDIO 제거됨 (2026-06-25)**
 > Google Play '사진·동영상 권한 정책' 거부(versionCode 1) 대응. 이미지 선택은 **Android Photo Picker**(`PickVisualMedia`/`PickMultipleVisualMedia`, 권한 불필요)로, 오디오/파일 가져오기는 시스템 문서 피커(`GetContent`)로 처리. 기기 전체 MediaStore 스캔(`AudioRepository`)도 제거 — 녹음/가져온 파일은 앱 전용 폴더에서만 관리.
 
+> ⚠️ **v1.0→v1.1 업그레이드 시 옛 녹음 접근 불가 → SAF 복구 도입 (2026-06-26)**
+> `READ_MEDIA_*` 제거 + `READ_EXTERNAL_STORAGE`(maxSdk 32, 런타임 요청은 API≤29만) 때문에 Android 11+에서 공용 `Download/KDailyUtil`의 옛 녹음을 더 이상 읽지 못함(재생 시 `setDataSource` 실패, 마이그레이션 `listFiles()`=null). 권한 복원은 정책 위반이므로 **SAF(Storage Access Framework)** 로 복구: 파일 탭 헤더/빈 화면의 **'기존 폴더에서 복구'**(`OpenDocumentTree`) → `AudioRepository.recoverFromTreeUri()`가 하위 폴더까지 재귀 복사해 앱 전용 폴더로 가져옴(권한 불필요). 누락돼 있던 **'파일 가져오기'**(`GetMultipleContents`) 버튼도 배선. 재생목록(`getRecordedFiles`)은 옛 공용 경로보다 앱 전용 복사본을 우선 해석. 의존성: `androidx.documentfile`.
+
 ### FileProvider
 - **Authority**: `com.kitwlshcom.kdailyutil.fileprovider`
 - **경로 설정** (`file_paths.xml`):
@@ -379,12 +383,14 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 
 ---
 
-## 🔄 최근 커밋 이력 (최신순, 2026-06-24 세션)
+## 🔄 최근 커밋 이력 (최신순, 2026-06-25 세션)
 
-> 최신 상태는 항상 `git log --oneline -20` 으로 확인. 아래는 이번 세션 주요 작업.
+> 최신 상태는 항상 `git log --oneline -20` 으로 확인. 아래는 최근 세션 주요 작업.
 
 | 커밋 | 내용 |
 |------|------|
+| `8f51481` | fix: Google Play 사진·동영상 권한 정책 준수 + v1.1 릴리즈 (READ_MEDIA_* 제거, Photo Picker 전환, versionCode 1→2) |
+| `1915238` | docs: 신규 세션용 DEVELOPER_GUIDE/README 최신화 |
 | `59eb82a` | fix: 증시 차트 크로스헤어 값 드래그 실시간 갱신 (px/dp 단위 버그) |
 | `7b42f9a` | feat: 빠른 독서 — 보관함 선택 표시 + WPM 추이 그래프 + 21일 챌린지 |
 | `9ea14f4` | feat: 빠른 독서 — 안구 추적 + 워밍업 호흡 신호 개선 + OCR 안정화 |

@@ -292,7 +292,9 @@ fun FileManagerTabContent(
     onRenameClick: (AudioItem) -> Unit,
     onDeleteClick: (AudioItem) -> Unit,
     onPlaylistClick: (AudioItem) -> Unit,
-    onInfoClick: (AudioItem) -> Unit
+    onInfoClick: (AudioItem) -> Unit,
+    onImportFiles: () -> Unit = {},
+    onRecoverFolder: () -> Unit = {}
 ) {
     val currentlyPlaying by viewModel.currentlyPlaying.collectAsState()
     val isEditLocked by viewModel.isEditLocked.collectAsState()
@@ -309,8 +311,16 @@ fun FileManagerTabContent(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("파일 관리", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                IconButton(onClick = { viewModel.toggleEditLock() }) {
-                    Icon(if (isEditLocked) Icons.Default.Lock else Icons.Default.LockOpen, contentDescription = "잠금", tint = if (isEditLocked) MaterialTheme.colorScheme.primary else Color.Gray)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onImportFiles) {
+                        Icon(Icons.Default.FileDownload, contentDescription = "파일 가져오기", tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = onRecoverFolder) {
+                        Icon(Icons.Default.Restore, contentDescription = "기존 폴더에서 복구", tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = { viewModel.toggleEditLock() }) {
+                        Icon(if (isEditLocked) Icons.Default.Lock else Icons.Default.LockOpen, contentDescription = "잠금", tint = if (isEditLocked) MaterialTheme.colorScheme.primary else Color.Gray)
+                    }
                 }
             }
             
@@ -351,7 +361,31 @@ fun FileManagerTabContent(
 
         if (displayFiles.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("파일이 없습니다.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(horizontal = 32.dp)
+                ) {
+                    Text("파일이 없습니다.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                    if (filterMode == "ALL") {
+                        Text(
+                            "이전 버전에서 Download/KDailyUtil 폴더에 저장한 녹음이 있다면, 아래에서 해당 폴더를 선택해 가져올 수 있습니다.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        OutlinedButton(onClick = onRecoverFolder) {
+                            Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("기존 폴더에서 복구")
+                        }
+                        TextButton(onClick = onImportFiles) {
+                            Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("파일 직접 가져오기")
+                        }
+                    }
+                }
             }
         } else {
             LazyColumn(

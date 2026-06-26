@@ -16,6 +16,7 @@ work = "2.10.0"
 generativeai = "0.9.0"
 splashscreen = "1.0.1"
 coil = "2.6.0"
+documentfile = "1.0.1"
 
 
 [libraries]
@@ -42,6 +43,7 @@ androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx"
 generative-ai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "generativeai" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 
 
 [plugins]

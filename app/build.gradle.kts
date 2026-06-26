@@ -90,6 +90,7 @@ dependencies {
     implementation(libs.generative.ai)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.coil.compose)
+    implementation(libs.androidx.documentfile)
 
 
     testImplementation(libs.junit)
