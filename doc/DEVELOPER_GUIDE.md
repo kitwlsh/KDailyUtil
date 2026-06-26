@@ -138,10 +138,10 @@ IDLE → CATEGORY_SELECTION → GENERATING → PLAYING ↔ ANSWER_CHECKED → FI
 // 원격 퀴즈 동기화 (앱 시작 시 호출)
 suspend fun syncRemoteQuizzes(context: Context)
 
-// 퀴즈 로드 (카테고리 필터 가능, 셔플됨)
+// 퀴즈 로드 (카테고리 필터 가능, 셔플됨). 표시 단계 중복 제거 적용(dedupeQuizzes)
 suspend fun getQuizzes(context: Context, category: String? = null): List<QuizQuestion>
 
-// 커스텀 퀴즈 저장 (ID 기준 병합)
+// 커스텀 퀴즈 저장 (ID 기준 병합 + 제출 단계 정답/질문 중복 방지)
 suspend fun saveCustomQuizzes(context: Context, quizzes: List<QuizQuestion>)
 
 // 커스텀 카테고리 삭제 (크롭 이미지 파일도 함께 삭제)
@@ -151,6 +151,14 @@ suspend fun deleteCustomCategory(context: Context, category: String)
 suspend fun getCustomCategories(context: Context): List<String>
 suspend fun getRemoteCategories(context: Context): List<String>
 ```
+
+### 퀴즈 중복 방지 3중 구조 (2026-06-26)
+같은 정답·질문이 여러 번 나오지 않도록 `QuizRepository`에서 3단계로 막는다. 정규화는 `norm()`(공백 제거+소문자), 키는 `(category, norm(answer))`·`(category, norm(question))`.
+1. **생성**: `QuizCreatorScreen`이 `previousQuizzes`에 **정답까지** 담아 AI에 전달 + `GeminiManager` 프롬프트가 '같은 정답이면 출제 금지'를 지시(낭비 생성 감소).
+2. **제출(`saveCustomQuizzes`)**: 같은 카테고리에 이미 있는 **다른 ID** 퀴즈와 정답/질문이 겹치면 저장 skip(같은 ID는 갱신 허용) — 영속 단계의 확실한 보장.
+3. **표시(`getQuizzes`)**: static+remote+custom 합친 최종 목록을 `dedupeQuizzes()`로 한 번 더 정리(첫 등장만) — 소스 무관 안전망.
+> ⚠️ 시각(이미지) 퀴즈(`imageUrl` 존재)는 정답이 같아도 그림이 다를 수 있어 **질문 기준만** 중복 판정한다.
+> 원격 데이터 자체의 중복은 `korean_quiz_data`의 `update_quiz.py`(정답·신조어 개념 가드)에서 별도 관리.
 
 ---
 
@@ -248,10 +256,12 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
   - `trend.json` → 트렌드 말하기
   - `knowledge.json` → 상식 백과
   - `travel.json` → 세계 여행
-  - `quiz_updates.json` → 맞춤법 띄어쓰기, 고난이도 고유어, 아름다운 순우리말, 사자성어, 최신 유행어 등
+  - `quiz_updates.json` → **빈 배열(미러 폐지)**. 과거 이중기록이 ID 충돌·중복 출제를 유발해 폐지. 각 문제는 카테고리 파일 1곳에만 존재.
 
 - **Python 업데이트 스크립트**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\korean_quiz_data\update_quiz.py`
-- **로컬 캐시 파일**: `filesDir/quizzes_v2.json`
+  - 매일 워크플로(`daily_update_.yml`, cron KST 9시)로 5문항 추가. **전역 유니크 ID** 부여 + **중복 가드**(① 질문 ② 정답 ③ 트렌드 신조어 개념). 기존 정답·신조어 목록을 프롬프트에 주입해 같은 답 재생성 차단.
+  - 데이터는 (카테고리,정답)/(카테고리,질문)/신조어 개념 기준으로 정리됨(2026-06-26, 약 166문항).
+- **로컬 캐시 파일**: `filesDir/quizzes_v2.json` (동기화 시 통째로 덮어씀 — 옛 중복이 누적되지 않음)
 
 ---
 
