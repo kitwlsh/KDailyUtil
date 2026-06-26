@@ -387,7 +387,11 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         _isAiAnalysisLoading.value = true
         try {
             // 분석을 위해 경제/종합 뉴스 20개 정도를 수집
-            val referenceNews = newsRepository.getTopNews(20)
+            // 저작권 보호: 'AI 이용 금지'로 감지된 매체(도메인/스니펫)는 AI 분석 입력에서 제외한다.
+            val referenceNews = newsRepository.getTopNews(20).filterNot {
+                NewsRepository.detectAiRestrictionNotice(it.description) ||
+                    NewsRepository.isAiRestrictedDomain(it.link)
+            }
             val gemini = GeminiManager(apiKey)
             val analysis = gemini.processAiCustomBriefing(targetCommand, referenceNews)
             
@@ -493,52 +497,14 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
 
     fun loadFullContent(item: NewsItem) {
         if (!item.link.startsWith("http")) return // AI 분석 등 웹 링크가 아닌 경우 무시
-        
-        // 캐시 데이터가 이미 있는 경우, 불필요한 네트워크/AI 스크래핑을 생략하여 0초 만에 화면 전환 지원
-        if (item.fullContent.isNotBlank()) {
-            _selectedNewsItem.value = item.copy()
-            _isLoadingDetail.value = false
-            return
-        }
 
         viewModelScope.launch {
             _isLoadingDetail.value = true
-            
-            // 1. 일반 추출 시도
-            var fullText = newsRepository.fetchFullContent(item)
-            var isRawDump = fullText.startsWith("RAW_DUMP:")
-            if (isRawDump) {
-                fullText = fullText.removePrefix("RAW_DUMP:")
-                Log.d(TAG, "🔍 Standard extraction failed, using raw dump for AI analysis.")
-            }
-            
-            // 2. AI 추출 (조건 만족 시: 덤프 데이터거나, 텍스트가 너무 짧거나, 문단 구분이 없는 경우)
-            val apiKey = geminiApiKey.value
-            val needsAi = isRawDump || fullText.length < 500 || fullText.count { it == '\n' } < 2
-            
-            if (!apiKey.isNullOrBlank() && needsAi) {
-                Log.d(TAG, "🤖 Requesting Gemini AI to extract content for: ${item.title}")
-                try {
-                    val gemini = GeminiManager(apiKey)
-                    // 덤프 데이터일 경우 더 명확하게 요청
-                    val promptPrefix = if (isRawDump) "[전체 텍스트 덤프 분석] " else ""
-                    val aiExtracted = gemini.extractArticleContent("$promptPrefix$fullText".take(10000))
-                    
-                    if (aiExtracted.isNotBlank() && aiExtracted.length > 50) {
-                        Log.d(TAG, "✨ Gemini AI extraction successful! (Length: ${aiExtracted.length})")
-                        fullText = aiExtracted
-                    } else {
-                        Log.w(TAG, "❌ Gemini AI failed to extract content.")
-                        if (isRawDump) fullText = "" // 덤프 데이터를 그대로 보여주지 않음
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "❌ Gemini AI Extraction Error: ${e.message}", e)
-                    if (isRawDump) fullText = ""
-                }
-            }
-
-            if (fullText.isNotBlank() && (fullText.length > item.fullContent.length || item.fullContent.isBlank())) {
-                item.fullContent = fullText
+            // 저작권 보호: 본문 전문을 스크랩하거나 Gemini로 보내지 않는다.
+            // 읽기는 WebView 원문으로 제공하므로, 표시용 원본 URL만 해석한다.
+            // (브리핑/쉐도잉은 언론사가 신디케이션용으로 배포한 RSS 스니펫만 사용)
+            if (item.resolvedUrl.isBlank() || item.resolvedUrl.contains("google.com")) {
+                newsRepository.resolveArticleUrl(item)
                 _selectedNewsItem.value = item.copy()
                 _newsItems.value = _newsItems.value.map { if (it.link == item.link) item.copy() else it }
             }
@@ -593,7 +559,10 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
             }
             currentBriefingIndex < items.size -> {
                 val item = items[currentBriefingIndex]
-                val content = item.fullContent.ifBlank { item.summary.ifBlank { item.description } }
+                // 저작권 보호: 본문 전문이 아니라 RSS 스니펫(요약)만 낭독.
+                // 'AI 이용 금지' 매체는 그조차 생략하고 원문 보기를 안내한다.
+                val content = if (item.aiRestricted) "원문 보기로 확인해 주세요."
+                              else stripHtml(item.summary.ifBlank { item.description })
                 val text = "${currentBriefingIndex + 1}번 뉴스, ${item.title}입니다.\n\n$content"
                 
                 ttsManager.speak(text) {
@@ -626,22 +595,46 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         stopBriefing()
         viewModelScope.launch {
             _isBriefingPlaying.value = true
-            if (item.fullContent.isBlank()) {
-                item.fullContent = newsRepository.fetchFullContent(item)
-                _selectedNewsItem.value = item.copy()
+            // 'AI 이용 금지' 매체는 낭독하지 않고 제목 + 원문 보기 안내만 읽는다.
+            if (item.aiRestricted) {
+                ttsManager.speak("${item.title}. 이 매체는 AI 및 음성 낭독 이용을 제한하여, 원문 보기로 안내합니다.") {
+                    _isBriefingPlaying.value = false
+                }
+                return@launch
             }
-            val content = item.fullContent.ifBlank { item.summary.ifBlank { item.description } }
-            val textToSpeak = "${item.title}. $content"
+            // 저작권 보호: 본문 전문이 아니라 언론사가 배포한 RSS 스니펫(요약)만 낭독한다.
+            val snippet = stripHtml(item.summary.ifBlank { item.description })
+            val textToSpeak = if (snippet.isBlank()) item.title else "${item.title}. $snippet"
             ttsManager.speak(textToSpeak) {
                 _isBriefingPlaying.value = false
             }
         }
     }
 
+    /** RSS 스니펫에 섞여 있을 수 있는 HTML 태그를 제거해 낭독용 텍스트로 정리 */
+    private fun stripHtml(text: String): String =
+        text.replace(Regex("<[^>]*>"), " ").replace(Regex("\\s+"), " ").trim()
+
     fun stopBriefing() {
         ttsManager.stop()
         _isBriefingPlaying.value = false
         _isBriefingPaused.value = false
+    }
+
+    /**
+     * 상세 화면 WebView가 원문 페이지에서 'AI 학습·이용 금지' 고지를 감지했을 때 호출.
+     * 현재 기사를 제한 매체로 표시해 낭독 버튼·쉐도잉을 숨기고, 진행 중인 낭독은 중단한다.
+     */
+    fun markSelectedAsRestricted() {
+        val item = _selectedNewsItem.value ?: return
+        if (item.aiRestricted) return
+        item.aiRestricted = true
+        _selectedNewsItem.value = item.copy()
+        _newsItems.value = _newsItems.value.map {
+            if (it.link == item.link) it.copy(aiRestricted = true) else it
+        }
+        if (_isBriefingPlaying.value) stopBriefing()
+        Log.i(TAG, "🚫 원문 페이지에서 AI 이용 금지 고지 감지 → 낭독·쉐도잉 비활성: ${item.title}")
     }
 
     override fun onCleared() {

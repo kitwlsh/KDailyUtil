@@ -29,11 +29,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Color
 import android.widget.Toast
 import android.util.Log
-import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import com.kitwlshcom.kdailyutil.ui.viewmodel.ShadowingViewModel
-import com.kitwlshcom.kdailyutil.ui.navigation.NavScreen
-import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Info
@@ -42,15 +37,15 @@ import androidx.compose.material.icons.filled.Info
 @Composable
 fun NewsDetailScreen(
     onBack: () -> Unit,
-    navController: NavController,
-    viewModel: BriefingViewModel = viewModel(),
-    shadowingViewModel: ShadowingViewModel = viewModel()
+    viewModel: BriefingViewModel = viewModel()
 ) {
     val selectedNewsItem by viewModel.selectedNewsItem.collectAsState()
     val isBriefingPlaying by viewModel.isBriefingPlaying.collectAsState()
     val isLoadingDetail by viewModel.isLoadingDetail.collectAsState()
     val context = LocalContext.current
     var showHelpDialog by remember { mutableStateOf(false) }
+    // 'AI 이용 금지' 고지가 감지된 매체: AI 요약·낭독·쉐도잉을 비활성화하고 원문 보기만 제공
+    val isRestricted = selectedNewsItem?.aiRestricted == true
 
     LaunchedEffect(selectedNewsItem) {
         selectedNewsItem?.let { item ->
@@ -135,99 +130,154 @@ fun NewsDetailScreen(
                     IconButton(onClick = { showHelpDialog = true }) {
                         Icon(Icons.Default.Info, contentDescription = "도움말")
                     }
-                    
-                    Button(
-                        onClick = { 
-                            if (isLoadingDetail) {
-                                Toast.makeText(context, "브리핑 데이터를 준비 중입니다. 잠시만 기다려 주세요.", Toast.LENGTH_SHORT).show()
-                            } else {
-                                if (isBriefingPlaying) {
-                                    viewModel.stopBriefing()
+
+                    // 'AI 이용 금지' 매체는 AI 낭독(브리핑) 버튼을 노출하지 않는다.
+                    if (!isRestricted) {
+                        Button(
+                            onClick = {
+                                if (isLoadingDetail) {
+                                    Toast.makeText(context, "브리핑 데이터를 준비 중입니다. 잠시만 기다려 주세요.", Toast.LENGTH_SHORT).show()
                                 } else {
-                                    selectedNewsItem?.let { viewModel.startSingleNewsBriefing(it) }
+                                    if (isBriefingPlaying) {
+                                        viewModel.stopBriefing()
+                                    } else {
+                                        selectedNewsItem?.let { viewModel.startSingleNewsBriefing(it) }
+                                    }
                                 }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isBriefingPlaying) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.padding(end = 8.dp)
-                    ) {
-                        Icon(
-                            if (isBriefingPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(if (isBriefingPlaying) "중지" else "브리핑", fontSize = 12.sp)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isBriefingPlaying) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                            ),
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Icon(
+                                if (isBriefingPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(if (isBriefingPlaying) "중지" else "브리핑", fontSize = 12.sp)
+                        }
                     }
                 }
             )
-        },
-        floatingActionButton = {
-            selectedNewsItem?.let { item ->
-                ExtendedFloatingActionButton(
-                    onClick = {
-                        if (isLoadingDetail) {
-                            Toast.makeText(context, "말하기 연습 데이터를 준비 중입니다. 잠시만 기다려 주세요.", Toast.LENGTH_SHORT).show()
-                        } else {
-                            shadowingViewModel.selectArticle(item)
-                            navController.navigate(NavScreen.DrivingShadowing.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                    },
-                    icon = { Icon(Icons.Default.RecordVoiceOver, contentDescription = null, tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K) },
-                    text = { Text("쉐도잉 연습", color = Color.White) },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            }
         }
+        // 저작권 보호: 외부 기사 쉐도잉 진입(FAB) 제거. 쉐도잉은 배움터(사용자 입력/OCR)에서 제공.
     ) { innerPadding ->
         selectedNewsItem?.let { item ->
+            // 실제 기사 원본 URL이 있는 항목만 WebView로 로딩.
+            // AI 맞춤 분석/시스템 메시지/오류 항목은 link가 http가 아니므로 본문 텍스트를 직접 표시한다.
+            val targetUrl = item.resolvedUrl.ifBlank { item.link }
+            val isWebUrl = targetUrl.startsWith("http")
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // 실제 뉴스 기사 웹페이지 로딩 (Outlink 인앱 브라우저로 저작권 분쟁 소지 제거)
-                AndroidView(
-                    factory = { context ->
-                        WebView(context).apply {
-                            settings.apply {
-                                javaScriptEnabled = true // 일반 기사 웹페이지이므로 JS 활성화 필수
-                                domStorageEnabled = true
-                                loadWithOverviewMode = true
-                                useWideViewPort = true
-                                databaseEnabled = true
-                                // 보안: 외부 웹페이지가 단말 내부 파일(file://, content://)에 접근하지 못하도록 차단
-                                allowFileAccess = false
-                                allowContentAccess = false
-                                @Suppress("DEPRECATION")
-                                allowFileAccessFromFileURLs = false
-                                @Suppress("DEPRECATION")
-                                allowUniversalAccessFromFileURLs = false
-                            }
-                            webViewClient = object : WebViewClient() {
-                                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                                    // 웹뷰 내부에서 링크 클릭 시 해당 웹뷰에서 계속 탐색하도록 처리
-                                    return false
+                if (isWebUrl) {
+                    // 실제 뉴스 기사 웹페이지 로딩 (Outlink 인앱 브라우저로 저작권 분쟁 소지 제거)
+                    AndroidView(
+                        factory = { context ->
+                            WebView(context).apply {
+                                settings.apply {
+                                    javaScriptEnabled = true // 일반 기사 웹페이지이므로 JS 활성화 필수
+                                    domStorageEnabled = true
+                                    loadWithOverviewMode = true
+                                    useWideViewPort = true
+                                    databaseEnabled = true
+                                    // 보안: 외부 웹페이지가 단말 내부 파일(file://, content://)에 접근하지 못하도록 차단
+                                    allowFileAccess = false
+                                    allowContentAccess = false
+                                    @Suppress("DEPRECATION")
+                                    allowFileAccessFromFileURLs = false
+                                    @Suppress("DEPRECATION")
+                                    allowUniversalAccessFromFileURLs = false
+                                }
+                                webViewClient = object : WebViewClient() {
+                                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                        // 웹뷰 내부에서 링크 클릭 시 해당 웹뷰에서 계속 탐색하도록 처리
+                                        return false
+                                    }
+
+                                    override fun onPageFinished(view: WebView?, url: String?) {
+                                        super.onPageFinished(view, url)
+                                        // 이미 표시 중인 원문 페이지(JS 렌더 포함)의 텍스트에서 'AI 학습·이용 금지' 고지를 점검.
+                                        // 별도 스크랩이 아니라 '이미 띄운 페이지' 점검이므로 정책에 부합하며, 어느 매체든 자동 차단된다.
+                                        view?.evaluateJavascript(
+                                            "(function(){return document.body ? document.body.innerText : '';})();"
+                                        ) { result ->
+                                            if (com.kitwlshcom.kdailyutil.data.repository.NewsRepository
+                                                    .detectAiRestrictionNotice(result)
+                                            ) {
+                                                viewModel.markSelectedAsRestricted()
+                                            }
+                                        }
+                                    }
                                 }
                             }
+                        },
+                        update = { webView ->
+                            if (webView.url != targetUrl) {
+                                webView.loadUrl(targetUrl)
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    // 'AI 이용 금지' 고지가 감지된 매체 안내 (AI 요약·낭독·쉐도잉 비활성화됨)
+                    if (isRestricted) {
+                        Surface(
+                            color = Color(0xCC121212),
+                            border = BorderStroke(1.dp, com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.7f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "ⓘ 이 매체는 AI 학습·이용을 제한하여 원문 보기만 제공됩니다.",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White.copy(alpha = 0.9f),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
                         }
-                    },
-                    update = { webView ->
-                        val url = item.resolvedUrl.ifBlank { item.link }
-                        if (webView.url != url) {
-                            webView.loadUrl(url)
+                    }
+                } else {
+                    // AI 맞춤 분석 등 웹 링크가 아닌 항목: 본문 전체를 스크롤 텍스트로 표시
+                    val bodyText = item.fullContent.ifBlank { item.description }
+                        .ifBlank { "표시할 본문이 없습니다." }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp, vertical = 16.dp)
+                    ) {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+                        )
+                        if (item.pubDate.isNotBlank() && item.pubDate != "-") {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = item.pubDate,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
                         }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = bodyText,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White.copy(alpha = 0.92f),
+                            lineHeight = 26.sp
+                        )
+                        // 하단 플로팅 버튼(쉐도잉)에 본문이 가려지지 않도록 여백 확보
+                        Spacer(Modifier.height(96.dp))
+                    }
+                }
             }
         } ?: Box(
             modifier = Modifier.fillMaxSize(),

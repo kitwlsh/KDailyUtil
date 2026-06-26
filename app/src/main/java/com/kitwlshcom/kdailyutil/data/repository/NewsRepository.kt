@@ -26,6 +26,43 @@ class NewsRepository(private val context: Context? = null) {
         private const val TAG = "NewsRepository"
         private const val BASE_URL = "https://news.google.com/rss"
         private const val REGION_PARAMS = "hl=ko&gl=KR&ceid=KR:ko"
+
+        /**
+         * AI 이용을 명시적으로 금지한 것으로 알려진 매체 도메인 (본문 고지 감지를 못하는 경우의 백스톱).
+         * 필요 시 여기에 도메인을 추가하면 본문 문구가 안 잡혀도 차단됩니다.
+         */
+        private val AI_RESTRICTED_DOMAINS = listOf(
+            "imnews.imbc.com", "imbc.com", "mbc.co.kr",  // MBC
+            "industrynews.co.kr",                          // 인더스트리뉴스 (AI학습 및 활용 금지)
+            "kmib.co.kr"                                   // 국민일보 (AI학습 이용 금지)
+        )
+
+        /**
+         * 본문/페이지 텍스트에서 'AI 학습·이용 금지' 류 저작권 고지를 감지한다.
+         * (일반적인 '무단 전재·재배포 금지'는 거의 모든 기사에 있으므로 차단 대상에서 제외하고,
+         *  AI 관련 명시적 옵트아웃만 차단 신호로 사용한다.)
+         */
+        fun detectAiRestrictionNotice(text: String?): Boolean {
+            if (text.isNullOrBlank()) return false
+            // 공백 제거 정규화 ('AI 학습' / 'AI학습' 모두 매칭)
+            val norm = text.replace("\\s".toRegex(), "")
+            val aiTerms = listOf(
+                "AI학습", "에이아이학습", "인공지능학습", "기계학습", "머신러닝", "딥러닝",
+                "AI이용", "AI활용", "AI학습포함", "인공지능이용", "인공지능활용",
+                "데이터마이닝", "텍스트마이닝"
+            )
+            val hasAiTerm = aiTerms.any { norm.contains(it, ignoreCase = true) }
+            if (!hasAiTerm) return false
+            // 금지/불가 등 제한 의도가 함께 있을 때만 (AI를 다룬 일반 기사 오탐 방지)
+            val prohibitTerms = listOf("금지", "불가", "할수없", "허용하지", "동의없이", "무단")
+            return prohibitTerms.any { norm.contains(it) }
+        }
+
+        fun isAiRestrictedDomain(url: String?): Boolean {
+            if (url.isNullOrBlank()) return false
+            val lower = url.lowercase()
+            return AI_RESTRICTED_DOMAINS.any { lower.contains(it) }
+        }
     }
 
     private fun parsePubDateToMillis(pubDate: String?): Long {
@@ -421,9 +458,31 @@ class NewsRepository(private val context: Context? = null) {
     /**
      * 최종 기사 본문 추출 (Jsoup 실패 시 WebView로 재시도하는 2단계 전략)
      */
+    /**
+     * 저작권 보호 정책: 본문 전문을 스크랩/복제하지 않는다.
+     * 읽기는 WebView 원문으로 제공하므로, 표시용 원본 URL만 해석하고
+     * (도메인/스니펫 기반) AI 이용 제한 여부만 플래그로 설정한다.
+     */
+    suspend fun resolveArticleUrl(item: NewsItem): String = withContext(Dispatchers.IO) {
+        val googleUrl = item.link ?: return@withContext ""
+        val finalUrl = resolveRedirect(googleUrl)
+        item.resolvedUrl = finalUrl
+        item.aiRestricted = isAiRestrictedDomain(finalUrl) ||
+            isAiRestrictedDomain(googleUrl) ||
+            detectAiRestrictionNotice(item.description)
+        finalUrl
+    }
+
+    /**
+     * ⚠️ [사용 금지 - 저작권 정책] 기사 본문 전문을 스크랩하는 레거시 함수.
+     * 무단 전재·AI 학습 금지 정책 준수를 위해 더 이상 호출하지 않는다.
+     * 읽기는 WebView 원문, 브리핑/쉐도잉은 RSS 스니펫만 사용한다. (resolveArticleUrl 참고)
+     * 보존 사유: 추출 로직 참고용. 새 코드에서 호출하지 말 것.
+     */
+    @Deprecated("저작권 정책상 본문 전문 스크랩 금지. resolveArticleUrl + 스니펫을 사용하세요.")
     suspend fun fetchFullContent(item: NewsItem): String = withContext(Dispatchers.IO) {
         val googleUrl = item.link ?: return@withContext item.description ?: ""
-        
+
         Log.i(TAG, "--------------------------------------------------")
         Log.i(TAG, "📰 Processing Article: ${item.title}")
 
@@ -431,6 +490,9 @@ class NewsRepository(private val context: Context? = null) {
         val finalUrl = resolveRedirect(googleUrl)
         item.resolvedUrl = finalUrl
         Log.i(TAG, "🎯 FINAL TARGET URL: $finalUrl")
+
+        // 도메인 차단목록 선반영 (본문 고지 감지를 못하는 경우의 백스톱)
+        item.aiRestricted = isAiRestrictedDomain(finalUrl) || detectAiRestrictionNotice(item.description ?: "")
 
         if (finalUrl.contains("google.com/url?") || finalUrl.contains("news.google.com/rss/articles/")) {
             Log.w(TAG, "⚠️ FAILED TO ESCAPE GOOGLE: $finalUrl")
@@ -445,7 +507,9 @@ class NewsRepository(private val context: Context? = null) {
                 .timeout(8000)
                 .followRedirects(true)
                 .get()
-            
+
+            // 전체 페이지 텍스트(푸터 저작권 고지 포함)에서 'AI 학습/이용 금지' 감지
+            if (detectAiRestrictionNotice(doc.text())) item.aiRestricted = true
             extractFromBody(doc)
         } catch (e: Exception) {
             Log.w(TAG, "⚠️ Tier 1 (Jsoup) failed for content: ${e.message}")
@@ -453,6 +517,7 @@ class NewsRepository(private val context: Context? = null) {
         }
 
         if (jsoupResult != null) {
+            if (item.aiRestricted) Log.i(TAG, "🚫 AI/낭독 제한 매체로 감지됨: ${item.title}")
             return@withContext jsoupResult.first.also { item.fullContentHtml = jsoupResult.second }
         }
 
@@ -461,6 +526,7 @@ class NewsRepository(private val context: Context? = null) {
         val webViewHtml = fetchHtmlWithWebView(finalUrl)
         if (webViewHtml != null) {
             val doc = Jsoup.parse(webViewHtml, finalUrl)
+            if (detectAiRestrictionNotice(doc.text())) item.aiRestricted = true
             val webViewResult = extractFromBody(doc)
             if (webViewResult != null) {
                 Log.d(TAG, "✅ Success! Content extracted via WebView")
@@ -596,13 +662,6 @@ class NewsRepository(private val context: Context? = null) {
         }.sortedByDescending { parsePubDateToMillis(it.pubDate) }
     }
 
-    suspend fun getEditorials(limit: Int = 5): List<NewsItem> = withContext(Dispatchers.IO) {
-        val editorialKeywords = listOf("사설", "칼럼", "시론", "오피니언")
-        editorialKeywords.flatMap { keyword ->
-            getNewsByKeyword(keyword, (limit / editorialKeywords.size) + 1)
-        }.take(limit)
-    }
-
     private fun getCacheFile(cacheKey: String): java.io.File? {
         val safeContext = context ?: return null
         val encodedKey = android.util.Base64.encodeToString(
@@ -627,6 +686,7 @@ class NewsRepository(private val context: Context? = null) {
                     put("fullContent", item.fullContent)
                     put("fullContentHtml", item.fullContentHtml)
                     put("resolvedUrl", item.resolvedUrl)
+                    put("aiRestricted", item.aiRestricted)
                 }
                 jsonArray.put(jsonObj)
             }
@@ -656,7 +716,8 @@ class NewsRepository(private val context: Context? = null) {
                         summary = jsonObj.optString("summary", ""),
                         fullContent = jsonObj.optString("fullContent", ""),
                         fullContentHtml = jsonObj.optString("fullContentHtml", ""),
-                        resolvedUrl = jsonObj.optString("resolvedUrl", "")
+                        resolvedUrl = jsonObj.optString("resolvedUrl", ""),
+                        aiRestricted = jsonObj.optBoolean("aiRestricted", false)
                     )
                 )
             }

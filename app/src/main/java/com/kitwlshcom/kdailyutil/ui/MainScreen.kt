@@ -143,12 +143,11 @@ fun MainScreen(
                 startDestination = NavScreen.NewsBriefing.route,
                 modifier = Modifier.padding(innerPadding)
             ) {
-                composable(NavScreen.NewsBriefing.route) { 
+                composable(NavScreen.NewsBriefing.route) {
                     NewsBriefingScreen(
-                        navController = navController, 
-                        viewModel = briefingViewModel,
-                        shadowingViewModel = shadowingViewModel
-                    ) 
+                        navController = navController,
+                        viewModel = briefingViewModel
+                    )
                 }
                 composable(NavScreen.StockDashboard.route) {
                     StockDashboardScreen(navController = navController, viewModel = stockViewModel)
@@ -160,14 +159,17 @@ fun MainScreen(
                 composable(NavScreen.MorningSettings.route) { 
                     MorningBriefingSettingsScreen(viewModel = briefingViewModel) 
                 }
-                composable(NavScreen.LearningHub.route) { LearningHubScreen() }
-                composable(NavScreen.NewsDetail.route) { 
-                    NewsDetailScreen(
-                        onBack = { navController.popBackStack() }, 
+                composable(NavScreen.LearningHub.route) {
+                    LearningHubScreen(
                         navController = navController,
-                        viewModel = briefingViewModel,
                         shadowingViewModel = shadowingViewModel
-                    ) 
+                    )
+                }
+                composable(NavScreen.NewsDetail.route) {
+                    NewsDetailScreen(
+                        onBack = { navController.popBackStack() },
+                        viewModel = briefingViewModel
+                    )
                 }
             }
         }

@@ -68,7 +68,8 @@ private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, CHUNK, EYE, RESULT,
 
 @Composable
 fun ReadingTrainingScreen(
-    viewModel: ReadingTrainingViewModel = viewModel()
+    viewModel: ReadingTrainingViewModel = viewModel(),
+    onShadow: (String) -> Unit = {}
 ) {
     var module by remember { mutableStateOf(ReadingModule.HUB) }
     var passage by remember { mutableStateOf(PRACTICE_PASSAGES.random()) }
@@ -81,7 +82,8 @@ fun ReadingTrainingScreen(
                 passage = passage,
                 onUseRandom = { passage = PRACTICE_PASSAGES.random() },
                 onUseCustom = { passage = it },
-                onSelect = { module = it }
+                onSelect = { module = it },
+                onShadow = onShadow
             )
             ReadingModule.WARMUP -> WarmupModule(
                 onExit = { module = ReadingModule.HUB },
@@ -129,7 +131,8 @@ private fun ReadingHub(
     passage: String,
     onUseRandom: () -> Unit,
     onUseCustom: (String) -> Unit,
-    onSelect: (ReadingModule) -> Unit
+    onSelect: (ReadingModule) -> Unit,
+    onShadow: (String) -> Unit = {}
 ) {
     val bestWpm by viewModel.bestWpm.collectAsState()
     val streak by viewModel.streak.collectAsState()
@@ -299,6 +302,10 @@ private fun ReadingHub(
                         Text("🖼 이미지에서", color = Gold24K, fontSize = 12.sp)
                     }
                 }
+                Text(
+                    "ⓘ 촬영·붙여넣은 지문의 저작권 및 이용 권한 확인은 사용자 책임이며, 개인 학습 용도로만 사용하세요.",
+                    fontSize = 10.sp, color = Color.Gray, lineHeight = 14.sp
+                )
                 if (isExtracting) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CircularProgressIndicator(color = Gold24K, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -390,6 +397,7 @@ private fun ReadingHub(
         ModuleCard("⚡ 단어 점멸 (RSVP)", "한 곳에서 단어가 빠르게 바뀌어 안구 이동을 최소화해요.") { onSelect(ReadingModule.RSVP) }
         ModuleCard("🔭 묶어 읽기 (청크)", "여러 단어를 한 묶음으로 보며 시야 폭을 넓혀요.") { onSelect(ReadingModule.CHUNK) }
         ModuleCard("👀 안구 추적", "움직이는 점을 눈으로 따라가며 안구 근육을 풀어줘요.") { onSelect(ReadingModule.EYE) }
+        ModuleCard("🗣️ 따라 말하기 (쉐도잉)", "선택한 지문을 한 문장씩 들려주고 따라 말하며 녹음해요.") { onShadow(passage) }
 
         Spacer(Modifier.height(4.dp))
         Text(

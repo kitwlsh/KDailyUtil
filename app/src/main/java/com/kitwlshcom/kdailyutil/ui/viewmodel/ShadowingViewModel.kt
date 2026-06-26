@@ -5,24 +5,16 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitwlshcom.kdailyutil.audio.RecordingManager
 import com.kitwlshcom.kdailyutil.audio.TtsManager
-import com.kitwlshcom.kdailyutil.data.model.NewsItem
-import com.kitwlshcom.kdailyutil.data.repository.NewsRepository
 import com.kitwlshcom.kdailyutil.domain.util.TextSplitter
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class ShadowingViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val newsRepository = NewsRepository(application)
     private val ttsManager = TtsManager(application)
     private val recordingManager = RecordingManager(application)
     private val textSplitter = TextSplitter()
-
-    private val _editorials = MutableStateFlow<List<NewsItem>>(emptyList())
-    val editorials = _editorials.asStateFlow()
 
     private val _currentSentences = MutableStateFlow<List<String>>(emptyList())
     val currentSentences = _currentSentences.asStateFlow()
@@ -45,45 +37,19 @@ class ShadowingViewModel(application: Application) : AndroidViewModel(applicatio
     private val _currentTitle = MutableStateFlow("")
     val currentTitle = _currentTitle.asStateFlow()
 
-    fun loadEditorials() {
-        viewModelScope.launch {
-            val list = newsRepository.getEditorials()
-            _editorials.value = list
-            // 현재 선택된 기사가 없는 경우에만 첫 번째 기사 자동 선택
-            if (list.isNotEmpty() && _currentTitle.value.isBlank()) {
-                selectArticle(list[0])
-            }
-        }
-    }
+    /**
+     * 배움터(속독)에서 사용자가 직접 입력했거나 책/지문을 촬영(OCR)해 얻은 텍스트로 쉐도잉을 구성한다.
+     * 저작권 보호: 외부 기사 본문을 스크랩하지 않고, 사용자가 제공한 텍스트만 사용한다.
+     * @param body 쉐도잉할 본문, @param title 표시용 제목(미지정 시 본문 앞부분에서 생성)
+     */
+    fun setText(body: String, title: String? = null) {
+        _currentTitle.value = title?.takeIf { it.isNotBlank() }
+            ?: body.trim().take(24).replace("\n", " ").ifBlank { "쉐도잉 연습" }
 
-    fun selectArticle(item: NewsItem) {
-        _currentTitle.value = item.title
-        
-        // 1. 현재 사용 가능한 텍스트(전문 우선, 없으면 요약)로 즉시 화면 구성
-        val initialContent = item.fullContent.ifBlank { item.description }
-        val initialSentences = mutableListOf(item.title)
-        initialSentences.addAll(textSplitter.splitIntoSentences(initialContent))
-        
-        _currentSentences.value = initialSentences
+        val sentences = textSplitter.splitIntoSentences(body.trim())
+        _currentSentences.value = sentences.ifEmpty { listOf(_currentTitle.value) }
         _currentIndex.value = 0
         stopShadowing()
-
-        // 2. 만약 전문(fullContent)이 없다면 백그라운드에서 가져와서 업데이트
-        if (item.fullContent.isBlank()) {
-            viewModelScope.launch {
-                val fullText = newsRepository.fetchFullContent(item)
-                if (fullText.isNotBlank() && fullText != item.description) {
-                    item.fullContent = fullText
-                    
-                    // 현재 보기가 아직 이 기사인 경우에만 문장 리스트 업데이트
-                    if (_currentTitle.value == item.title) {
-                        val updatedSentences = mutableListOf(item.title)
-                        updatedSentences.addAll(textSplitter.splitIntoSentences(fullText))
-                        _currentSentences.value = updatedSentences
-                    }
-                }
-            }
-        }
     }
 
     fun startShadowing() {

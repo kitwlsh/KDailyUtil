@@ -31,16 +31,13 @@ import androidx.navigation.compose.rememberNavController
 import com.kitwlshcom.kdailyutil.data.model.NewsItem
 import com.kitwlshcom.kdailyutil.ui.navigation.NavScreen
 import com.kitwlshcom.kdailyutil.ui.viewmodel.BriefingViewModel
-import com.kitwlshcom.kdailyutil.ui.viewmodel.ShadowingViewModel
-import androidx.compose.material.icons.filled.RecordVoiceOver
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewsBriefingScreen(
     navController: NavController = rememberNavController(),
-    viewModel: BriefingViewModel = viewModel(),
-    shadowingViewModel: ShadowingViewModel = viewModel()
+    viewModel: BriefingViewModel = viewModel()
 ) {
     val newsItems by viewModel.newsItems.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
@@ -279,19 +276,9 @@ fun NewsBriefingScreen(
                         items(newsItems) { item ->
                             NewsCard(
                                 item = item,
-                                onClick = { 
+                                onClick = {
                                     viewModel.setSelectedNewsItem(item)
                                     navController.navigate(NavScreen.NewsDetail.route)
-                                },
-                                onPracticeClick = {
-                                    shadowingViewModel.selectArticle(item)
-                                    navController.navigate(NavScreen.DrivingShadowing.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
                                 }
                             )
                         }
@@ -347,8 +334,7 @@ fun CategoryTabItem(
 @Composable
 fun NewsCard(
     item: NewsItem,
-    onClick: () -> Unit,
-    onPracticeClick: () -> Unit
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -358,62 +344,46 @@ fun NewsCard(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         border = androidx.compose.foundation.BorderStroke(
-            0.5.dp, 
+            0.5.dp,
             com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.2f)
         )
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = item.source,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
-                    )
-                    Text(
-                        text = item.pubDate,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.5f)
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                val displayContent = item.description
-                val isAiItem = item.source == "Gemini AI"
-                Text(
-                    text = displayContent,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = if (isAiItem) 10 else 3,
-                    overflow = TextOverflow.Ellipsis,
-                    color = Color.White.copy(alpha = 0.7f)
-                )
-            }
-            
-            // 말하기 연습 버튼 (우하단 배치)
-            IconButton(
-                onClick = onPracticeClick,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(4.dp)
+        // 저작권 보호: 외부 기사 쉐도잉(말하기 연습) 진입점 제거. 쉐도잉은 배움터(사용자 입력/OCR)에서 제공.
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    imageVector = Icons.Default.RecordVoiceOver,
-                    contentDescription = "말하기 연습",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                Text(
+                    text = item.source,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+                )
+                Text(
+                    text = item.pubDate,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.5f)
                 )
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            val displayContent = item.description
+            val isAiItem = item.source == "Gemini AI"
+            Text(
+                text = displayContent,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = if (isAiItem) 10 else 3,
+                overflow = TextOverflow.Ellipsis,
+                color = Color.White.copy(alpha = 0.7f)
+            )
         }
     }
 }

@@ -13,13 +13,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import com.kitwlshcom.kdailyutil.ui.navigation.NavScreen
 import com.kitwlshcom.kdailyutil.ui.viewmodel.QuizViewModel
 import com.kitwlshcom.kdailyutil.ui.viewmodel.QuizState
+import com.kitwlshcom.kdailyutil.ui.viewmodel.ShadowingViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LearningHubScreen(
-    quizViewModel: QuizViewModel = viewModel()
+    quizViewModel: QuizViewModel = viewModel(),
+    navController: NavController? = null,
+    shadowingViewModel: ShadowingViewModel = viewModel()
 )
 {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -91,7 +96,16 @@ fun LearningHubScreen(
                     when (selectedTabIndex)
                     {
                         0 -> QuizScreen(viewModel = quizViewModel)
-                        1 -> ReadingTrainingScreen()
+                        1 -> ReadingTrainingScreen(
+                            onShadow = { text ->
+                                if (text.isNotBlank()) {
+                                    shadowingViewModel.setText(text)
+                                    navController?.navigate(NavScreen.DrivingShadowing.route) {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
+                        )
                     }
                 }
             }

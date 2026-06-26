@@ -286,6 +286,14 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
   단말 내부 파일 접근을 차단: `allowFileAccess = false`, `allowContentAccess = false`,
   `allowFileAccessFromFileURLs = false`, `allowUniversalAccessFromFileURLs = false`.
 
+### 📰 뉴스 저작권 정책 (보수적 공개판, 2026-06-26)
+- **본문 비스크랩**: 본문 전문 스크랩/복제/AI 전송 금지. `NewsRepository.fetchFullContent`는 `@Deprecated`(호출 금지, 추출 로직 참고용 보존), 대신 `resolveArticleUrl`이 표시용 원본 URL만 해석. 읽기는 언론사 원문 WebView(아웃링크).
+- **낭독(TTS)**: 모닝 브리핑/단건 낭독은 RSS 스니펫(`summary`/`description`)만 읽음. 'AI 이용 금지' 매체(`aiRestricted`)는 낭독·AI 분석에서 제외.
+- **AI 금지 감지**: ① 도메인 백스톱 `AI_RESTRICTED_DOMAINS`(mbc/imbc/kmib.co.kr/industrynews.co.kr) ② `detectAiRestrictionNotice()`(AI어＋금지어, 일반 '무단전재'는 제외) ③ `NewsDetailScreen` WebView `onPageFinished`의 innerText 점검 → `BriefingViewModel.markSelectedAsRestricted()`. `aiRestricted`는 캐시에 영속.
+- **쉐도잉 = 배움터로 이전**: 외부 기사 쉐도잉 진입점(뉴스 리스트 `NewsCard`·상세 FAB) 제거. 쉐도잉은 **배움터(`ReadingTrainingScreen`) "🗣️ 따라 말하기"** 에서 사용자 입력/촬영(OCR) 텍스트로만 제공. `ShadowingViewModel`은 뉴스 의존성 제거 후 `setText(body, title)`로 구동(`MainScreen`이 `LearningHub`↔`DrivingShadowing`에 동일 인스턴스 공유). 사용자 책임 고지 노출.
+- **AI 맞춤분석 필터**: `BriefingViewModel.generateAiCustomBriefing`이 `getTopNews(20)`에서 AI금지 도메인/문구 항목을 Gemini 전송 전 `filterNot` 제외.
+- 근거 요약: 헤드라인+스니펫+아웃링크는 수집 안전선(전문복제는 위험), 'AI금지' 자연어 문구는 법적 표준 신호 아님(기계판독 robots.txt/TDMRep), OCR/사용자입력은 사적복제(저작권법 제30조). 개인용 외부기사 쉐도잉이 필요하면 공개앱 숨김토글이 아니라 **별도 빌드**로(향후 옵션).
+
 ### API 키
 - **저장**: Preferences DataStore (`SettingsRepository.geminiApiKeyFlow`)
 - **UI 입력**: `MorningBriefingSettingsScreen` > API 키 설정

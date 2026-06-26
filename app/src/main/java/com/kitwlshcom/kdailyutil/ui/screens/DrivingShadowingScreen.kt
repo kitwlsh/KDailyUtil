@@ -53,12 +53,8 @@ fun DrivingShadowingScreen(
         if (isGranted) viewModel.startShadowing()
     }
 
-    // 초기 데이터 로드 (현재 선택된 기사가 없는 경우에만)
-    LaunchedEffect(Unit) {
-        if (currentTitle.isBlank()) {
-            viewModel.loadEditorials()
-        }
-    }
+    // 쉐도잉 소재는 배움터(속독)에서 setText로 전달된 사용자 텍스트/OCR만 사용한다.
+    // (저작권 보호: 외부 기사 자동 로드 제거)
 
     Column(
         modifier = Modifier
@@ -73,12 +69,12 @@ fun DrivingShadowingScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "학습 중인 기사",
+                    text = "학습 중인 지문",
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.Gray
                 )
                 Text(
-                    text = currentTitle.ifBlank { "기사를 선택해 주세요" },
+                    text = currentTitle.ifBlank { "배움터에서 지문을 선택해 주세요" },
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White,
                     maxLines = 1,
@@ -228,14 +224,6 @@ fun DrivingShadowingScreen(
                     modifier = Modifier.size(56.dp)
                 ) {
                     Icon(Icons.Default.SkipNext, contentDescription = "다음", tint = Color.White, modifier = Modifier.size(36.dp))
-                }
-
-                // 기사 새로고침
-                IconButton(
-                    onClick = { viewModel.loadEditorials() },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "기사변경", tint = Color.Gray)
                 }
             }
         }
