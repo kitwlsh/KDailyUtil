@@ -889,6 +889,7 @@ fun ImageScannerTab(
                                 previousQuizzes.forEach { q ->
                                     put(org.json.JSONObject().apply {
                                         put("question", q.question)
+                                        put("answer", q.answer)  // 정답까지 알려 같은 정답 재생성 방지
                                     })
                                 }
                             }

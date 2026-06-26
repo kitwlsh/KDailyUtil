@@ -20,6 +20,35 @@ class QuizRepository {
     private val CUSTOM_QUIZ_FILE = "custom_quizzes.json"
     private val TAG = "QuizRepository"
 
+    // 중복 판정용 정규화: 공백 제거 + 소문자
+    private fun norm(s: String?): String = (s ?: "").replace(Regex("\\s+"), "").lowercase()
+
+    // 같은 카테고리 안에서 정답 또는 질문이 이미 본 것과 같으면 중복으로 본다.
+    private fun answerKey(q: QuizQuestion) = q.category to norm(q.answer)
+    private fun questionKey(q: QuizQuestion) = q.category to norm(q.question)
+
+    /**
+     * (카테고리, 정답)·(카테고리, 질문) 기준으로 중복을 제거한다. 첫 등장만 유지.
+     * 이미지 퀴즈처럼 정답 텍스트가 비어 있을 수 있는 경우(imageUrl 존재)는 질문 기준만 적용.
+     */
+    private fun dedupeQuizzes(quizzes: List<QuizQuestion>): List<QuizQuestion> {
+        val seenAns = HashSet<Pair<String, String>>()
+        val seenQ = HashSet<Pair<String, String>>()
+        val result = ArrayList<QuizQuestion>(quizzes.size)
+        for (q in quizzes) {
+            val qk = questionKey(q)
+            if (qk in seenQ) continue
+            // 시각(이미지) 퀴즈는 정답이 같아도 이미지가 다를 수 있으므로 질문 기준만 적용
+            val useAnswer = norm(q.answer).isNotBlank() && q.imageUrl.isNullOrBlank()
+            val ak = answerKey(q)
+            if (useAnswer && ak in seenAns) continue
+            seenQ.add(qk)
+            if (useAnswer) seenAns.add(ak)
+            result.add(q)
+        }
+        return result
+    }
+
     // 기존의 하드코딩된 기본 문제들 (인터넷 안 될 때를 대비한 뼈대)
     private fun getStaticQuizzes(): List<QuizQuestion> {
         return listOf(
@@ -167,7 +196,8 @@ class QuizRepository {
             allQuizzes
         }
 
-        return@withContext filtered.shuffled()
+        // 표시 단계 안전망: static/remote/custom 어디서 왔든 같은 카테고리의 정답·질문 중복은 한 번만 노출
+        return@withContext dedupeQuizzes(filtered).shuffled()
     }
 
     /**
@@ -187,12 +217,33 @@ class QuizRepository {
                 mutableListOf()
             }
             
-            // 기존 퀴즈와 새로 추가할 퀴즈를 ID 기준으로 병합 (중복 방지)
+            // ID 기준 병합 + 제출 단계 중복 방지:
+            // 같은 카테고리에 이미 있는(다른 ID) 퀴즈와 정답/질문이 겹치면 저장하지 않는다.
+            // (같은 ID는 기존 항목 '갱신'으로 보고 허용)
             val mergedMap = existing.associateBy { it.id }.toMutableMap()
-            quizzes.forEach { q ->
-                mergedMap[q.id] = q
+            val ansOwner = HashMap<Pair<String, String>, Int>()
+            val qOwner = HashMap<Pair<String, String>, Int>()
+            existing.forEach { e ->
+                qOwner[questionKey(e)] = e.id
+                if (norm(e.answer).isNotBlank() && e.imageUrl.isNullOrBlank()) ansOwner[answerKey(e)] = e.id
             }
-            
+            var skipped = 0
+            quizzes.forEach { q ->
+                val qk = questionKey(q)
+                val useAnswer = norm(q.answer).isNotBlank() && q.imageUrl.isNullOrBlank()
+                val ak = answerKey(q)
+                val dupQ = qOwner[qk]?.let { it != q.id } ?: false
+                val dupA = if (useAnswer) (ansOwner[ak]?.let { it != q.id } ?: false) else false
+                if (dupQ || dupA) {
+                    skipped++
+                    Log.d(TAG, "↪ 중복 퀴즈 저장 건너뜀: '${q.answer}' (${q.question.take(24)}...)")
+                    return@forEach
+                }
+                mergedMap[q.id] = q
+                qOwner[qk] = q.id
+                if (useAnswer) ansOwner[ak] = q.id
+            }
+
             val jsonArray = JSONArray()
             mergedMap.values.forEach { q ->
                 val obj = JSONObject().apply {
@@ -212,7 +263,7 @@ class QuizRepository {
                 jsonArray.put(obj)
             }
             file.writeText(jsonArray.toString())
-            Log.d(TAG, "💾 Saved ${mergedMap.size} custom quizzes to local store.")
+            Log.d(TAG, "💾 Saved ${mergedMap.size} custom quizzes to local store. (중복 ${skipped}개 건너뜀)")
         }
         catch (e: Exception)
         {
