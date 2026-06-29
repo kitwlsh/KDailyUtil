@@ -136,11 +136,39 @@ class AudioCaptureService : Service() {
 
     private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     private var audioFocusRequest: AudioFocusRequest? = null
+    // 일시적 인터럽트(전화 등) 종료 후 자동 재개 여부 / 덕킹(볼륨 일시 감소) 상태
+    private var resumeOnFocusGain = false
+    private var isDucking = false
     private val afChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
-            AudioManager.AUDIOFOCUS_LOSS,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pauseAudio()
-            // AUDIOFOCUS_GAIN 시 자동 재개는 의도치 않은 재생을 막기 위해 생략
+            // 영구 상실(예: 다른 음악앱 재생) → 정지하고 자동 재개하지 않음
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                resumeOnFocusGain = false
+                pauseAudio()
+            }
+            // 일시적 상실(예: 수신 통화, 음성 안내) → 일시정지 후 복귀 시 재개
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                resumeOnFocusGain = (mediaPlayer?.isPlaying == true)
+                pauseAudio()
+            }
+            // 덕킹 가능(예: 내비 안내음) → 정지 대신 볼륨만 낮춤
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                if (mediaPlayer?.isPlaying == true) {
+                    isDucking = true
+                    mediaPlayer?.setVolume(0.2f, 0.2f)
+                }
+            }
+            // 포커스 복귀 → 덕킹 해제(볼륨 복원) 또는 일시적 상실 후 자동 재개
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                if (isDucking) {
+                    isDucking = false
+                    mediaPlayer?.setVolume(1.0f, 1.0f)
+                }
+                if (resumeOnFocusGain) {
+                    resumeOnFocusGain = false
+                    currentPlayingPath?.let { playOrResumeAudio(it) }
+                }
+            }
         }
     }
 
