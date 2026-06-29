@@ -116,6 +116,13 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
         viewModelScope.launch {
             AudioCaptureService.isPlaybackPaused.collect { _isPlaybackPaused.value = it }
         }
+        // 블루투스/이어폰 미디어 버튼의 다음/이전 곡 요청 처리
+        viewModelScope.launch {
+            AudioCaptureService.skipToNext.collect { playNextRecording() }
+        }
+        viewModelScope.launch {
+            AudioCaptureService.skipToPrevious.collect { playPreviousRecording() }
+        }
     }
 
     private fun loadSettings() {

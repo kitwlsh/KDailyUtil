@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import java.io.File
 import java.io.IOException
 import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import kotlin.concurrent.thread
 
 class AudioCaptureService : Service() {
@@ -76,6 +77,13 @@ class AudioCaptureService : Service() {
         private val _playbackCompleted = MutableSharedFlow<Unit>()
         val playbackCompleted = _playbackCompleted.asSharedFlow()
 
+        // 블루투스/이어폰 미디어 버튼의 다음/이전 곡 요청을 ViewModel로 전달
+        private val _skipToNext = MutableSharedFlow<Unit>()
+        val skipToNext = _skipToNext.asSharedFlow()
+
+        private val _skipToPrevious = MutableSharedFlow<Unit>()
+        val skipToPrevious = _skipToPrevious.asSharedFlow()
+
         private val _isPrepared = MutableStateFlow(false)
         val isPrepared = _isPrepared.asStateFlow()
 
@@ -109,6 +117,91 @@ class AudioCaptureService : Service() {
         }
     }
 
+    // 블루투스 헤드셋/이어폰 및 잠금화면의 미디어 버튼 처리
+    private val mediaSessionCallback = object : MediaSession.Callback() {
+        override fun onPlay() {
+            // 일시정지 상태에서 재생 버튼 → 현재 곡 이어재생
+            currentPlayingPath?.let { playOrResumeAudio(it) }
+        }
+        override fun onPause() { pauseAudio() }
+        override fun onStop() { stopAudio() }
+        override fun onSkipToNext() {
+            thread { kotlinx.coroutines.runBlocking { _skipToNext.emit(Unit) } }
+        }
+        override fun onSkipToPrevious() {
+            thread { kotlinx.coroutines.runBlocking { _skipToPrevious.emit(Unit) } }
+        }
+        override fun onSeekTo(pos: Long) { seekTo(pos) }
+    }
+
+    private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private val afChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_LOSS,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pauseAudio()
+            // AUDIOFOCUS_GAIN 시 자동 재개는 의도치 않은 재생을 막기 위해 생략
+        }
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val attrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
+            val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(attrs)
+                .setOnAudioFocusChangeListener(afChangeListener, handler)
+                .build()
+            audioFocusRequest = req
+            audioManager.requestAudioFocus(req) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(
+                afChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN
+            ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+            audioFocusRequest = null
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(afChangeListener)
+        }
+    }
+
+    /** 미디어 세션 재생 상태 갱신 — 이게 있어야 시스템이 미디어 버튼을 세션으로 라우팅한다. */
+    private fun updatePlaybackState(state: Int) {
+        val position = try { mediaPlayer?.currentPosition?.toLong() ?: 0L } catch (e: Exception) { 0L }
+        val playbackState = PlaybackState.Builder()
+            .setActions(
+                PlaybackState.ACTION_PLAY or
+                PlaybackState.ACTION_PAUSE or
+                PlaybackState.ACTION_PLAY_PAUSE or
+                PlaybackState.ACTION_STOP or
+                PlaybackState.ACTION_SKIP_TO_NEXT or
+                PlaybackState.ACTION_SKIP_TO_PREVIOUS or
+                PlaybackState.ACTION_SEEK_TO
+            )
+            .setState(state, position, 1.0f)
+            .build()
+        mediaSession?.setPlaybackState(playbackState)
+        if (!(mediaSession?.isActive ?: false)) mediaSession?.isActive = true
+    }
+
+    private fun updateMediaMetadata(filePath: String) {
+        val metadata = MediaMetadata.Builder()
+            .putString(MediaMetadata.METADATA_KEY_TITLE, File(filePath).nameWithoutExtension)
+            .putString(MediaMetadata.METADATA_KEY_ARTIST, "KDailyUtil 오디오")
+            .putLong(MediaMetadata.METADATA_KEY_DURATION, _playbackDuration.value)
+            .build()
+        mediaSession?.setMetadata(metadata)
+    }
+
     override fun onCreate() {
         super.onCreate()
         notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -117,6 +210,7 @@ class AudioCaptureService : Service() {
         registerReceiver(noisyReceiver, filter)
         
         mediaSession = MediaSession(this, "AudioCaptureService").apply {
+            setCallback(mediaSessionCallback, handler)
             isActive = true
         }
         
@@ -391,10 +485,12 @@ class AudioCaptureService : Service() {
 
     private fun playOrResumeAudio(filePath: String) {
         if (mediaPlayer != null && currentPlayingPath == filePath) {
+            requestAudioFocus()
             mediaPlayer?.start()
             _isPlaybackPaused.value = false
             handler.post(progressRunnable)
             acquireWakeLock()
+            updatePlaybackState(PlaybackState.STATE_PLAYING)
             val notification = createNotification("재생 중: ${File(filePath).name}")
             if (!isForeground) {
                 val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -435,10 +531,13 @@ class AudioCaptureService : Service() {
                 setDataSource(filePath)
                 prepare()
                 _playbackDuration.value = duration.toLong()
+                requestAudioFocus()
                 start()
                 _isPlaybackPaused.value = false
                 handler.post(progressRunnable)
                 acquireWakeLock()
+                updateMediaMetadata(filePath)
+                updatePlaybackState(PlaybackState.STATE_PLAYING)
                 
                 val notification = createNotification("재생 중: ${File(filePath).name}")
                 if (!isForeground) {
@@ -492,6 +591,7 @@ class AudioCaptureService : Service() {
                 _isPlaybackPaused.value = true
                 handler.removeCallbacks(progressRunnable)
                 releaseWakeLock()
+                updatePlaybackState(PlaybackState.STATE_PAUSED)
                 stopForeground(STOP_FOREGROUND_DETACH)
                 updateNotification("일시정지 중")
             }
@@ -506,6 +606,8 @@ class AudioCaptureService : Service() {
         _isPlaybackPaused.value = false
         mediaPlayer?.stop(); mediaPlayer?.release(); mediaPlayer = null
         releaseWakeLock()
+        updatePlaybackState(PlaybackState.STATE_STOPPED)
+        abandonAudioFocus()
         stopForeground(STOP_FOREGROUND_REMOVE)
         isForeground = false
     }
@@ -540,6 +642,7 @@ class AudioCaptureService : Service() {
             unregisterReceiver(noisyReceiver)
         } catch (e: Exception) {}
         releaseWakeLock()
+        abandonAudioFocus()
         hideFloatingControl(); stopRecording(); stopAudio()
         mediaSession?.release()
         mediaSession = null

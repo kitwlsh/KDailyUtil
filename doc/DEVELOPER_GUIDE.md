@@ -26,7 +26,7 @@ KDailyUtil/
 ├── app/src/main/java/com/kitwlshcom/kdailyutil/
 │   ├── MainActivity.kt                     # 앱 진입점(launchMode=singleTask), 알림→복귀 처리
 │   ├── audio/
-│   │   ├── AudioCaptureService.kt          # 포그라운드 오디오 캡처 서비스(유휴 시 알림 해제)
+│   │   ├── AudioCaptureService.kt          # 포그라운드 오디오 캡처/재생(MediaSession 미디어버튼·오디오포커스, 유휴 시 알림 해제)
 │   │   └── TtsManager.kt                   # TTS 낭독
 │   ├── data/
 │   │   ├── model/
