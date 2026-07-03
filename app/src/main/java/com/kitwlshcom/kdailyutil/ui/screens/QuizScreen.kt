@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -712,6 +713,19 @@ fun QuizPlayScreen(viewModel: QuizViewModel)
     val customCategories by viewModel.customCategories.collectAsState()
     val isPersonalQuiz = customCategories.contains(currentQuestion.category)
 
+    // 커스텀(개인) 문제 직접 편집 다이얼로그
+    var editingQuestion by remember { mutableStateOf<com.kitwlshcom.kdailyutil.data.model.QuizQuestion?>(null) }
+    editingQuestion?.let { q ->
+        EditQuizDialog(
+            question = q,
+            onDismiss = { editingQuestion = null },
+            onSave = { updated ->
+                viewModel.updateCustomQuestion(updated)
+                editingQuestion = null
+            }
+        )
+    }
+
     val context = androidx.compose.ui.platform.LocalContext.current
     val statsManager = remember { com.kitwlshcom.kdailyutil.data.QuizStatsManager.getInstance(context) }
     val currentQuestionStats = remember(currentIndex, currentQuestion, quizState)
@@ -817,6 +831,18 @@ fun QuizPlayScreen(viewModel: QuizViewModel)
                                 imageVector = Icons.Default.Warning,
                                 contentDescription = "오류 신고",
                                 tint = Color.Gray.copy(alpha = 0.6f)
+                            )
+                        }
+                    } else {
+                        // 개인 제작·가져온 문제: 신고 대신 '직접 편집' 제공
+                        IconButton(
+                            onClick = { editingQuestion = currentQuestion },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "문제 편집",
+                                tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.7f)
                             )
                         }
                     }
@@ -1240,6 +1266,113 @@ fun AiQuizGuideDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("닫기", color = gold) }
+        }
+    )
+}
+
+/**
+ * 커스텀(개인) 문제를 칸별 폼으로 직접 편집하는 다이얼로그.
+ * 저장 시 원래 문제의 id/카테고리를 유지한 채 내용만 갱신한다(같은 id 저장 = 갱신).
+ */
+@Composable
+fun EditQuizDialog(
+    question: com.kitwlshcom.kdailyutil.data.model.QuizQuestion,
+    onDismiss: () -> Unit,
+    onSave: (com.kitwlshcom.kdailyutil.data.model.QuizQuestion) -> Unit
+) {
+    val gold = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+    var type by remember { mutableStateOf(question.type) }
+    var questionText by remember { mutableStateOf(question.question) }
+    var explanationText by remember { mutableStateOf(question.explanation) }
+    var hintText by remember { mutableStateOf(question.semanticHint ?: "") }
+    val initOptions = question.options ?: emptyList()
+    var opt1 by remember { mutableStateOf(initOptions.getOrElse(0) { "" }) }
+    var opt2 by remember { mutableStateOf(initOptions.getOrElse(1) { "" }) }
+    var opt3 by remember { mutableStateOf(initOptions.getOrElse(2) { "" }) }
+    var opt4 by remember { mutableStateOf(initOptions.getOrElse(3) { "" }) }
+    var correctIndex by remember { mutableStateOf(initOptions.indexOf(question.answer).coerceAtLeast(0)) }
+    var answerText by remember { mutableStateOf(if (question.type == QuizType.SUBJECTIVE) question.answer else "") }
+
+    val isMc = type == QuizType.MULTIPLE_CHOICE
+    val opts = listOf(opt1, opt2, opt3, opt4)
+    val canSave = questionText.isNotBlank() && explanationText.isNotBlank() &&
+        if (isMc) opts.all { it.isNotBlank() } else answerText.isNotBlank()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Edit, contentDescription = null, tint = gold, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("문제 편집", fontWeight = FontWeight.Bold, color = gold)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("유형:", fontSize = 13.sp, color = Color.White.copy(0.8f))
+                    Spacer(Modifier.width(8.dp))
+                    RadioButton(selected = isMc, onClick = { type = QuizType.MULTIPLE_CHOICE })
+                    Text("객관식", fontSize = 13.sp, color = Color.White.copy(0.8f))
+                    Spacer(Modifier.width(8.dp))
+                    RadioButton(selected = !isMc, onClick = { type = QuizType.SUBJECTIVE })
+                    Text("주관식", fontSize = 13.sp, color = Color.White.copy(0.8f))
+                }
+                OutlinedTextField(
+                    value = questionText, onValueChange = { questionText = it },
+                    label = { Text("질문") }, modifier = Modifier.fillMaxWidth()
+                )
+                if (isMc) {
+                    Text("보기 (왼쪽 동그라미로 정답 선택)", fontSize = 12.sp, color = gold)
+                    val setters = listOf<(String) -> Unit>({ opt1 = it }, { opt2 = it }, { opt3 = it }, { opt4 = it })
+                    opts.forEachIndexed { idx, value ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = correctIndex == idx, onClick = { correctIndex = idx })
+                            OutlinedTextField(
+                                value = value, onValueChange = setters[idx],
+                                label = { Text("보기 ${idx + 1}") },
+                                singleLine = true, modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = answerText, onValueChange = { answerText = it },
+                        label = { Text("정답 (1~3단어)") }, singleLine = true, modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                OutlinedTextField(
+                    value = explanationText, onValueChange = { explanationText = it },
+                    label = { Text("해설") }, modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp)
+                )
+                OutlinedTextField(
+                    value = hintText, onValueChange = { hintText = it },
+                    label = { Text("힌트 (선택)") }, singleLine = true, modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = canSave,
+                onClick = {
+                    val updated = question.copy(
+                        type = type,
+                        question = questionText.trim(),
+                        options = if (isMc) opts.map { it.trim() } else null,
+                        answer = if (isMc) opts[correctIndex].trim() else answerText.trim(),
+                        explanation = explanationText.trim(),
+                        semanticHint = hintText.trim().ifBlank { null }
+                    )
+                    onSave(updated)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = gold, contentColor = Color.Black)
+            ) { Text("저장", fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("취소") }
         }
     )
 }

@@ -533,6 +533,23 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * 커스텀(개인) 문제를 폼으로 수정해 저장한다.
+     * 같은 id로 저장하면 저장소가 기존 항목을 갱신하고, 진행 중 화면에도 즉시 반영한다.
+     */
+    fun updateCustomQuestion(updated: QuizQuestion)
+    {
+        viewModelScope.launch {
+            val context = getApplication<Application>().applicationContext
+            repository.saveCustomQuizzes(context, listOf(updated))
+            // 진행 중인 풀이 목록에도 즉시 반영 (같은 id 교체)
+            _questions.value = _questions.value.map { if (it.id == updated.id) updated else it }
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                android.widget.Toast.makeText(context, "문제를 수정했어요.", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     fun generateWrongOptions(
         question: String,
         answer: String,
