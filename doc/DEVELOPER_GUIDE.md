@@ -374,6 +374,12 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 }
 ```
 
+### AI로 개인 퀴즈 만들기 가이드 (2026-06-26)
+외부 AI(ChatGPT·Gemini·Claude 등)에게 위 `.kquiz` 형식대로 퀴즈를 만들게 하고, 앱의 `📥 가져오기`로 불러오도록 돕는 기능.
+- `data/QuizAiGuide.kt`: `PROMPT_TEMPLATE`(AI에 붙여넣는 프롬프트) / `GUIDE_MARKDOWN`(내려받기용 전체 가이드) / `exportGuide()`·`shareGuide()`(FileProvider로 .md 공유).
+- UI: `QuizScreen`(우리말 퀴즈, 분야 선택 화면)의 가져오기 버튼 아래 **'🤖 AI로 나만의 퀴즈 만들기 (가이드)'** 버튼 → `AiQuizGuideDialog`(프롬프트 복사 / 가이드 파일 내려받기·공유 / 사용법·이미지 첨부 팁).
+- 프롬프트에 정답 중복 금지·객관식 4보기+정답포함·순수 JSON 출력 규칙을 명시해, 앱 가져오기(중복 방지)와 정합.
+
 ---
 
 ## ⚠️ 알려진 주의사항 및 제약

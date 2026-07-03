@@ -137,8 +137,21 @@ fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
     val customCategories by viewModel.customCategories.collectAsState()
     var showAiTopicDialog by remember { mutableStateOf(false) }
     var aiTopic by remember { mutableStateOf("") }
+    var showAiGuideDialog by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val scope = rememberCoroutineScope()
+
+    if (showAiGuideDialog) {
+        AiQuizGuideDialog(
+            onDismiss = { showAiGuideDialog = false },
+            onCopyPrompt = {
+                clipboard.setText(androidx.compose.ui.text.AnnotatedString(com.kitwlshcom.kdailyutil.data.QuizAiGuide.PROMPT_TEMPLATE))
+                android.widget.Toast.makeText(context, "AI 프롬프트를 복사했어요. AI에 붙여넣어 사용하세요.", android.widget.Toast.LENGTH_SHORT).show()
+            },
+            onDownloadGuide = { com.kitwlshcom.kdailyutil.data.QuizAiGuide.shareGuide(context) }
+        )
+    }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -248,6 +261,25 @@ fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "📥 외부 퀴즈 패키지 (.kquiz) 가져오기",
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp
+            )
+        }
+
+        // AI로 개인 퀴즈 만들기 가이드
+        OutlinedButton(
+            onClick = { showAiGuideDialog = true },
+            border = BorderStroke(1.dp, com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.5f)),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(imageVector = Icons.Default.Lightbulb, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "🤖 AI로 나만의 퀴즈 만들기 (가이드)",
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp
             )
@@ -987,4 +1019,95 @@ fun QuizFinishedScreen(viewModel: QuizViewModel) {
             Text("처음으로 돌아가기", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
     }
+}
+
+/**
+ * AI(ChatGPT·Gemini·Claude 등)로 개인 퀴즈(.kquiz)를 만드는 방법을 안내하고,
+ * 프롬프트 복사 / 가이드 파일 내려받기를 제공하는 도움말 다이얼로그.
+ */
+@Composable
+fun AiQuizGuideDialog(
+    onDismiss: () -> Unit,
+    onCopyPrompt: () -> Unit,
+    onDownloadGuide: () -> Unit
+) {
+    val gold = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Lightbulb, contentDescription = null, tint = gold, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("AI로 나만의 퀴즈 만들기", fontWeight = FontWeight.Bold, color = gold)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    "ChatGPT·Gemini·Claude 같은 AI에게 아래 프롬프트를 주면, 앱에 바로 가져올 수 있는 퀴즈 파일을 만들 수 있어요.",
+                    fontSize = 13.sp, color = Color.White.copy(0.85f), lineHeight = 19.sp
+                )
+
+                Text("사용 순서", fontWeight = FontWeight.Bold, color = gold, fontSize = 14.sp)
+                Text(
+                    "1. 아래 '프롬프트 복사'를 눌러 AI에 붙여넣기\n" +
+                    "2. [주제]·[문항 수]를 원하는 대로 바꿔 요청\n" +
+                    "3. AI가 준 JSON을 텍스트로 저장하고 파일명을 '주제.kquiz'로 변경\n" +
+                    "4. 이 화면의 '📥 외부 퀴즈 패키지(.kquiz) 가져오기'로 불러오기",
+                    fontSize = 12.5.sp, color = Color.White.copy(0.8f), lineHeight = 20.sp
+                )
+
+                Text("이렇게 요청하세요 (예시)", fontWeight = FontWeight.Bold, color = gold, fontSize = 14.sp)
+                Text(
+                    "• \"이 형식대로 퀴즈 10개 만들어줘. 주제는 '세계사 로마', 난이도 중.\"\n" +
+                    "• \"형식대로 문제 만들어줘. 주제는 '기초 경제 용어', 객관식만.\"\n" +
+                    "• (사진 첨부) \"첨부한 교과서 사진 내용으로 위 형식대로 퀴즈를 만들어줘.\"",
+                    fontSize = 12.5.sp, color = Color.White.copy(0.8f), lineHeight = 20.sp
+                )
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = gold.copy(0.06f)),
+                    border = BorderStroke(0.8.dp, gold.copy(0.3f)),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(
+                        "📷 교과서·문제집 사진으로도 만들 수 있어요. 사진을 볼 수 있는 AI에 이미지를 첨부하고 위 프롬프트를 함께 주세요. (촬영·입력 자료의 이용 권한 확인은 본인 책임, 개인 학습용)",
+                        fontSize = 11.5.sp, color = Color.White.copy(0.75f), lineHeight = 17.sp,
+                        modifier = Modifier.padding(10.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(2.dp))
+                Button(
+                    onClick = onCopyPrompt,
+                    colors = ButtonDefaults.buttonColors(containerColor = gold, contentColor = Color.Black),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("AI 프롬프트 복사하기", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+                OutlinedButton(
+                    onClick = onDownloadGuide,
+                    border = BorderStroke(1.dp, gold.copy(0.5f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = gold),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("가이드 파일 내려받기 / 공유", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("닫기", color = gold) }
+        }
+    )
 }
