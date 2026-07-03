@@ -84,15 +84,34 @@ class QuizFileHandler {
             try {
                 inputStream = context.contentResolver.openInputStream(fileUri)
                 val jsonText = inputStream?.bufferedReader().use { it?.readText() } ?: return null
-                
+                return importQuizzesFromText(jsonText)
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to import quizzes: ${e.message}", e)
+                return null
+            } finally {
+                inputStream?.close()
+            }
+        }
+
+        /**
+         * .kquiz JSON '텍스트'를 직접 파싱한다. (AI가 파일이 아닌 텍스트로 준 경우 붙여넣기 가져오기용)
+         * 앞뒤에 코드블록(```json)이나 잡텍스트가 섞여 있어도 첫 '{'부터 마지막 '}'까지만 추출해 시도한다.
+         */
+        fun importQuizzesFromText(rawText: String): ImportedQuizPackage? {
+            return try {
+                val start = rawText.indexOf('{')
+                val end = rawText.lastIndexOf('}')
+                if (start < 0 || end <= start) return null
+                val jsonText = rawText.substring(start, end + 1)
+
                 val rootJson = JSONObject(jsonText)
                 val category = rootJson.getString("category")
                 val creatorName = rootJson.optString("creator", "익명의 출제자")
                 val creatorId = rootJson.optString("creatorId", "unknown")
-                
+
                 val questionsArray = rootJson.getJSONArray("questions")
                 val questionsList = mutableListOf<QuizQuestion>()
-                
+
                 for (i in 0 until questionsArray.length()) {
                     val obj = questionsArray.getJSONObject(i)
                     val optionsArray = obj.optJSONArray("options")
@@ -119,18 +138,17 @@ class QuizFileHandler {
                         )
                     )
                 }
+                if (questionsList.isEmpty()) return null
 
-                return ImportedQuizPackage(
+                ImportedQuizPackage(
                     category = category,
                     creatorName = creatorName,
                     creatorId = creatorId,
                     questions = questionsList
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Failed to import quizzes: ${e.message}", e)
-                return null
-            } finally {
-                inputStream?.close()
+                Log.e(TAG, "❌ Failed to parse quiz JSON text: ${e.message}", e)
+                null
             }
         }
 

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -138,9 +139,62 @@ fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
     var showAiTopicDialog by remember { mutableStateOf(false) }
     var aiTopic by remember { mutableStateOf("") }
     var showAiGuideDialog by remember { mutableStateOf(false) }
+    var showPasteImportDialog by remember { mutableStateOf(false) }
+    var pasteText by remember { mutableStateOf("") }
     val context = androidx.compose.ui.platform.LocalContext.current
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val scope = rememberCoroutineScope()
+
+    if (showPasteImportDialog) {
+        AlertDialog(
+            onDismissRequest = { showPasteImportDialog = false },
+            title = { Text("텍스트(JSON) 붙여넣기로 가져오기", fontWeight = FontWeight.Bold, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "AI가 파일 대신 텍스트(JSON)로 준 경우, 그 내용을 전부 복사해 아래에 붙여넣고 '가져오기'를 누르세요. 앞뒤에 코드블록(```)이 섞여 있어도 됩니다.",
+                        fontSize = 12.sp, color = Color.White.copy(0.8f), lineHeight = 18.sp
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            val fromClip = clipboard.getText()?.text
+                            if (!fromClip.isNullOrBlank()) {
+                                pasteText = fromClip
+                                android.widget.Toast.makeText(context, "클립보드 내용을 붙여넣었어요.", android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                android.widget.Toast.makeText(context, "클립보드가 비어 있어요.", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        border = BorderStroke(1.dp, com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(0.5f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K),
+                        shape = RoundedCornerShape(10.dp)
+                    ) { Text("📋 클립보드에서 붙여넣기", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                    OutlinedTextField(
+                        value = pasteText,
+                        onValueChange = { pasteText = it },
+                        label = { Text("여기에 JSON 붙여넣기") },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 260.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (pasteText.isNotBlank()) {
+                            viewModel.importQuizFromText(pasteText)
+                            pasteText = ""
+                            showPasteImportDialog = false
+                        }
+                    },
+                    enabled = pasteText.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K, contentColor = Color.Black)
+                ) { Text("가져오기", fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPasteImportDialog = false }) { Text("취소") }
+            }
+        )
+    }
 
     val saveGuideLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/markdown")
@@ -279,6 +333,25 @@ fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "📥 외부 퀴즈 패키지 (.kquiz) 가져오기",
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp
+            )
+        }
+
+        // JSON 텍스트 붙여넣기로 가져오기 (AI가 파일 대신 텍스트만 준 경우)
+        OutlinedButton(
+            onClick = { showPasteImportDialog = true },
+            border = BorderStroke(1.dp, com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.5f)),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(imageVector = Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "📋 텍스트(JSON) 붙여넣기로 가져오기",
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp
             )
@@ -1077,8 +1150,9 @@ fun AiQuizGuideDialog(
                 Text(
                     "1. 아래 '프롬프트 복사' 또는 '가이드 파일 저장' 후 AI에 붙여넣기/첨부\n" +
                     "2. 주제만 말하기 — 예: \"주제는 주식 영어 용어\" (문항 수·난이도는 기본값 자동)\n" +
-                    "3. AI가 만든 .kquiz 파일 내려받기 (또는 JSON 복사해 '주제.kquiz'로 저장)\n" +
-                    "4. 이 화면의 '📥 외부 퀴즈 패키지(.kquiz) 가져오기'로 불러오기",
+                    "3. 결과를 앱에 넣기 (둘 중 하나)\n" +
+                    "   · 파일이 되면: .kquiz 파일 내려받아 '📥 …(.kquiz) 가져오기'\n" +
+                    "   · 텍스트만 나오면: JSON 전체 복사 → '📋 텍스트(JSON) 붙여넣기로 가져오기'",
                     fontSize = 12.5.sp, color = Color.White.copy(0.8f), lineHeight = 20.sp
                 )
 

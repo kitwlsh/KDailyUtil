@@ -434,6 +434,44 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** AI가 파일이 아닌 텍스트(JSON)로 준 경우, 그 텍스트를 붙여넣어 가져온다. */
+    fun importQuizFromText(rawText: String)
+    {
+        viewModelScope.launch {
+            val context = getApplication<Application>().applicationContext
+            val pkg = com.kitwlshcom.kdailyutil.data.QuizFileHandler.importQuizzesFromText(rawText)
+            if (pkg != null)
+            {
+                if (_availableCategories.value.contains(pkg.category))
+                {
+                    _pendingImport.value = pkg
+                }
+                else
+                {
+                    repository.saveCustomQuizzes(context, pkg.questions)
+                    loadCategories()
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            context,
+                            "📥 [${pkg.category}] 퀴즈(${pkg.questions.size}문제)를 붙여넣기로 가져왔습니다!",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+            else
+            {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    android.widget.Toast.makeText(
+                        context,
+                        "❌ 붙여넣은 내용에서 올바른 퀴즈(JSON)를 찾지 못했습니다. AI가 준 JSON 전체를 복사했는지 확인해주세요.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
     fun resolveImportConflict(resolution: String, newName: String? = null) {
         val pkg = _pendingImport.value ?: return
         viewModelScope.launch {
