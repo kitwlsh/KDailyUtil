@@ -113,6 +113,25 @@ $IMAGE_PROMPT_TIP
 — 이 파일은 KDailyUtil 앱의 '퀴즈 만들기 가이드'에서 내려받았습니다.
 """.trim()
 
+    /** SAF(문서 저장) 기본 파일명 — CreateDocument 런처에 넘긴다. */
+    const val GUIDE_SAVE_FILENAME = "KDailyUtil_퀴즈만들기_가이드.md"
+
+    /**
+     * 사용자가 SAF로 고른 위치(uri)에 가이드 내용을 기록한다.
+     * @return 성공 여부
+     */
+    fun writeGuideTo(context: Context, uri: Uri): Boolean {
+        return try {
+            context.contentResolver.openOutputStream(uri)?.use { out ->
+                out.write(GUIDE_MARKDOWN.toByteArray(Charsets.UTF_8))
+            }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "가이드 저장 실패: ${e.message}", e)
+            false
+        }
+    }
+
     /**
      * 가이드를 .md 파일로 저장하고 공유용 content:// URI를 반환한다.
      */
@@ -128,17 +147,21 @@ $IMAGE_PROMPT_TIP
         }
     }
 
-    /** 안드로이드 공유 시트로 가이드 파일을 내보낸다. */
+    /**
+     * 안드로이드 공유 시트로 가이드 '파일'을 내보낸다.
+     * 카카오톡 등이 텍스트로 처리하지 않고 파일로 첨부하도록 MIME을 파일 타입으로 지정하고,
+     * 텍스트 미리보기(EXTRA_TEXT)는 넣지 않는다.
+     */
     fun shareGuide(context: Context) {
         val uri = exportGuide(context) ?: return
         val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/markdown"
+            type = "application/octet-stream"
             putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, "KDailyUtil 퀴즈 만들기 가이드")
-            putExtra(Intent.EXTRA_TEXT, "AI로 개인 퀴즈(.kquiz)를 만드는 가이드입니다.")
+            putExtra(Intent.EXTRA_SUBJECT, GUIDE_FILE_NAME)
+            clipData = android.content.ClipData.newRawUri(GUIDE_FILE_NAME, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "가이드 내보내기").apply {
+        context.startActivity(Intent.createChooser(intent, "가이드 파일 공유").apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         })
     }

@@ -142,6 +142,19 @@ fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val scope = rememberCoroutineScope()
 
+    val saveGuideLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/markdown")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val ok = com.kitwlshcom.kdailyutil.data.QuizAiGuide.writeGuideTo(context, uri)
+            android.widget.Toast.makeText(
+                context,
+                if (ok) "가이드를 저장했어요. 파일 앱에서 확인하세요." else "저장에 실패했어요.",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     if (showAiGuideDialog) {
         AiQuizGuideDialog(
             onDismiss = { showAiGuideDialog = false },
@@ -149,7 +162,12 @@ fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
                 clipboard.setText(androidx.compose.ui.text.AnnotatedString(com.kitwlshcom.kdailyutil.data.QuizAiGuide.PROMPT_TEMPLATE))
                 android.widget.Toast.makeText(context, "AI 프롬프트를 복사했어요. AI에 붙여넣어 사용하세요.", android.widget.Toast.LENGTH_SHORT).show()
             },
-            onDownloadGuide = { com.kitwlshcom.kdailyutil.data.QuizAiGuide.shareGuide(context) }
+            onCopyGuide = {
+                clipboard.setText(androidx.compose.ui.text.AnnotatedString(com.kitwlshcom.kdailyutil.data.QuizAiGuide.GUIDE_MARKDOWN))
+                android.widget.Toast.makeText(context, "가이드 전체를 복사했어요.", android.widget.Toast.LENGTH_SHORT).show()
+            },
+            onSaveGuide = { saveGuideLauncher.launch(com.kitwlshcom.kdailyutil.data.QuizAiGuide.GUIDE_SAVE_FILENAME) },
+            onShareGuide = { com.kitwlshcom.kdailyutil.data.QuizAiGuide.shareGuide(context) }
         )
     }
 
@@ -1029,7 +1047,9 @@ fun QuizFinishedScreen(viewModel: QuizViewModel) {
 fun AiQuizGuideDialog(
     onDismiss: () -> Unit,
     onCopyPrompt: () -> Unit,
-    onDownloadGuide: () -> Unit
+    onCopyGuide: () -> Unit,
+    onSaveGuide: () -> Unit,
+    onShareGuide: () -> Unit
 ) {
     val gold = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
     AlertDialog(
@@ -1093,8 +1113,34 @@ fun AiQuizGuideDialog(
                     Spacer(Modifier.width(6.dp))
                     Text("AI 프롬프트 복사하기", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
+                Text(
+                    "가장 간편해요: 위 버튼으로 복사한 뒤 AI 채팅창에 붙여넣기만 하면 됩니다.",
+                    fontSize = 11.sp, color = Color.White.copy(0.6f), lineHeight = 15.sp
+                )
                 OutlinedButton(
-                    onClick = onDownloadGuide,
+                    onClick = onCopyGuide,
+                    border = BorderStroke(1.dp, gold.copy(0.5f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = gold),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.Lightbulb, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("가이드 전체 복사", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+                OutlinedButton(
+                    onClick = onSaveGuide,
+                    border = BorderStroke(1.dp, gold.copy(0.5f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = gold),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("가이드 파일로 저장 (.md, 위치 선택)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+                OutlinedButton(
+                    onClick = onShareGuide,
                     border = BorderStroke(1.dp, gold.copy(0.5f)),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = gold),
                     modifier = Modifier.fillMaxWidth(),
@@ -1102,8 +1148,12 @@ fun AiQuizGuideDialog(
                 ) {
                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("가이드 파일 내려받기 / 공유", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("가이드 파일 공유 (카톡·메일 첨부)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
+                Text(
+                    "저장 = 원하는 폴더에 파일로 보관 · 공유 = 카톡/메일에 파일 첨부. (복사만 해도 AI엔 충분해요)",
+                    fontSize = 10.5.sp, color = Color.White.copy(0.55f), lineHeight = 15.sp
+                )
             }
         },
         confirmButton = {
