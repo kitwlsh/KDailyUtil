@@ -43,7 +43,8 @@ KDailyUtil/
 │   │   │   ├── AudioRepository.kt          # 오디오 파일 관리
 │   │   │   ├── NewsRepository.kt           # 뉴스 RSS 수집 및 크롤링
 │   │   │   └── SettingsRepository.kt       # DataStore 기반 설정 저장 (Gemini/DART 키 등)
-│   │   ├── QuizFileHandler.kt              # .kquiz 파일 export/import
+│   │   ├── QuizFileHandler.kt              # .kquiz 파일 export/import(+텍스트 파싱)
+│   │   ├── QuizAiGuide.kt                  # AI로 개인 퀴즈 만들기 가이드/프롬프트/저장·공유
 │   │   └── QuizStatsManager.kt             # 퀴즈 정답률/도전 이력 추적
 │   ├── receiver/  BriefingReceiver.kt      # 예약 브리핑 알림 수신
 │   ├── scheduler/ BriefingScheduler.kt     # WorkManager/AlarmManager 예약
@@ -375,10 +376,15 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 ```
 
 ### AI로 개인 퀴즈 만들기 가이드 (2026-06-26)
-외부 AI(ChatGPT·Gemini·Claude 등)에게 위 `.kquiz` 형식대로 퀴즈를 만들게 하고, 앱의 `📥 가져오기`로 불러오도록 돕는 기능.
-- `data/QuizAiGuide.kt`: `PROMPT_TEMPLATE`(AI에 붙여넣는 프롬프트) / `GUIDE_MARKDOWN`(내려받기용 전체 가이드) / `exportGuide()`·`shareGuide()`(FileProvider로 .md 공유).
-- UI: `QuizScreen`(우리말 퀴즈, 분야 선택 화면)의 가져오기 버튼 아래 **'🤖 AI로 나만의 퀴즈 만들기 (가이드)'** 버튼 → `AiQuizGuideDialog`(프롬프트 복사 / 가이드 파일 내려받기·공유 / 사용법·이미지 첨부 팁).
-- 프롬프트에 정답 중복 금지·객관식 4보기+정답포함·순수 JSON 출력 규칙을 명시해, 앱 가져오기(중복 방지)와 정합.
+외부 AI(ChatGPT·Gemini·Claude 등)에게 위 `.kquiz` 형식대로 퀴즈를 만들게 하고, 앱으로 불러오도록 돕는 기능. 진입점은 `QuizScreen`(우리말 퀴즈, 분야 선택 화면).
+- **`data/QuizAiGuide.kt`**: `PROMPT_TEMPLATE`(AI에 붙여넣는 프롬프트 — **주제만 말하면** 기본값 10문항·중·객관식 위주로 즉시 완성, .kquiz 다운로드 요청+텍스트 폴백 명시) / `GUIDE_MARKDOWN`(전체 가이드) / `writeGuideTo(uri)`(SAF 저장) / `exportGuide()`·`shareGuide()`(FileProvider 공유, MIME=application/octet-stream이라 카톡에도 파일 첨부됨).
+- **AI 가이드 다이얼로그**(`AiQuizGuideDialog`): 프롬프트 복사 / 가이드 전체 복사 / **가이드 파일로 저장(SAF, 위치 선택)** / 파일 공유 + 사용법·이미지 첨부 팁.
+- **가져오기 2경로**: ① 파일 → `📥 (.kquiz) 가져오기`(`GetContent`) ② **텍스트(JSON) 붙여넣기**(`📋` 버튼 → `importQuizFromText`). 파일 생성이 안 되는 AI가 텍스트만 줄 때 대응. 파서(`QuizFileHandler.importQuizzesFromText`)는 코드블록/잡텍스트가 섞여도 첫 `{`~마지막 `}`만 추출.
+
+### 커스텀 퀴즈 오류신고·편집 정책 (2026-06-26)
+- **오류 신고(개발자 메일) 게이팅**: 커스텀(개인 제작·가져온·AI생성 저장) 문제는 개발자가 못 고치므로 오류 신고 버튼을 숨김. 공식/클라우드(앱 관리) 문제에서만 노출. 판별 = `customCategories.contains(문제.category)`(`isPersonalQuiz`).
+- **직접 편집(폼)**: 커스텀 문제는 오류 신고 대신 ✏️ 편집 제공 → `EditQuizDialog`(유형·질문·보기4[정답 라디오]·정답·해설·힌트 칸별 폼). 저장은 `QuizViewModel.updateCustomQuestion()`이 **원 id 유지로 갱신** + 진행 중 목록 즉시 반영.
+- **편집 잠금 기준**: 편집 화면엔 정답이 보이므로 **정답 확인 전(`quizState != ANSWER_CHECKED`)엔 🔒 잠금**(안내 토스트), 정답 확인 후에만 ✏️ 활성. (풀이 중 정답 미리보기 방지)
 
 ---
 
