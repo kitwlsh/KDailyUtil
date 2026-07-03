@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -834,16 +835,36 @@ fun QuizPlayScreen(viewModel: QuizViewModel)
                             )
                         }
                     } else {
-                        // 개인 제작·가져온 문제: 신고 대신 '직접 편집' 제공
-                        IconButton(
-                            onClick = { editingQuestion = currentQuestion },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "문제 편집",
-                                tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.7f)
-                            )
+                        // 개인 제작·가져온 문제: 신고 대신 '직접 편집' 제공.
+                        // 단, 편집 화면엔 정답이 보이므로 '정답 확인 후'에만 편집 허용(풀이 중엔 잠금).
+                        if (isAnswerChecked) {
+                            IconButton(
+                                onClick = { editingQuestion = currentQuestion },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "문제 편집",
+                                    tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.7f)
+                                )
+                            }
+                        } else {
+                            IconButton(
+                                onClick = {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "정답을 확인한 뒤에 편집할 수 있어요. (편집 화면에 정답이 표시되기 때문)",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "편집 잠금 (정답 확인 후 편집 가능)",
+                                    tint = Color.Gray.copy(alpha = 0.5f)
+                                )
+                            }
                         }
                     }
                 }
