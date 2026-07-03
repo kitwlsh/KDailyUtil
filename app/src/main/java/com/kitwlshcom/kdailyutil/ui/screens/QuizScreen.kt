@@ -707,6 +707,11 @@ fun QuizPlayScreen(viewModel: QuizViewModel)
     val currentQuestion = questions.getOrNull(currentIndex) ?: return
     val isAnswerChecked = quizState == QuizState.ANSWER_CHECKED
 
+    // 개인이 만들었거나 외부에서 가져온 커스텀 문제는 개발자가 수정할 수 없으므로
+    // 오류 신고(개발자 이메일)를 제공하지 않는다. 공식 내장/클라우드(앱 관리) 문제만 신고 가능.
+    val customCategories by viewModel.customCategories.collectAsState()
+    val isPersonalQuiz = customCategories.contains(currentQuestion.category)
+
     val context = androidx.compose.ui.platform.LocalContext.current
     val statsManager = remember { com.kitwlshcom.kdailyutil.data.QuizStatsManager.getInstance(context) }
     val currentQuestionStats = remember(currentIndex, currentQuestion, quizState)
@@ -783,34 +788,37 @@ fun QuizPlayScreen(viewModel: QuizViewModel)
                         )
                     }
 
-                    // 오류 신고 버튼
-                    val emailContext = androidx.compose.ui.platform.LocalContext.current
-                    IconButton(
-                        onClick = 
-                        {
-                            val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
-                                data = android.net.Uri.parse("mailto:")
-                                putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf("kitwlsh@gmail.com"))
-                                putExtra(android.content.Intent.EXTRA_SUBJECT, "[KDailyUtil 퀴즈 오류 신고] 문제 ID: ${currentQuestion.id}")
-                                putExtra(android.content.Intent.EXTRA_TEXT, "문제 내용: ${currentQuestion.question}\n\n[오류 내용 및 수정 제안]\n여기에 어떤 점이 이상한지 적어주세요.\n")
-                            }
-                            try
+                    // 오류 신고 버튼 — 앱이 관리하는(공식/클라우드) 문제에서만 노출.
+                    // 개인 제작·가져온 커스텀 문제는 개발자가 고칠 수 없어 신고 대상에서 제외한다.
+                    if (!isPersonalQuiz) {
+                        val emailContext = androidx.compose.ui.platform.LocalContext.current
+                        IconButton(
+                            onClick =
                             {
-                                emailContext.startActivity(intent)
-                            }
-                            catch (e: Exception)
-                            {
-                                android.widget.Toast.makeText(emailContext, "이메일 앱을 찾을 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier.size(24.dp)
-                    )
-                    {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = "오류 신고",
-                            tint = Color.Gray.copy(alpha = 0.6f)
+                                val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                                    data = android.net.Uri.parse("mailto:")
+                                    putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf("kitwlsh@gmail.com"))
+                                    putExtra(android.content.Intent.EXTRA_SUBJECT, "[KDailyUtil 퀴즈 오류 신고] 문제 ID: ${currentQuestion.id}")
+                                    putExtra(android.content.Intent.EXTRA_TEXT, "문제 내용: ${currentQuestion.question}\n\n[오류 내용 및 수정 제안]\n여기에 어떤 점이 이상한지 적어주세요.\n")
+                                }
+                                try
+                                {
+                                    emailContext.startActivity(intent)
+                                }
+                                catch (e: Exception)
+                                {
+                                    android.widget.Toast.makeText(emailContext, "이메일 앱을 찾을 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.size(24.dp)
                         )
+                        {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "오류 신고",
+                                tint = Color.Gray.copy(alpha = 0.6f)
+                            )
+                        }
                     }
                 }
 
