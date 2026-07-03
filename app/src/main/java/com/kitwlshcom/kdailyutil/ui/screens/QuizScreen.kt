@@ -1075,9 +1075,9 @@ fun AiQuizGuideDialog(
 
                 Text("사용 순서", fontWeight = FontWeight.Bold, color = gold, fontSize = 14.sp)
                 Text(
-                    "1. 아래 '프롬프트 복사'를 눌러 AI에 붙여넣기\n" +
-                    "2. [주제]·[문항 수]를 원하는 대로 바꿔 요청\n" +
-                    "3. AI가 준 JSON을 텍스트로 저장하고 파일명을 '주제.kquiz'로 변경\n" +
+                    "1. 아래 '프롬프트 복사' 또는 '가이드 파일 저장' 후 AI에 붙여넣기/첨부\n" +
+                    "2. 주제만 말하기 — 예: \"주제는 주식 영어 용어\" (문항 수·난이도는 기본값 자동)\n" +
+                    "3. AI가 만든 .kquiz 파일 내려받기 (또는 JSON 복사해 '주제.kquiz'로 저장)\n" +
                     "4. 이 화면의 '📥 외부 퀴즈 패키지(.kquiz) 가져오기'로 불러오기",
                     fontSize = 12.5.sp, color = Color.White.copy(0.8f), lineHeight = 20.sp
                 )
