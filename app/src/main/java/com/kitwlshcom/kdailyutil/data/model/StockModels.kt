@@ -64,3 +64,24 @@ data class ExpectedEarnings(
     val consensus_profit: String = "-",
     var aiReport: String? = null
 )
+
+/** 특정 회사의 한 보고서(분기/반기/사업) 실적. 분기·반기 수치는 DART상 누적(YTD)임. */
+data class FinancialPeriod(
+    val year: String,
+    val reprtCode: String,
+    val reportLabel: String,   // 예: "2025 반기(누적)"
+    val fsDiv: String,         // "연결" | "개별"
+    val revenue: Long,
+    val operatingProfit: Long,
+    val netIncome: Long,
+    val revenuePrev: Long = 0L,
+    val operatingProfitPrev: Long = 0L,
+    val netIncomePrev: Long = 0L
+)
+
+/** DART 전체 고유번호(corpCode.xml)에서 검색된 상장사 항목. */
+data class CorpEntry(
+    val corpCode: String,
+    val corpName: String,
+    val stockCode: String
+)

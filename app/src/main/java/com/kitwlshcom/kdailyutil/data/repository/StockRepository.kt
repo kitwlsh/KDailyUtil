@@ -6,8 +6,13 @@ import com.kitwlshcom.kdailyutil.data.model.ChartRange
 import com.kitwlshcom.kdailyutil.data.model.CurrencyType
 import com.kitwlshcom.kdailyutil.data.model.EarningsDisclosure
 import com.kitwlshcom.kdailyutil.data.model.ExpectedEarnings
+import com.kitwlshcom.kdailyutil.data.model.FinancialPeriod
+import com.kitwlshcom.kdailyutil.data.model.CorpEntry
 import com.kitwlshcom.kdailyutil.data.model.StockChartData
 import com.kitwlshcom.kdailyutil.data.model.StockPriceItem
+import java.io.ByteArrayInputStream
+import java.io.StringReader
+import java.util.zip.ZipInputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -582,6 +587,196 @@ class StockRepository(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "❌ Financial fetch failed ($fsDiv) for $corpCode: ${e.message}")
             return null
+        }
+    }
+
+    // ===================== 과거 실적 조회 (A) =====================
+    private val financialHistoryCacheFile: File
+        get() = File(context.filesDir, "financial_history_cache.json")
+    private val historyTtlMillis = 3L * 24 * 60 * 60 * 1000 // 3일
+
+    /**
+     * 특정 회사(corpCode)의 최근 정기보고서 실적을 최신→과거 순으로 최대 maxPeriods개 조회한다.
+     * 아직 제출되지 않은(미래) 보고서나 데이터 없는 보고서는 자동으로 건너뛴다.
+     * 분기·반기 수치는 DART상 누적(YTD)이며 라벨에 '(누적)'으로 표기한다. 결과는 캐시(3일).
+     */
+    suspend fun fetchFinancialHistory(
+        corpCode: String,
+        apiKey: String,
+        maxPeriods: Int = 8,
+        forceRefresh: Boolean = false
+    ): List<FinancialPeriod> = withContext(Dispatchers.IO) {
+        if (corpCode.isBlank()) return@withContext emptyList()
+        if (!forceRefresh) {
+            loadHistoryCache(corpCode)?.let { return@withContext it }
+        }
+        val resolvedKey = apiKey.ifBlank { com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY }
+        val curYear = Calendar.getInstance().get(Calendar.YEAR)
+
+        // (연도, reprt_code, 라벨) — 연도 내림차순 + 최신 보고서 우선
+        val candidates = mutableListOf<Triple<String, String, String>>()
+        for (y in curYear downTo (curYear - 2)) {
+            candidates.add(Triple(y.toString(), "11011", "$y 사업(연간)"))
+            candidates.add(Triple(y.toString(), "11014", "$y 3분기(누적)"))
+            candidates.add(Triple(y.toString(), "11012", "$y 반기(누적)"))
+            candidates.add(Triple(y.toString(), "11013", "$y 1분기"))
+        }
+
+        val result = mutableListOf<FinancialPeriod>()
+        for ((year, reprt, label) in candidates) {
+            if (result.size >= maxPeriods) break
+            var parsed: String? = null
+            for (fsDiv in listOf("CFS", "OFS")) {
+                parsed = parseFinancialAccounts(resolvedKey, corpCode, year, reprt, label, fsDiv)
+                if (parsed != null) break
+            }
+            if (parsed == null) continue
+            try {
+                val o = JSONObject(parsed)
+                result.add(
+                    FinancialPeriod(
+                        year = year,
+                        reprtCode = reprt,
+                        reportLabel = label,
+                        fsDiv = o.optString("fs_div", "연결"),
+                        revenue = o.optJSONObject("revenue")?.optLong("current") ?: 0L,
+                        operatingProfit = o.optJSONObject("operating_profit")?.optLong("current") ?: 0L,
+                        netIncome = o.optJSONObject("net_income")?.optLong("current") ?: 0L,
+                        revenuePrev = o.optJSONObject("revenue")?.optLong("previous") ?: 0L,
+                        operatingProfitPrev = o.optJSONObject("operating_profit")?.optLong("previous") ?: 0L,
+                        netIncomePrev = o.optJSONObject("net_income")?.optLong("previous") ?: 0L
+                    )
+                )
+            } catch (e: Exception) { /* skip malformed */ }
+        }
+        if (result.isNotEmpty()) saveHistoryCache(corpCode, result)
+        result
+    }
+
+    private fun loadHistoryCache(corpCode: String): List<FinancialPeriod>? {
+        if (!financialHistoryCacheFile.exists()) return null
+        return try {
+            val root = JSONObject(financialHistoryCacheFile.readText(StandardCharsets.UTF_8))
+            val entry = root.optJSONObject(corpCode) ?: return null
+            if (System.currentTimeMillis() - entry.optLong("ts") > historyTtlMillis) return null
+            val arr = entry.optJSONArray("periods") ?: return null
+            (0 until arr.length()).map { i ->
+                val o = arr.getJSONObject(i)
+                FinancialPeriod(
+                    o.optString("year"), o.optString("reprtCode"), o.optString("reportLabel"), o.optString("fsDiv"),
+                    o.optLong("revenue"), o.optLong("operatingProfit"), o.optLong("netIncome"),
+                    o.optLong("revenuePrev"), o.optLong("operatingProfitPrev"), o.optLong("netIncomePrev")
+                )
+            }
+        } catch (e: Exception) { null }
+    }
+
+    private fun saveHistoryCache(corpCode: String, periods: List<FinancialPeriod>) {
+        try {
+            val root = if (financialHistoryCacheFile.exists())
+                JSONObject(financialHistoryCacheFile.readText(StandardCharsets.UTF_8)) else JSONObject()
+            val arr = JSONArray()
+            periods.forEach { p ->
+                arr.put(JSONObject().apply {
+                    put("year", p.year); put("reprtCode", p.reprtCode); put("reportLabel", p.reportLabel); put("fsDiv", p.fsDiv)
+                    put("revenue", p.revenue); put("operatingProfit", p.operatingProfit); put("netIncome", p.netIncome)
+                    put("revenuePrev", p.revenuePrev); put("operatingProfitPrev", p.operatingProfitPrev); put("netIncomePrev", p.netIncomePrev)
+                })
+            }
+            root.put(corpCode, JSONObject().put("ts", System.currentTimeMillis()).put("periods", arr))
+            financialHistoryCacheFile.writeText(root.toString(), StandardCharsets.UTF_8)
+        } catch (e: Exception) { Log.e(TAG, "history 캐시 저장 실패: ${e.message}") }
+    }
+
+    // ===================== 회사 이름 검색 (C, corpCode.xml) =====================
+    private val corpCodeCacheFile: File
+        get() = File(context.filesDir, "corp_codes.json")
+
+    /** DART 전체 고유번호 파일(zip)을 1회 받아 상장사(stock_code 존재)만 로컬 캐시로 저장. */
+    suspend fun ensureCorpCodes(apiKey: String): Boolean = withContext(Dispatchers.IO) {
+        if (corpCodeCacheFile.exists() && corpCodeCacheFile.length() > 100) return@withContext true
+        val resolvedKey = apiKey.ifBlank { com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY }
+        return@withContext try {
+            val url = "https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=$resolvedKey"
+            val bytes = Jsoup.connect(url).ignoreContentType(true).maxBodySize(0).timeout(30000).execute().bodyAsBytes()
+            ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
+                var entry = zip.nextEntry
+                while (entry != null) {
+                    if (entry.name.endsWith(".xml", ignoreCase = true)) {
+                        val xml = zip.readBytes().toString(Charsets.UTF_8)
+                        val listed = parseCorpCodeXml(xml)
+                        val arr = JSONArray()
+                        listed.forEach { arr.put(JSONObject().put("c", it.corpCode).put("n", it.corpName).put("s", it.stockCode)) }
+                        corpCodeCacheFile.writeText(arr.toString(), StandardCharsets.UTF_8)
+                        Log.d(TAG, "✅ corpCode 캐시 저장: ${listed.size}개 상장사")
+                        return@withContext true
+                    }
+                    entry = zip.nextEntry
+                }
+            }
+            false
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ corpCode 다운로드 실패: ${e.message}")
+            false
+        }
+    }
+
+    private fun parseCorpCodeXml(xml: String): List<CorpEntry> {
+        val result = ArrayList<CorpEntry>(4000)
+        try {
+            val parser = android.util.Xml.newPullParser()
+            parser.setInput(StringReader(xml))
+            var event = parser.eventType
+            var cur = ""
+            var corpCode = ""; var corpName = ""; var stockCode = ""
+            while (event != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
+                when (event) {
+                    org.xmlpull.v1.XmlPullParser.START_TAG -> cur = parser.name
+                    org.xmlpull.v1.XmlPullParser.TEXT -> {
+                        val t = parser.text?.trim() ?: ""
+                        when (cur) {
+                            "corp_code" -> corpCode = t
+                            "corp_name" -> corpName = t
+                            "stock_code" -> stockCode = t
+                        }
+                    }
+                    org.xmlpull.v1.XmlPullParser.END_TAG -> {
+                        if (parser.name == "list") {
+                            if (stockCode.isNotBlank() && corpName.isNotBlank()) result.add(CorpEntry(corpCode, corpName, stockCode))
+                            corpCode = ""; corpName = ""; stockCode = ""
+                        }
+                        cur = ""
+                    }
+                }
+                event = parser.next()
+            }
+        } catch (e: Exception) { Log.e(TAG, "corpCode XML 파싱 실패: ${e.message}") }
+        return result
+    }
+
+    /** 캐시된 상장사 목록에서 회사명으로 검색. (정확/시작 일치 우선) */
+    suspend fun searchCorpByName(query: String, apiKey: String, limit: Int = 30): List<CorpEntry> = withContext(Dispatchers.IO) {
+        val q = query.trim()
+        if (q.isBlank()) return@withContext emptyList()
+        if (!ensureCorpCodes(apiKey)) return@withContext emptyList()
+        return@withContext try {
+            val arr = JSONArray(corpCodeCacheFile.readText(StandardCharsets.UTF_8))
+            val out = ArrayList<CorpEntry>()
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                val name = o.optString("n")
+                if (name.contains(q)) {
+                    out.add(CorpEntry(o.optString("c"), name, o.optString("s")))
+                }
+            }
+            out.sortedWith(
+                compareByDescending<CorpEntry> { it.corpName == q }
+                    .thenByDescending { it.corpName.startsWith(q) }
+                    .thenBy { it.corpName.length }
+            ).take(limit)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 회사 검색 실패: ${e.message}")
+            emptyList()
         }
     }
 

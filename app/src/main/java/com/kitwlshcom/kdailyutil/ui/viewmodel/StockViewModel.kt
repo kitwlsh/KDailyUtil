@@ -44,6 +44,19 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
     private val _earningsNewsLoading = MutableStateFlow(false)
     val earningsNewsLoading: StateFlow<Boolean> = _earningsNewsLoading.asStateFlow()
 
+    // 과거 실적 조회 + 회사 이름 검색
+    private val _financialHistory = MutableStateFlow<List<com.kitwlshcom.kdailyutil.data.model.FinancialPeriod>>(emptyList())
+    val financialHistory: StateFlow<List<com.kitwlshcom.kdailyutil.data.model.FinancialPeriod>> = _financialHistory.asStateFlow()
+    private val _financialHistoryTitle = MutableStateFlow("")
+    val financialHistoryTitle: StateFlow<String> = _financialHistoryTitle.asStateFlow()
+    private val _financialHistoryLoading = MutableStateFlow(false)
+    val financialHistoryLoading: StateFlow<Boolean> = _financialHistoryLoading.asStateFlow()
+
+    private val _corpSearchResults = MutableStateFlow<List<com.kitwlshcom.kdailyutil.data.model.CorpEntry>>(emptyList())
+    val corpSearchResults: StateFlow<List<com.kitwlshcom.kdailyutil.data.model.CorpEntry>> = _corpSearchResults.asStateFlow()
+    private val _corpSearchLoading = MutableStateFlow(false)
+    val corpSearchLoading: StateFlow<Boolean> = _corpSearchLoading.asStateFlow()
+
     private val _stockPrices = MutableStateFlow<List<StockPriceItem>>(emptyList())
     val stockPrices: StateFlow<List<StockPriceItem>> = _stockPrices.asStateFlow()
 
@@ -346,6 +359,48 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
     fun clearEarningsNews() {
         _earningsNews.value = emptyList()
         _earningsNewsTitle.value = ""
+    }
+
+    /** 특정 회사의 과거 실적(최근 정기보고서)을 조회한다. */
+    fun loadFinancialHistory(corpCode: String, corpName: String, forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            _financialHistoryTitle.value = corpName
+            _financialHistoryLoading.value = true
+            if (forceRefresh) _financialHistory.value = emptyList()
+            try {
+                val apiKey = settingsRepository.dartApiKeyFlow.first()
+                _financialHistory.value = stockRepository.fetchFinancialHistory(corpCode, apiKey, maxPeriods = 8, forceRefresh = forceRefresh)
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ 과거 실적 로드 실패: ${e.message}")
+            } finally {
+                _financialHistoryLoading.value = false
+            }
+        }
+    }
+
+    fun clearFinancialHistory() {
+        _financialHistory.value = emptyList()
+        _financialHistoryTitle.value = ""
+    }
+
+    /** 회사 이름으로 상장사를 검색한다(corpCode.xml, 최초 1회 다운로드). */
+    fun searchCompany(query: String) {
+        viewModelScope.launch {
+            if (query.isBlank()) { _corpSearchResults.value = emptyList(); return@launch }
+            _corpSearchLoading.value = true
+            try {
+                val apiKey = settingsRepository.dartApiKeyFlow.first()
+                _corpSearchResults.value = stockRepository.searchCorpByName(query, apiKey, limit = 30)
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ 회사 검색 실패: ${e.message}")
+            } finally {
+                _corpSearchLoading.value = false
+            }
+        }
+    }
+
+    fun clearCorpSearch() {
+        _corpSearchResults.value = emptyList()
     }
 
     /**

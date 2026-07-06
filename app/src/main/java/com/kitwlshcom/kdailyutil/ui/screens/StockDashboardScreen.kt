@@ -973,10 +973,58 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
     val showHidden by viewModel.showHidden.collectAsState()
     val hiddenIds by viewModel.hiddenIds.collectAsState()
 
+    // 과거 실적 조회 + 회사 검색
+    val financialHistory by viewModel.financialHistory.collectAsState()
+    val historyTitle by viewModel.financialHistoryTitle.collectAsState()
+    val historyLoading by viewModel.financialHistoryLoading.collectAsState()
+    val corpResults by viewModel.corpSearchResults.collectAsState()
+    val corpSearchLoading by viewModel.corpSearchLoading.collectAsState()
+    var showHistoryDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
     // 탭이 보이는 동안만 active=true → 백그라운드(다른 탭)에서 분석 완료 시 알림으로 안내
     DisposableEffect(Unit) {
         viewModel.setDisclosureTabActive(true)
         onDispose { viewModel.setDisclosureTabActive(false) }
+    }
+
+    if (showHistoryDialog) {
+        AlertDialog(
+            onDismissRequest = { showHistoryDialog = false; viewModel.clearFinancialHistory() },
+            title = { Text("📊 ${historyTitle} 과거 실적", fontWeight = FontWeight.Bold, color = Gold24K) },
+            text = {
+                when {
+                    historyLoading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(color = Gold24K, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp)); Text("과거 실적을 불러오는 중…", color = Color.White.copy(0.8f), fontSize = 13.sp)
+                    }
+                    financialHistory.isEmpty() -> Text("조회된 과거 실적이 없습니다. (DART에 재무 데이터가 없거나 비12월 결산일 수 있어요)", color = Color.White.copy(0.8f), fontSize = 13.sp)
+                    else -> LazyColumn(modifier = Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        item {
+                            Text("매출·영업이익·당기순이익 (분기·반기는 누적). 괄호는 전년 동기 대비.", fontSize = 10.sp, color = Color.Gray)
+                        }
+                        items(financialHistory) { p ->
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(0.85f)),
+                                border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.15f))
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+                                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                                        Text(p.reportLabel, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
+                                        Text(p.fsDiv, fontSize = 10.sp, color = Gold24K.copy(0.8f))
+                                    }
+                                    Spacer(Modifier.height(4.dp))
+                                    FinancialRow("매출액", p.revenue, p.revenuePrev)
+                                    FinancialRow("영업이익", p.operatingProfit, p.operatingProfitPrev)
+                                    FinancialRow("당기순이익", p.netIncome, p.netIncomePrev)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showHistoryDialog = false; viewModel.clearFinancialHistory() }) { Text("닫기", color = Gold24K) } }
+        )
     }
 
     var showReportDialog by remember { mutableStateOf(false) }
@@ -1103,6 +1151,51 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        // 회사명으로 과거 실적 검색 (리스트에 없는 회사도 이름으로 조회)
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it; viewModel.searchCompany(it) },
+            label = { Text("회사명으로 과거 실적 검색 (예: 삼성전자)") },
+            singleLine = true,
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Gold24K) },
+            trailingIcon = {
+                if (searchQuery.isNotBlank()) IconButton(onClick = { searchQuery = ""; viewModel.clearCorpSearch() }) {
+                    Icon(Icons.Default.Close, contentDescription = "지우기")
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
+        )
+        if (corpSearchLoading) {
+            LinearProgressIndicator(color = Gold24K, modifier = Modifier.fillMaxWidth().height(2.dp))
+        }
+        if (searchQuery.isNotBlank() && corpResults.isNotEmpty()) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1D27)),
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.2f)),
+                modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp).padding(bottom = 8.dp)
+            ) {
+                LazyColumn {
+                    items(corpResults) { c ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    searchQuery = ""; viewModel.clearCorpSearch()
+                                    viewModel.loadFinancialHistory(c.corpCode, c.corpName)
+                                    showHistoryDialog = true
+                                }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(c.corpName, color = Color.White, fontSize = 13.sp)
+                            Text(c.stockCode, color = Color.Gray, fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+        }
+
         // 기간 필터 로우
         Row(
             modifier = Modifier
@@ -1201,7 +1294,11 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
                             }
                         },
                         onToggleFavorite = { viewModel.toggleFavorite(item) },
-                        onToggleHidden = { viewModel.toggleHidden(item) }
+                        onToggleHidden = { viewModel.toggleHidden(item) },
+                        onHistory = {
+                            viewModel.loadFinancialHistory(item.corp_code, item.corp_name)
+                            showHistoryDialog = true
+                        }
                     )
                 }
             }
@@ -1215,7 +1312,8 @@ fun DisclosureCard(
     isHidden: Boolean = false,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit = {},
-    onToggleHidden: () -> Unit = {}
+    onToggleHidden: () -> Unit = {},
+    onHistory: () -> Unit = {}
 ) {
     val dateText = "${item.rcept_dt.take(4)}.${item.rcept_dt.substring(4, 6)}.${item.rcept_dt.substring(6)}"
 
@@ -1302,6 +1400,52 @@ fun DisclosureCard(
                 } else {
                     BadgeView("AI 미분석 🔍", Color.LightGray.copy(alpha = 0.5f))
                 }
+
+                // 과거 실적 보기 (이 회사의 corp_code로 최근 정기보고서 조회)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Gold24K.copy(alpha = 0.12f))
+                        .border(0.5.dp, Gold24K.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                        .clickable(onClick = onHistory)
+                        .padding(vertical = 2.dp, horizontal = 6.dp)
+                ) {
+                    Text("📊 과거실적", color = Gold24K, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+/** 과거 실적 다이얼로그의 한 계정 줄 (현재값 + 전년 동기 대비 %). */
+@Composable
+fun FinancialRow(label: String, current: Long, previous: Long) {
+    fun fmt(v: Long): String = when {
+        kotlin.math.abs(v) >= 1_000_000_000_000L -> String.format("%.2f조", v / 1_000_000_000_000.0)
+        kotlin.math.abs(v) >= 100_000_000L -> String.format("%,.0f억", v / 100_000_000.0)
+        v == 0L -> "-"
+        else -> String.format("%,d", v)
+    }
+    val yoy: String = if (previous != 0L) {
+        val pct = (current - previous).toDouble() / kotlin.math.abs(previous.toDouble()) * 100.0
+        String.format("%+.1f%%", pct)
+    } else ""
+    val yoyColor = when {
+        previous == 0L -> Color.Gray
+        current >= previous -> Color(0xFF2ECC71)
+        else -> Color(0xFF4D94FF)
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = Color.White.copy(0.6f), fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(fmt(current), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            if (yoy.isNotBlank()) {
+                Spacer(Modifier.width(6.dp))
+                Text("($yoy)", color = yoyColor, fontSize = 10.sp)
             }
         }
     }
