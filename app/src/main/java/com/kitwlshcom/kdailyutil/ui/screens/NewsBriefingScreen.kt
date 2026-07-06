@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -53,6 +54,51 @@ fun NewsBriefingScreen(
 
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+
+    // 탭에서 바로 항목을 추가하는 '＋' 다이얼로그 (설정 화면과 동일한 저장 로직 재사용)
+    var addTarget by remember { mutableStateOf<String?>(null) } // "category" | "stock" | "ai"
+    var addText by remember { mutableStateOf("") }
+    if (addTarget != null) {
+        val (dlgTitle, dlgHint) = when (addTarget) {
+            "category" -> "주제(카테고리) 추가" to "예: 스포츠"
+            "stock" -> "관심 증시/종목 추가" to "예: 테슬라, 비트코인"
+            else -> "AI 브리핑 명령 추가" to "예: 오늘 반도체 이슈 요약해줘"
+        }
+        AlertDialog(
+            onDismissRequest = { addTarget = null; addText = "" },
+            title = { Text(dlgTitle, fontWeight = FontWeight.Bold, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K) },
+            text = {
+                OutlinedTextField(
+                    value = addText,
+                    onValueChange = { addText = it },
+                    label = { Text(dlgHint) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val t = addText.trim()
+                        if (t.isNotBlank()) {
+                            when (addTarget) {
+                                "category" -> {
+                                    val fixed = setOf("전체", "증시", "AI")
+                                    if (t !in fixed && t !in categories) viewModel.updateCategories(categories + t)
+                                }
+                                "stock" -> viewModel.updateStockKeywords(stockKeywords + t)
+                                "ai" -> viewModel.updateAiCommands(aiCommands + t)
+                            }
+                        }
+                        addText = ""; addTarget = null
+                    },
+                    enabled = addText.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K, contentColor = Color.Black)
+                ) { Text("추가", fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = { TextButton(onClick = { addTarget = null; addText = "" }) { Text("취소") } }
+        )
+    }
 
     LaunchedEffect(Unit) {
         if (newsItems.isEmpty()) {
@@ -138,6 +184,15 @@ fun NewsBriefingScreen(
                             }
                         )
                     }
+                    item {
+                        IconButton(onClick = { addTarget = "category" }) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "주제 추가",
+                                tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -208,6 +263,11 @@ fun NewsBriefingScreen(
                                 text = { Text(shortCommand, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                             )
                         }
+                        Tab(
+                            selected = false,
+                            onClick = { addTarget = "ai" },
+                            text = { Text("＋", fontWeight = FontWeight.Bold) }
+                        )
                     }
                 }
 
@@ -235,6 +295,11 @@ fun NewsBriefingScreen(
                                 text = { Text(shortKeyword, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                             )
                         }
+                        Tab(
+                            selected = false,
+                            onClick = { addTarget = "stock" },
+                            text = { Text("＋", fontWeight = FontWeight.Bold) }
+                        )
                     }
                 }
 

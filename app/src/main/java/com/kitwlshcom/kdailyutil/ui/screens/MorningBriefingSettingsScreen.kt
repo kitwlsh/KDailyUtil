@@ -82,6 +82,7 @@ fun MorningBriefingSettingsScreen(
     var newAiCommand by remember { mutableStateOf("") }
     var showTimePicker by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
+    var showDartHelpDialog by remember { mutableStateOf(false) }
     var showAppInfoDialog by remember { mutableStateOf(false) }
     var showIconGalleryDialog by remember { mutableStateOf(false) }
     var showLegalNoticeDialog by remember { mutableStateOf(false) }
@@ -542,7 +543,18 @@ fun MorningBriefingSettingsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Open DART API Key
-        Text("Open DART API Key (선택)", style = MaterialTheme.typography.titleMedium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Open DART API Key (선택)", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.width(4.dp))
+            IconButton(onClick = { showDartHelpDialog = true }, modifier = Modifier.size(20.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Help,
+                    contentDescription = "DART 키 발급 도움말",
+                    tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
         Text(
             "미입력 시 기본 공용 키가 제공되며, 한도 초과 시 개인 키를 발급받아 등록할 수 있습니다.",
             style = MaterialTheme.typography.bodySmall,
@@ -570,6 +582,44 @@ fun MorningBriefingSettingsScreen(
                 }
             }
         )
+
+        if (showDartHelpDialog) {
+            val dartUriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+            AlertDialog(
+                onDismissRequest = { showDartHelpDialog = false },
+                title = { Text("🔑 Open DART API Key 발급 안내", fontWeight = FontWeight.Bold, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "증시 탭의 '실적 공시·재무 데이터'는 금융감독원 Open DART를 사용합니다. 기본 공용 키가 내장돼 있어 그냥 쓸 수 있지만, 여러 사용자가 함께 쓰다 보니 한도 초과 시 조회가 막힐 수 있어요. 이때 개인 키(무료)를 발급받아 등록하면 안정적으로 이용할 수 있습니다.",
+                            fontSize = 13.sp, color = Color.White.copy(alpha = 0.85f), lineHeight = 19.sp
+                        )
+                        Text("💡 발급 방법 (무료)", fontWeight = FontWeight.Bold, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K, fontSize = 13.sp)
+                        Text(
+                            "1. 아래 [Open DART 발급 사이트 이동] 버튼 클릭\n2. 회원가입 후 '인증키 신청/관리 > 오픈API 인증키 신청'에서 신청\n3. 발급된 인증키(40자리)를 복사해 위 입력칸에 붙여넣기",
+                            fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f), lineHeight = 20.sp
+                        )
+                        Text(
+                            "⚠️ 발급받은 키는 이 기기에만 안전하게 저장되며 외부로 유출되지 않습니다.",
+                            fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f), lineHeight = 17.sp
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            dartUriHandler.openUri("https://opendart.fss.or.kr/")
+                            showDartHelpDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                            contentColor = Color.Black
+                        )
+                    ) { Text("Open DART 발급 사이트 이동", fontWeight = FontWeight.Bold) }
+                },
+                dismissButton = { TextButton(onClick = { showDartHelpDialog = false }) { Text("닫기") } }
+            )
+        }
 
         } // end AI·키 탭 (2)
 
