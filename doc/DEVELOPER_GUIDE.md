@@ -309,6 +309,12 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 - **저장**: Preferences DataStore (`SettingsRepository.geminiApiKeyFlow`)
 - **UI 입력**: `MorningBriefingSettingsScreen` > API 키 설정
 - **사용**: `GeminiManager(apiKey)` 생성자 주입
+- **발급 도움말**: Gemini·**Open DART** 키 모두 입력칸 옆 도움말(?) → 발급 가이드 다이얼로그 + 발급 사이트 이동 버튼 제공(DART = `opendart.fss.or.kr`, 2026-07-06 추가).
+
+### 뉴스/증시/AI 탭 '＋ 빠른 추가' (2026-07-06)
+설정 화면에만 있던 카테고리·키워드·명령 추가를, 각 탭에서도 바로 할 수 있게 `NewsBriefingScreen`에 '＋' 진입점 추가(상시 노출은 '＋'만, 삭제/순서변경은 설정 화면 유지).
+- 세로 주제(카테고리)탭 끝 '＋' → `updateCategories`, 증시 가로 서브탭 끝 '＋' → `updateStockKeywords`, AI 가로 서브탭 끝 '＋' → `updateAiCommands`. 하나의 추가 다이얼로그(`addTarget`)로 처리하며 설정과 동일 저장 로직 재사용.
+- ⚠️ 키워드는 `Set`(순서 없음) 저장이라 '순서 변경'은 미지원(하려면 `List` 전환 필요).
 
 #### ⚠️ DART 기본 제공 키 (빌드 시 필수 확인)
 - 사용자가 DART 키를 직접 입력하지 않으면 **기본 제공 키**로 폴백하여 실적 공시 기능이 동작함.
@@ -435,12 +441,12 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 
 ## 📈 증시 대시보드 기능 메모 (2026-06-24 기준)
 
-증시 탭은 `StockDashboardScreen` + `StockViewModel` + `StockRepository`로 구성. 3개 서브탭: `시세 및 차트(0) / AI 실적 공시(1) / 실적 예정 일정(2)`.
+증시 탭은 `StockDashboardScreen` + `StockViewModel` + `StockRepository`로 구성. 3개 서브탭: `시세 및 차트(0) / AI 실적 공시(1) / 실적 뉴스·전망(2)`.
 
 ### 데이터 소스
 - **시세/차트**: Yahoo Finance 차트 API(`query1.finance.yahoo.com/v8/finance/chart`, 인증 불필요). volume 포함 파싱.
 - **실적 공시**: Open DART `list.json` **`pblntf_ty=A`(정기공시)** → 항목 클릭 시 `fnlttSinglAcntAll.json`로 재무 조회. 보고서명 `(YYYY.MM)`으로 reprt_code 판별(`.03→11013 .06→11012 .09→11014 .12→11011`), **CFS→OFS 폴백**.
-- **실적 예정 일정**: 무료 컨센서스 소스가 없어, **정기보고서 법정 제출기한 역산**(분기말+45일 등)으로 예상일 표시.
+- **실적 뉴스·전망 (2026-07-06 개편)**: 국내는 정확한 실적 발표 예정일·컨센서스를 무료로 제공하지 않아, '예정일'을 맞추는 대신 **관심 종목의 '실적' 관련 뉴스 + AI 사전 전망**을 제공하도록 개편(이전 '실적 예정 일정' 탭 대체). 종목 카드 탭=AI 사전 전망(`generatePreReport`), **📰 실적 뉴스 보기**=`StockViewModel.loadEarningsNews()`→`NewsRepository.getNewsByKeyword("{종목} 실적")`→다이얼로그, 헤드라인 탭 시 원문을 외부 브라우저로 오픈. 날짜 배지는 `nextStatutoryDeadline()`의 **정기보고서 법정 제출기한(분기말+45일 등)** 을 '기한' 참고로만 표기(실제 발표일 아님).
 
 ### 로컬 캐시 파일 (`filesDir`)
 - `stock_prices_cache.json` — 시세 인메모리+파일 캐시
