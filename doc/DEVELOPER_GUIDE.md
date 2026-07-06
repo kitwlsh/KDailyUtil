@@ -445,13 +445,17 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 
 ### 데이터 소스
 - **시세/차트**: Yahoo Finance 차트 API(`query1.finance.yahoo.com/v8/finance/chart`, 인증 불필요). volume 포함 파싱.
-- **실적 공시**: Open DART `list.json` **`pblntf_ty=A`(정기공시)** → 항목 클릭 시 `fnlttSinglAcntAll.json`로 재무 조회. 보고서명 `(YYYY.MM)`으로 reprt_code 판별(`.03→11013 .06→11012 .09→11014 .12→11011`), **CFS→OFS 폴백**.
+- **실적 공시**: Open DART `list.json` **`pblntf_ty=A`(정기공시)** → 항목(=특정 보고서 1건) 클릭 시 `fnlttSinglAcntAll.json`로 재무 조회 후 AI 요약. 보고서명 `(YYYY.MM)`으로 reprt_code 판별(`.03→11013 .06→11012 .09→11014 .12→11011`), **CFS→OFS 폴백**. 단건 요약은 재무의 현재값+전년동기(previous)를 함께 써서 흑자전환/서프라이즈/쇼크 판정. 카드=회사가 아니라 '보고서 1건'이며, `(YYYY.MM)`은 제출일이 아니라 회계기간말(예: FY2025 사업보고서=2025.12; 기재정정은 이후에도 제출됨).
+  - **조회기간(1/3/7/30일) 변경 시** DART 재조회하되, 캐시된 AI 결과를 rcept_no로 복원해 초기화되지 않음(재분석은 새로고침/재분석만). 즐겨찾기(★) 카드는 불투명 골드 강조.
+- **과거 실적 조회 + 회사 검색 (2026-07-06)**: 공시 카드의 **📊 과거실적** 또는 상단 **회사명 검색**(리스트에 없는 회사도) → `StockRepository.fetchFinancialHistory(corpCode)`가 최근 8개 정기보고서(연도×보고서코드)를 조회해 **매출·영업이익·순이익 + 전년동기%** 목록으로 표시(참고용, 분석 X). 분기·반기는 **누적(YTD)**. 검색은 `ensureCorpCodes()`가 DART `corpCode.xml`(zip)을 1회 다운로드→상장사만 캐시(`corp_codes.json`) 후 이름 검색. ⚠️ 검색은 **디바운스(350ms·2글자)+Mutex 단일화+스트리밍 파싱**(과거 입력마다 대용량 재다운로드→OOM 크래시 있었음).
 - **실적 뉴스·전망 (2026-07-06 개편)**: 국내는 정확한 실적 발표 예정일·컨센서스를 무료로 제공하지 않아, '예정일'을 맞추는 대신 **관심 종목의 '실적' 관련 뉴스 + AI 사전 전망**을 제공하도록 개편(이전 '실적 예정 일정' 탭 대체). 종목 카드 탭=AI 사전 전망(`generatePreReport`), **📰 실적 뉴스 보기**=`StockViewModel.loadEarningsNews()`→`NewsRepository.getNewsByKeyword("{종목} 실적")`→다이얼로그, 헤드라인 탭 시 원문을 외부 브라우저로 오픈. 날짜 배지는 `nextStatutoryDeadline()`의 **정기보고서 법정 제출기한(분기말+45일 등)** 을 '기한' 참고로만 표기(실제 발표일 아님).
 
 ### 로컬 캐시 파일 (`filesDir`)
 - `stock_prices_cache.json` — 시세 인메모리+파일 캐시
 - `earnings_disclosures_cache.json` — 공시 AI 요약 캐시(rcept_no 기준, 90일 TTL)
 - `expected_reports_cache.json` — 사전 전망 리포트 캐시(corp_name 기준)
+- `financial_history_cache.json` — 과거 실적 조회 캐시(corp_code 기준, 3일 TTL)
+- `corp_codes.json` — DART 전체 상장사 고유번호 캐시(회사 이름 검색용, corpCode.xml에서 1회 생성)
 - `favorite_disclosures.json` / `hidden_disclosures.json` — 즐겨찾기/숨김 공시
 
 ### AI 분석 완료 안내 (StockViewModel)
