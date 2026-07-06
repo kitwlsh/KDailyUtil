@@ -383,14 +383,26 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
         _financialHistoryTitle.value = ""
     }
 
-    /** 회사 이름으로 상장사를 검색한다(corpCode.xml, 최초 1회 다운로드). */
+    private var searchJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * 회사 이름으로 상장사를 검색한다(corpCode.xml, 최초 1회 다운로드).
+     * 입력마다 즉시 실행하지 않고 디바운스(350ms)+최소 2글자 — 대용량 다운로드 중복/과부하 방지.
+     */
     fun searchCompany(query: String) {
-        viewModelScope.launch {
-            if (query.isBlank()) { _corpSearchResults.value = emptyList(); return@launch }
+        searchJob?.cancel()
+        val q = query.trim()
+        if (q.length < 2) {
+            _corpSearchResults.value = emptyList()
+            _corpSearchLoading.value = false
+            return
+        }
+        searchJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(350)
             _corpSearchLoading.value = true
             try {
                 val apiKey = settingsRepository.dartApiKeyFlow.first()
-                _corpSearchResults.value = stockRepository.searchCorpByName(query, apiKey, limit = 30)
+                _corpSearchResults.value = stockRepository.searchCorpByName(q, apiKey, limit = 30)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 회사 검색 실패: ${e.message}")
             } finally {

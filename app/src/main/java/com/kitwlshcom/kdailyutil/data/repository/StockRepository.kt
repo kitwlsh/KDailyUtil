@@ -11,10 +11,10 @@ import com.kitwlshcom.kdailyutil.data.model.CorpEntry
 import com.kitwlshcom.kdailyutil.data.model.StockChartData
 import com.kitwlshcom.kdailyutil.data.model.StockPriceItem
 import java.io.ByteArrayInputStream
-import java.io.StringReader
 import java.util.zip.ZipInputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import org.jsoup.Jsoup
@@ -692,40 +692,46 @@ class StockRepository(private val context: Context) {
     private val corpCodeCacheFile: File
         get() = File(context.filesDir, "corp_codes.json")
 
-    /** DART 전체 고유번호 파일(zip)을 1회 받아 상장사(stock_code 존재)만 로컬 캐시로 저장. */
+    private val corpCodeMutex = kotlinx.coroutines.sync.Mutex()
+
+    /** DART 전체 고유번호 파일(zip)을 1회만 받아 상장사(stock_code 존재)만 로컬 캐시로 저장. (동시요청 단일화) */
     suspend fun ensureCorpCodes(apiKey: String): Boolean = withContext(Dispatchers.IO) {
         if (corpCodeCacheFile.exists() && corpCodeCacheFile.length() > 100) return@withContext true
-        val resolvedKey = apiKey.ifBlank { com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY }
-        return@withContext try {
-            val url = "https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=$resolvedKey"
-            val bytes = Jsoup.connect(url).ignoreContentType(true).maxBodySize(0).timeout(30000).execute().bodyAsBytes()
-            ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
-                var entry = zip.nextEntry
-                while (entry != null) {
-                    if (entry.name.endsWith(".xml", ignoreCase = true)) {
-                        val xml = zip.readBytes().toString(Charsets.UTF_8)
-                        val listed = parseCorpCodeXml(xml)
-                        val arr = JSONArray()
-                        listed.forEach { arr.put(JSONObject().put("c", it.corpCode).put("n", it.corpName).put("s", it.stockCode)) }
-                        corpCodeCacheFile.writeText(arr.toString(), StandardCharsets.UTF_8)
-                        Log.d(TAG, "✅ corpCode 캐시 저장: ${listed.size}개 상장사")
-                        return@withContext true
+        corpCodeMutex.withLock {
+            // 락 획득 후 재확인 — 앞선 요청이 이미 받아놨으면 스킵(중복 다운로드 방지)
+            if (corpCodeCacheFile.exists() && corpCodeCacheFile.length() > 100) return@withLock true
+            val resolvedKey = apiKey.ifBlank { com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY }
+            try {
+                val url = "https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=$resolvedKey"
+                val bytes = Jsoup.connect(url).ignoreContentType(true).maxBodySize(0).timeout(30000).execute().bodyAsBytes()
+                ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
+                    var entry = zip.nextEntry
+                    while (entry != null) {
+                        if (entry.name.endsWith(".xml", ignoreCase = true)) {
+                            // 대용량 String을 만들지 않고 zip 스트림에서 바로 파싱(메모리 절약)
+                            val listed = parseCorpCodeStream(zip)
+                            val arr = JSONArray()
+                            listed.forEach { arr.put(JSONObject().put("c", it.corpCode).put("n", it.corpName).put("s", it.stockCode)) }
+                            corpCodeCacheFile.writeText(arr.toString(), StandardCharsets.UTF_8)
+                            Log.d(TAG, "✅ corpCode 캐시 저장: ${listed.size}개 상장사")
+                            return@withLock true
+                        }
+                        entry = zip.nextEntry
                     }
-                    entry = zip.nextEntry
                 }
+                false
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ corpCode 다운로드 실패: ${e.message}")
+                false
             }
-            false
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ corpCode 다운로드 실패: ${e.message}")
-            false
         }
     }
 
-    private fun parseCorpCodeXml(xml: String): List<CorpEntry> {
+    private fun parseCorpCodeStream(input: java.io.InputStream): List<CorpEntry> {
         val result = ArrayList<CorpEntry>(4000)
         try {
             val parser = android.util.Xml.newPullParser()
-            parser.setInput(StringReader(xml))
+            parser.setInput(input, "UTF-8")
             var event = parser.eventType
             var cur = ""
             var corpCode = ""; var corpName = ""; var stockCode = ""
