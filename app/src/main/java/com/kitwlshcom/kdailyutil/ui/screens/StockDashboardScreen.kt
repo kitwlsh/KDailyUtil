@@ -101,7 +101,7 @@ fun StockDashboardScreen(
     viewModel: StockViewModel = viewModel()
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("시세 및 차트", "AI 실적 공시", "실적 예정 일정")
+    val tabs = listOf("시세 및 차트", "AI 실적 공시", "실적보고 기한")
 
     // 알림/인앱 배너에서 특정 서브탭으로 이동 요청을 받으면 전환
     val requestedSubTab by viewModel.requestedStockSubTab.collectAsState()
@@ -1460,7 +1460,7 @@ fun ExpectedCalendarTab(viewModel: StockViewModel, isLoading: Boolean) {
         ) {
             item {
                 Text(
-                    text = "ℹ️ 12월 결산 정기보고서 법정 제출기한 기준 예상일입니다. 실제 발표(잠정실적)는 기한보다 이를 수 있습니다.",
+                    text = "ℹ️ 실제 '실적 발표일'이 아니라, 12월 결산 정기보고서(반기·분기·사업보고서)의 법정 제출기한입니다. 삼성전자 등 일부 대기업은 잠정실적을 이보다 훨씬 이르게(예: 분기 종료 직후) 자율 발표합니다.",
                     fontSize = 11.sp,
                     color = Color.Gray,
                     modifier = Modifier.padding(vertical = 4.dp)
@@ -1508,7 +1508,7 @@ fun ExpectedEarningsCard(item: ExpectedEarnings, onClick: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("예상", fontSize = 9.sp, color = Gold24K, fontWeight = FontWeight.Bold)
+                    Text("기한", fontSize = 9.sp, color = Gold24K, fontWeight = FontWeight.Bold)
                     Text(item.release_date, fontSize = 14.sp, color = Gold24K, fontWeight = FontWeight.ExtraBold)
                 }
             }
