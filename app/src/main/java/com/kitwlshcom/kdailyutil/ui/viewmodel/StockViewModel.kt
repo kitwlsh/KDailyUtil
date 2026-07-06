@@ -30,10 +30,19 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settingsRepository = SettingsRepository(application)
     private val stockRepository = StockRepository(application)
+    private val newsRepository = com.kitwlshcom.kdailyutil.data.repository.NewsRepository(application)
 
     companion object {
         private const val TAG = "StockViewModel"
     }
+
+    // 실적 뉴스·전망: 종목별 '실적' 관련 뉴스
+    private val _earningsNews = MutableStateFlow<List<com.kitwlshcom.kdailyutil.data.model.NewsItem>>(emptyList())
+    val earningsNews: StateFlow<List<com.kitwlshcom.kdailyutil.data.model.NewsItem>> = _earningsNews.asStateFlow()
+    private val _earningsNewsTitle = MutableStateFlow("")
+    val earningsNewsTitle: StateFlow<String> = _earningsNewsTitle.asStateFlow()
+    private val _earningsNewsLoading = MutableStateFlow(false)
+    val earningsNewsLoading: StateFlow<Boolean> = _earningsNewsLoading.asStateFlow()
 
     private val _stockPrices = MutableStateFlow<List<StockPriceItem>>(emptyList())
     val stockPrices: StateFlow<List<StockPriceItem>> = _stockPrices.asStateFlow()
@@ -306,6 +315,27 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 _isExpectedLoading.value = false
             }
         }
+    }
+
+    /** 종목의 '실적' 관련 뉴스를 불러온다. (예상·전망 기사 확인용) */
+    fun loadEarningsNews(corpName: String) {
+        viewModelScope.launch {
+            _earningsNewsTitle.value = corpName
+            _earningsNewsLoading.value = true
+            _earningsNews.value = emptyList()
+            try {
+                _earningsNews.value = newsRepository.getNewsByKeyword("$corpName 실적", 15)
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ 실적 뉴스 로드 실패: ${e.message}")
+            } finally {
+                _earningsNewsLoading.value = false
+            }
+        }
+    }
+
+    fun clearEarningsNews() {
+        _earningsNews.value = emptyList()
+        _earningsNewsTitle.value = ""
     }
 
     /**

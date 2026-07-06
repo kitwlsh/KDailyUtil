@@ -101,7 +101,7 @@ fun StockDashboardScreen(
     viewModel: StockViewModel = viewModel()
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("시세 및 차트", "AI 실적 공시", "실적보고 기한")
+    val tabs = listOf("시세 및 차트", "AI 실적 공시", "실적 뉴스·전망")
 
     // 알림/인앱 배너에서 특정 서브탭으로 이동 요청을 받으면 전환
     val requestedSubTab by viewModel.requestedStockSubTab.collectAsState()
@@ -1329,6 +1329,62 @@ fun ExpectedCalendarTab(viewModel: StockViewModel, isLoading: Boolean) {
     var isGeneratingReport by remember { mutableStateOf(false) }
     var selectedExpected by remember { mutableStateOf<ExpectedEarnings?>(null) }
 
+    // 실적 뉴스·전망: 종목별 '실적' 뉴스 다이얼로그
+    val earningsNews by viewModel.earningsNews.collectAsState()
+    val earningsNewsTitle by viewModel.earningsNewsTitle.collectAsState()
+    val earningsNewsLoading by viewModel.earningsNewsLoading.collectAsState()
+    var showNewsDialog by remember { mutableStateOf(false) }
+    val newsCtx = androidx.compose.ui.platform.LocalContext.current
+
+    if (showNewsDialog) {
+        AlertDialog(
+            onDismissRequest = { showNewsDialog = false; viewModel.clearEarningsNews() },
+            title = { Text("📰 ${earningsNewsTitle} 실적 뉴스", fontWeight = FontWeight.Bold, color = Gold24K) },
+            text = {
+                when {
+                    earningsNewsLoading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(color = Gold24K, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("실적 관련 뉴스를 불러오는 중…", color = Color.White.copy(0.8f), fontSize = 13.sp)
+                    }
+                    earningsNews.isEmpty() -> Text("관련 뉴스를 찾지 못했어요. 잠시 후 다시 시도해 주세요.", color = Color.White.copy(0.8f), fontSize = 13.sp)
+                    else -> LazyColumn(
+                        modifier = Modifier.heightIn(max = 420.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(earningsNews) { n ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val url = n.resolvedUrl.ifBlank { n.link }
+                                        if (url.startsWith("http")) {
+                                            try {
+                                                newsCtx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                                            } catch (e: Exception) {
+                                                android.widget.Toast.makeText(newsCtx, "브라우저를 열 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(alpha = 0.85f)),
+                                border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(alpha = 0.15f))
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Text(n.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                                    Spacer(Modifier.height(2.dp))
+                                    Text("${n.source} · ${n.pubDate}", color = Color.White.copy(0.5f), fontSize = 10.sp, maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showNewsDialog = false; viewModel.clearEarningsNews() }) { Text("닫기", color = Gold24K) }
+            }
+        )
+    }
+
     // 탭이 보이는 동안만 active=true → 백그라운드/다른 메뉴에서 완료 시 알림·배너로 안내
     DisposableEffect(Unit) {
         viewModel.setExpectedTabActive(true)
@@ -1460,38 +1516,46 @@ fun ExpectedCalendarTab(viewModel: StockViewModel, isLoading: Boolean) {
         ) {
             item {
                 Text(
-                    text = "ℹ️ 실제 '실적 발표일'이 아니라, 12월 결산 정기보고서(반기·분기·사업보고서)의 법정 제출기한입니다. 삼성전자 등 일부 대기업은 잠정실적을 이보다 훨씬 이르게(예: 분기 종료 직후) 자율 발표합니다.",
+                    text = "ℹ️ 관심 종목의 '실적' 관련 뉴스와 AI 전망을 모았습니다. 카드를 누르면 AI 사전 전망, [📰 실적 뉴스]로 예상·전망 기사를 확인하세요. (표시된 날짜는 실제 발표일이 아니라 정기보고서 법정 제출기한 참고)",
                     fontSize = 11.sp,
                     color = Color.Gray,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
             items(expectedEarnings) { item ->
-                ExpectedEarningsCard(item) {
-                    selectedExpected = item
-                    isGeneratingReport = true
-                    viewModel.generatePreReport(item) { report ->
-                        isGeneratingReport = false
-                        reportContent = report
-                        reportTitle = item.corp_name
-                        showReportDialog = true
+                ExpectedEarningsCard(
+                    item = item,
+                    onNews = {
+                        viewModel.loadEarningsNews(item.corp_name)
+                        showNewsDialog = true
+                    },
+                    onReport = {
+                        selectedExpected = item
+                        isGeneratingReport = true
+                        viewModel.generatePreReport(item) { report ->
+                            isGeneratingReport = false
+                            reportContent = report
+                            reportTitle = item.corp_name
+                            showReportDialog = true
+                        }
                     }
-                }
+                )
             }
         }
     }
 }
 
 @Composable
-fun ExpectedEarningsCard(item: ExpectedEarnings, onClick: () -> Unit) {
+fun ExpectedEarningsCard(item: ExpectedEarnings, onNews: () -> Unit, onReport: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClick = onReport),
         colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(alpha = 0.85f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(alpha = 0.15f))
     ) {
+      Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1537,9 +1601,19 @@ fun ExpectedEarningsCard(item: ExpectedEarnings, onClick: () -> Unit) {
 
             Icon(
                 imageVector = Icons.Default.ChevronRight,
-                contentDescription = "사전 리포트 보기",
+                contentDescription = "AI 사전 전망 보기",
                 tint = Gold24K.copy(alpha = 0.7f)
             )
         }
+        HorizontalDivider(color = Gold24K.copy(alpha = 0.12f))
+        TextButton(
+            onClick = onNews,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+        ) {
+            Text("📰 실적 뉴스 보기", color = Gold24K, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+      }
     }
 }
