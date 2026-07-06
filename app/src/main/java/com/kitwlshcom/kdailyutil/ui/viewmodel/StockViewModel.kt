@@ -284,7 +284,17 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 val ids = raw.map { it.rcept_no }.toSet()
                 favorites.forEach { if (it.rcept_no !in ids) raw.add(it) }
 
-                var merged = raw.map { it.copy(isFavorite = it.rcept_no in favIds) }
+                // 이미 분석한 AI 결과(요약/뱃지)를 rcept_no로 복원 — 조회기간 변경 등으로 새로 가져와도 초기화되지 않도록.
+                // (AI 재분석은 '새로고침' 또는 재분석 버튼에서만 일어남)
+                val cachedById = stockRepository.loadCachedDisclosures().associateBy { it.rcept_no }
+                var merged = raw.map { item ->
+                    val cached = cachedById[item.rcept_no]
+                    val cachedSummary = cached?.aiSummary
+                    val restored = if (item.aiSummary.isNullOrBlank() && !cachedSummary.isNullOrBlank()) {
+                        item.copy(aiSummary = cachedSummary, isSurprise = cached!!.isSurprise, isTurnaround = cached.isTurnaround)
+                    } else item
+                    restored.copy(isFavorite = restored.rcept_no in favIds)
+                }
                 if (!_showHidden.value) merged = merged.filter { it.rcept_no !in hidden }
                 // 즐겨찾기 우선 → 최신 날짜순
                 merged = merged.sortedWith(

@@ -1224,10 +1224,11 @@ fun DisclosureCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = if (item.isFavorite) Gold24K.copy(alpha = 0.10f) else DeepCharcoal.copy(alpha = 0.85f)
+            // 즐겨찾기도 '투명'이 아니라 불투명 골드 강조로(가독성 확보, 뒤 엠블럼이 비치지 않도록)
+            containerColor = if (item.isFavorite) Color(0xFF2E2814) else DeepCharcoal.copy(alpha = 0.85f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(alpha = if (item.isFavorite) 0.4f else 0.15f))
+        border = androidx.compose.foundation.BorderStroke(if (item.isFavorite) 1.dp else 0.5.dp, Gold24K.copy(alpha = if (item.isFavorite) 0.5f else 0.15f))
     ) {
         Column(modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 12.dp)) {
             Row(
