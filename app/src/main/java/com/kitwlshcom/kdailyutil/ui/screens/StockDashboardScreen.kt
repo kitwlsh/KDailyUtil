@@ -1150,7 +1150,13 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // 검색·조회기간·숨김보기 헤더 — 회사 리스트와 함께 스크롤(위로 올리면 목록이 화면을 꽉 채움)
+        item {
+          Column {
         // 회사명으로 과거 실적 검색 (리스트에 없는 회사도 이름으로 조회)
         OutlinedTextField(
             value = searchQuery,
@@ -1264,43 +1270,44 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
                 )
             )
         }
+          }
+        }
 
         if (isLoading && disclosures.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Gold24K)
+            item {
+                Box(modifier = Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Gold24K)
+                }
             }
         } else if (disclosures.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("선택한 기간 동안 등록된 실적 공시가 없습니다.", color = Color.Gray)
+            item {
+                Box(modifier = Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
+                    Text("선택한 기간 동안 등록된 실적 공시가 없습니다.", color = Color.Gray)
+                }
             }
         } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(disclosures) { item ->
-                    DisclosureCard(
-                        item = item,
-                        isHidden = item.rcept_no in hiddenIds,
-                        onClick = {
-                            viewModel.summarizeDisclosure(item) { success, result ->
-                                if (success) {
-                                    reportContent = result
-                                    reportTitle = item.corp_name
-                                    showReportDialog = true
-                                } else {
-                                    android.widget.Toast.makeText(context, result, android.widget.Toast.LENGTH_LONG).show()
-                                }
+            items(disclosures) { item ->
+                DisclosureCard(
+                    item = item,
+                    isHidden = item.rcept_no in hiddenIds,
+                    onClick = {
+                        viewModel.summarizeDisclosure(item) { success, result ->
+                            if (success) {
+                                reportContent = result
+                                reportTitle = item.corp_name
+                                showReportDialog = true
+                            } else {
+                                android.widget.Toast.makeText(context, result, android.widget.Toast.LENGTH_LONG).show()
                             }
-                        },
-                        onToggleFavorite = { viewModel.toggleFavorite(item) },
-                        onToggleHidden = { viewModel.toggleHidden(item) },
-                        onHistory = {
-                            viewModel.loadFinancialHistory(item.corp_code, item.corp_name)
-                            showHistoryDialog = true
                         }
-                    )
-                }
+                    },
+                    onToggleFavorite = { viewModel.toggleFavorite(item) },
+                    onToggleHidden = { viewModel.toggleHidden(item) },
+                    onHistory = {
+                        viewModel.loadFinancialHistory(item.corp_code, item.corp_name)
+                        showHistoryDialog = true
+                    }
+                )
             }
         }
     }
