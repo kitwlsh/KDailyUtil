@@ -126,7 +126,7 @@ class QuizFileHandler {
                     questionsList.add(
                         QuizQuestion(
                             id = uniqueId,
-                            type = QuizType.valueOf(obj.getString("type")),
+                            type = QuizType.fromRaw(obj.optString("type"), optionsList != null),
                             category = category,
                             subCategory = obj.optString("subCategory", ""),
                             question = baseQuestion,

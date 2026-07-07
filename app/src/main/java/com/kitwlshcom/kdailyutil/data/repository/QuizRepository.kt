@@ -74,19 +74,23 @@ class QuizRepository {
      * 앱 시작 시 또는 특정 화면 진입 시 호출하여 인터넷에서 최신 JSON을 다운로드해 로컬에 캐시합니다.
      */
     suspend fun syncRemoteQuizzes(context: Context) = withContext(Dispatchers.IO) {
-        val allRemoteQuizzes = mutableListOf<QuizQuestion>()
-        
+        val freshQuizzes = mutableListOf<QuizQuestion>()   // 이번에 성공적으로 받은 문항
+        val syncedCategories = mutableSetOf<String>()       // 이번에 성공적으로 받은 파일이 담고 있던 카테고리
+        var anySuccess = false
+
         for (fileName in QUIZ_FILES) {
             try {
                 val url = URL(REMOTE_BASE_URL + fileName)
                 val connection = url.openConnection() as HttpURLConnection
                 connection.connectTimeout = 5000
                 connection.readTimeout = 5000
-                
+
                 if (connection.responseCode == 200) {
                     val jsonString = connection.inputStream.bufferedReader().use { it.readText() }
                     val quizzes = parseQuizzes(jsonString)
-                    allRemoteQuizzes.addAll(quizzes)
+                    anySuccess = true
+                    freshQuizzes.addAll(quizzes)
+                    quizzes.forEach { syncedCategories.add(it.category) }
                     Log.d(TAG, "✅ Synced $fileName: ${quizzes.size} questions")
                 }
             } catch (e: Exception) {
@@ -94,52 +98,77 @@ class QuizRepository {
             }
         }
 
-        if (allRemoteQuizzes.isNotEmpty()) {
-            val file = File(context.filesDir, QUIZ_CACHE_FILE)
-            val jsonArray = JSONArray()
-            allRemoteQuizzes.forEach { q ->
-                val obj = JSONObject().apply {
-                    put("id", q.id)
-                    put("type", q.type.name)
-                    put("category", q.category)
-                    put("subCategory", q.subCategory)
-                    put("question", q.question)
-                    put("answer", q.answer)
-                    put("explanation", q.explanation)
-                    put("semanticHint", q.semanticHint)
-                    put("imageUrl", q.imageUrl)
-                    q.options?.let { put("options", JSONArray(it)) }
-                }
-                jsonArray.put(obj)
-            }
-            file.writeText(jsonArray.toString())
-            Log.d(TAG, "🚀 Total ${allRemoteQuizzes.size} quizzes saved to cache.")
+        // 하나도 못 받았으면(완전 오프라인 등) 기존 캐시를 건드리지 않는다 — last-good 보존.
+        if (!anySuccess) {
+            Log.w(TAG, "⚠️ 동기화 성공한 파일이 없어 기존 캐시를 유지합니다.")
+            return@withContext
         }
+
+        val file = File(context.filesDir, QUIZ_CACHE_FILE)
+
+        // 기존 캐시에서 '이번에 성공적으로 갱신된 카테고리'는 신선 데이터로 교체하고,
+        // '이번에 못 받은(실패한) 파일의 카테고리'는 예전 캐시를 그대로 유지한다.
+        // (예: 통신 일시 실패로 knowledge.json만 못 받아도 상식백과가 캐시에서 증발하지 않음)
+        val merged = mutableListOf<QuizQuestion>()
+        if (file.exists()) {
+            try {
+                val existing = parseQuizzes(file.readText())
+                merged.addAll(existing.filter { it.category !in syncedCategories })
+            } catch (e: Exception) {
+                Log.e(TAG, "기존 캐시 병합 실패(무시하고 신선 데이터만 저장): ${e.message}")
+            }
+        }
+        merged.addAll(freshQuizzes)
+
+        val jsonArray = JSONArray()
+        merged.forEach { q ->
+            val obj = JSONObject().apply {
+                put("id", q.id)
+                put("type", q.type.name)
+                put("category", q.category)
+                put("subCategory", q.subCategory)
+                put("question", q.question)
+                put("answer", q.answer)
+                put("explanation", q.explanation)
+                put("semanticHint", q.semanticHint)
+                put("imageUrl", q.imageUrl)
+                q.options?.let { put("options", JSONArray(it)) }
+            }
+            jsonArray.put(obj)
+        }
+        file.writeText(jsonArray.toString())
+        Log.d(TAG, "🚀 캐시 저장: 신선 ${freshQuizzes.size} + 유지 ${merged.size - freshQuizzes.size} = 총 ${merged.size}문항 (갱신 카테고리: $syncedCategories)")
     }
 
     private fun parseQuizzes(jsonText: String): List<QuizQuestion> {
         val list = mutableListOf<QuizQuestion>()
         val jsonArray = JSONArray(jsonText)
         for (i in 0 until jsonArray.length()) {
-            val obj = jsonArray.getJSONObject(i)
-            val optionsArray = obj.optJSONArray("options")
-            val optionsList = if (optionsArray != null) {
-                List(optionsArray.length()) { idx -> optionsArray.getString(idx) }
-            } else null
-            list.add(
-                QuizQuestion(
-                    id = obj.getInt("id"),
-                    type = QuizType.valueOf(obj.getString("type")),
-                    category = obj.getString("category"),
-                    subCategory = obj.optString("subCategory", ""),
-                    question = obj.getString("question"),
-                    options = optionsList,
-                    answer = obj.getString("answer"),
-                    explanation = obj.getString("explanation"),
-                    semanticHint = obj.optString("semanticHint", ""),
-                    imageUrl = obj.optString("imageUrl", "")
+            // 문항 1건이 손상돼도 해당 문항만 건너뛰고 나머지는 살린다.
+            // (예전엔 한 문항의 type 오타로 카테고리 파일 전체가 통째로 버려져 화면이 비었음)
+            try {
+                val obj = jsonArray.getJSONObject(i)
+                val optionsArray = obj.optJSONArray("options")
+                val optionsList = if (optionsArray != null) {
+                    List(optionsArray.length()) { idx -> optionsArray.getString(idx) }
+                } else null
+                list.add(
+                    QuizQuestion(
+                        id = obj.getInt("id"),
+                        type = QuizType.fromRaw(obj.optString("type"), optionsList != null),
+                        category = obj.getString("category"),
+                        subCategory = obj.optString("subCategory", ""),
+                        question = obj.getString("question"),
+                        options = optionsList,
+                        answer = obj.getString("answer"),
+                        explanation = obj.optString("explanation", ""),
+                        semanticHint = obj.optString("semanticHint", ""),
+                        imageUrl = obj.optString("imageUrl", "")
+                    )
                 )
-            )
+            } catch (e: Exception) {
+                Log.e(TAG, "⚠️ 손상된 퀴즈 문항 건너뜀 (index=$i): ${e.message}")
+            }
         }
         return list
     }

@@ -144,6 +144,18 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             
+            // 문항이 하나도 없으면 PLAYING으로 넘어가지 않는다.
+            // (넘어가면 문제 화면이 아무것도 못 그려 '빈 화면'처럼 보임 — 데이터 미동기화/파싱 실패 대비 최후 방어선)
+            if (uniqueQuestions.isEmpty()) {
+                android.widget.Toast.makeText(
+                    getApplication(),
+                    "표시할 문제가 없어요. 인터넷 연결 후 잠시 뒤 다시 시도해 주세요.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                _quizState.value = QuizState.CATEGORY_SELECTION
+                return@launch
+            }
+
             _questions.value = uniqueQuestions.take(10)
             _currentIndex.value = 0
             _score.value = 0
@@ -180,7 +192,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                     aiQuestions.add(
                         QuizQuestion(
                             id = 1000 + i,
-                            type = QuizType.valueOf(obj.getString("type")),
+                            type = QuizType.fromRaw(obj.optString("type"), optionsList != null),
                             category = "AI 자동 생성",
                             subCategory = topic,
                             question = obj.getString("question"),
@@ -663,7 +675,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                     aiQuestions.add(
                         QuizQuestion(
                             id = uniqueId,
-                            type = QuizType.valueOf(obj.getString("type")),
+                            type = QuizType.fromRaw(obj.optString("type"), optionsList != null),
                             category = categoryName,
                             subCategory = obj.optString("subCategory", "AI 이미지 분석"),
                             question = baseQuestion,

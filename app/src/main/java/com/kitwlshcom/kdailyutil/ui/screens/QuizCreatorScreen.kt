@@ -945,7 +945,7 @@ fun ImageScannerTab(
                                     list.add(
                                         QuizQuestion(
                                             id = uniqueId,
-                                            type = QuizType.valueOf(obj.getString("type")),
+                                            type = QuizType.fromRaw(obj.optString("type"), optionsList != null),
                                             category = categoryName,
                                             subCategory = obj.optString("subCategory", if (isVisualQuizType) "그림 매칭" else "AI 이미지 분석"),
                                             question = baseQuestion,
@@ -1246,7 +1246,7 @@ fun WebCrawlingTab(
                                     list.add(
                                         QuizQuestion(
                                             id = uniqueId,
-                                            type = QuizType.valueOf(obj.getString("type")),
+                                            type = QuizType.fromRaw(obj.optString("type"), optionsList != null),
                                             category = categoryName,
                                             subCategory = "인터넷 크롤링 분석",
                                             question = baseQuestion,
