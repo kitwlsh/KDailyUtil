@@ -125,6 +125,13 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // 시스템 뒤로가기용: 분야 선택 화면에서 한 단계 더 뒤로(초기 화면)로 이동.
+    fun backToIdle()
+    {
+        _selectedCategory.value = null
+        _quizState.value = QuizState.IDLE
+    }
+
     fun startQuiz() {
         viewModelScope.launch {
             val allQuestions = repository.getQuizzes(getApplication(), _selectedCategory.value)

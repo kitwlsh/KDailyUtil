@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -117,6 +118,11 @@ fun ReadingTrainingScreen(
     var module by remember { mutableStateOf(ReadingModule.HUB) }
     var passage by remember { mutableStateOf(PRACTICE_PASSAGES.random()) }
     var lastWpm by remember { mutableStateOf(0) }
+
+    // 시스템 뒤로가기: 훈련 모듈 진행 중이면 곧장 뉴스탭으로 나가지 않고 독서 허브로 돌아간다.
+    BackHandler(enabled = module != ReadingModule.HUB) {
+        module = ReadingModule.HUB
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         when (module) {

@@ -43,6 +43,7 @@ import com.kitwlshcom.kdailyutil.ui.viewmodel.QuizState
 import com.kitwlshcom.kdailyutil.ui.viewmodel.QuizViewModel
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -57,6 +58,15 @@ fun QuizScreen(
     viewModel: QuizViewModel = viewModel()
 ) {
     val quizState by viewModel.quizState.collectAsState()
+
+    // 시스템 뒤로가기: 퀴즈 내부 단계를 먼저 되짚는다(곧장 뉴스탭으로 튕기지 않도록).
+    //  문제 풀이/생성/결과/크리에이터 → 분야 선택,  분야 선택 → 초기 화면,  초기 화면(IDLE) → 기본 동작(배움터 이탈).
+    BackHandler(enabled = quizState != QuizState.IDLE) {
+        when (quizState) {
+            QuizState.CATEGORY_SELECTION -> viewModel.backToIdle()
+            else -> viewModel.selectCategory(null)
+        }
+    }
 
     Box(
         modifier = Modifier
