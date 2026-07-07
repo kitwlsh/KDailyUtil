@@ -136,18 +136,15 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val allQuestions = repository.getQuizzes(getApplication(), _selectedCategory.value)
             
-            // 정답이 중복되거나 매우 유사한 문제 제거 (공백, 괄호, 기호 무시)
+            // 같은 '질문'이 반복 출제되지 않게만 걸러낸다.
+            // (예전엔 '정답' 기준으로 걸러서, 정답이 비어있는 문제 - 예: 그림 매칭 퀴즈 - 가
+            //  통째로 사라질 수 있었음. 정답 기준 중복 제거는 이미 QuizRepository.getQuizzes(dedupeQuizzes)가 처리함)
             val uniqueQuestions = mutableListOf<QuizQuestion>()
-            val seenAnswers = mutableSetOf<String>()
+            val seenQuestions = mutableSetOf<String>()
             for (q in allQuestions) {
-                val normalizedAnswer = q.answer
-                    .replace(Regex("\\(.*?\\)"), "") // 괄호 제거
-                    .replace(" ", "")                // 공백 제거
-                    .replace(Regex("[^a-zA-Z0-9가-힣]"), "") // 기호 및 특수문자 제거
-                    .lowercase()
-                if (normalizedAnswer.isNotEmpty() && !seenAnswers.contains(normalizedAnswer)) {
+                val normalizedQuestion = q.question.replace(Regex("\\s+"), "").lowercase()
+                if (normalizedQuestion.isNotEmpty() && seenQuestions.add(normalizedQuestion)) {
                     uniqueQuestions.add(q)
-                    seenAnswers.add(normalizedAnswer)
                 }
             }
             
