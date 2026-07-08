@@ -272,6 +272,9 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * DART 실적 공시 리스트를 로드합니다.
      */
+    // 같은 회사 판별 키(고유번호 우선, 없으면 회사명)
+    private fun corpKey(d: EarningsDisclosure) = d.corp_code.ifBlank { d.corp_name }
+
     fun loadDisclosures(forceRefresh: Boolean = false) {
         viewModelScope.launch {
             _isDisclosuresLoading.value = true
@@ -308,7 +311,21 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                     } else item
                     restored.copy(isFavorite = restored.rcept_no in favIds)
                 }
-                if (!_showHidden.value) merged = merged.filter { it.rcept_no !in hidden }
+                if (!_showHidden.value) {
+                    merged = merged.filter { it.rcept_no !in hidden }
+
+                    // 같은 회사는 가장 최근(접수일) 공시 1건만 노출한다.
+                    // (기재정정 등으로 같은 회사의 과거연도 보고서가 여러 건 잡혀 중복돼 보이던 문제 방지)
+                    // 단, 즐겨찾기(★)한 항목은 특정 보고서를 고정한 것이므로 그대로 유지한다.
+                    // 숨김 보기 모드에서는 숨긴 항목을 찾아 해제할 수 있어야 하므로 이 축약을 적용하지 않는다.
+                    val favList = merged.filter { it.isFavorite }
+                    val favCorps = favList.map { corpKey(it) }.toSet()
+                    val latestPerCorp = merged
+                        .filter { !it.isFavorite && corpKey(it) !in favCorps }
+                        .groupBy { corpKey(it) }
+                        .map { (_, list) -> list.maxByOrNull { it.rcept_dt }!! }
+                    merged = favList + latestPerCorp
+                }
                 // 즐겨찾기 우선 → 최신 날짜순
                 merged = merged.sortedWith(
                     compareByDescending<EarningsDisclosure> { it.isFavorite }.thenByDescending { it.rcept_dt }

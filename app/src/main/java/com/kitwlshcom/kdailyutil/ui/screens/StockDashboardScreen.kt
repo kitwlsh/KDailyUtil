@@ -1001,7 +1001,11 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
                     financialHistory.isEmpty() -> Text("조회된 과거 실적이 없습니다. (DART에 재무 데이터가 없거나 비12월 결산일 수 있어요)", color = Color.White.copy(0.8f), fontSize = 13.sp)
                     else -> LazyColumn(modifier = Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         item {
-                            Text("매출·영업이익·당기순이익 (분기·반기는 누적). 괄호는 전년 동기 대비.", fontSize = 10.sp, color = Color.Gray)
+                            Text(
+                                "매출·영업이익·당기순이익 (분기·반기는 누적). 괄호는 전년 동기 대비.\n" +
+                                "각 카드 우측 '연결'=연결재무제표(자회사 실적 포함), '개별'=별도재무제표. (표시용 라벨이며 누르는 버튼 아님)",
+                                fontSize = 10.sp, color = Color.Gray
+                            )
                         }
                         items(financialHistory) { p ->
                             Card(
@@ -1010,7 +1014,10 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
                             ) {
                                 Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
                                     Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                                        Text(p.reportLabel, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
+                                        Column {
+                                            Text(p.reportLabel, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
+                                            Text("회계 기준 ${periodEndLabel(p.year, p.reprtCode)}", fontSize = 10.sp, color = Color.Gray)
+                                        }
                                         Text(p.fsDiv, fontSize = 10.sp, color = Gold24K.copy(0.8f))
                                     }
                                     Spacer(Modifier.height(4.dp))
@@ -1313,6 +1320,15 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
     }
 }
 
+// 정기보고서 코드 → 회계 기준월(회계기간 말). 실제 공시 접수일이 아니라 '어느 기간 실적인지' 표기용.
+private fun periodEndLabel(year: String, reprtCode: String): String = when (reprtCode) {
+    "11013" -> "$year.03"   // 1분기
+    "11012" -> "$year.06"   // 반기
+    "11014" -> "$year.09"   // 3분기
+    "11011" -> "$year.12"   // 사업(연간)
+    else -> year
+}
+
 @Composable
 fun DisclosureCard(
     item: EarningsDisclosure,
@@ -1330,7 +1346,12 @@ fun DisclosureCard(
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             // 즐겨찾기도 '투명'이 아니라 불투명 골드 강조로(가독성 확보, 뒤 엠블럼이 비치지 않도록)
-            containerColor = if (item.isFavorite) Color(0xFF2E2814) else DeepCharcoal.copy(alpha = 0.85f)
+            // 숨김 항목(숨김 보기 모드에서만 보임)은 흐리게 처리해 일반 항목과 구분.
+            containerColor = when {
+                isHidden -> Color(0xFF15171C)
+                item.isFavorite -> Color(0xFF2E2814)
+                else -> DeepCharcoal.copy(alpha = 0.85f)
+            }
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         border = androidx.compose.foundation.BorderStroke(if (item.isFavorite) 1.dp else 0.5.dp, Gold24K.copy(alpha = if (item.isFavorite) 0.5f else 0.15f))
@@ -1355,10 +1376,22 @@ fun DisclosureCard(
                         item.corp_name,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = Color.White,
+                        color = if (isHidden) Color.White.copy(alpha = 0.55f) else Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (isHidden) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "숨김",
+                            fontSize = 10.sp,
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .background(Gold24K.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                        )
+                    }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(dateText, fontSize = 11.sp, color = Color.Gray)
@@ -1668,7 +1701,9 @@ fun ExpectedCalendarTab(viewModel: StockViewModel, isLoading: Boolean) {
         ) {
             item {
                 Text(
-                    text = "ℹ️ 관심 종목의 '실적' 관련 뉴스와 AI 전망을 모았습니다. 카드를 누르면 AI 사전 전망, [📰 실적 뉴스]로 예상·전망 기사를 확인하세요. (표시된 날짜는 실제 발표일이 아니라 정기보고서 법정 제출기한 참고)",
+                    text = "ℹ️ 아래 목록은 '관심 종목' 중 한국 상장사(DART 등록)만 표시됩니다. 지수·해외·가상자산(예: 코스피·테슬라·비트코인)은 실적 공시가 없어 제외됩니다.\n" +
+                        "· 종목 추가/삭제: '시세 및 차트' 탭의 관심종목(＋·편집) 또는 설정 > 증시.\n" +
+                        "· 카드를 누르면 AI 사전 전망, [📰 실적 뉴스]로 예상·전망 기사를 확인하세요. (표시된 날짜는 실제 발표일이 아니라 정기보고서 법정 제출기한 참고)",
                     fontSize = 11.sp,
                     color = Color.Gray,
                     modifier = Modifier.padding(vertical = 4.dp)
