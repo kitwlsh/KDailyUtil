@@ -894,22 +894,39 @@ class StockRepository(private val context: Context) {
         }
     }
 
+    /**
+     * 숨김 공시를 '객체'로 읽는다. 즐겨찾기처럼 전체 정보를 저장해, 조회기간 밖의 옛 숨김 항목도
+     * '숨김 보기'에서 복원해 보여줄 수 있게 한다.
+     * 하위호환: 예전엔 rcept_no(문자열)만 배열로 저장했으므로, 문자열 원소도 최소 정보 객체로 읽는다.
+     */
     @Synchronized
-    fun loadHidden(): Set<String> {
-        if (!hiddenFile.exists()) return emptySet()
+    fun loadHiddenObjects(): List<EarningsDisclosure> {
+        if (!hiddenFile.exists()) return emptyList()
         return try {
             val arr = JSONArray(hiddenFile.readText(StandardCharsets.UTF_8))
-            (0 until arr.length()).map { arr.getString(it) }.toSet()
+            (0 until arr.length()).mapNotNull { i ->
+                when (val el = arr.opt(i)) {
+                    is JSONObject -> jsonToDisclosure(el)
+                    is String -> EarningsDisclosure(
+                        rcept_no = el, corp_code = "", corp_name = "", report_nm = "", flr_nm = "", rcept_dt = ""
+                    ) // 레거시(id만) — 회사명 등 정보 없음(캐시에서 보강 시도)
+                    else -> null
+                }
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to load hidden: ${e.message}"); emptySet()
+            Log.e(TAG, "❌ Failed to load hidden: ${e.message}"); emptyList()
         }
     }
 
     @Synchronized
-    fun saveHidden(ids: Set<String>) {
+    fun loadHidden(): Set<String> =
+        loadHiddenObjects().map { it.rcept_no }.filter { it.isNotBlank() }.toSet()
+
+    @Synchronized
+    fun saveHiddenObjects(list: List<EarningsDisclosure>) {
         try {
             val arr = JSONArray()
-            ids.forEach { arr.put(it) }
+            list.forEach { arr.put(disclosureToJson(it)) }
             hiddenFile.writeText(arr.toString(), StandardCharsets.UTF_8)
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to save hidden: ${e.message}")

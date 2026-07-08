@@ -1338,7 +1338,10 @@ fun DisclosureCard(
     onToggleHidden: () -> Unit = {},
     onHistory: () -> Unit = {}
 ) {
-    val dateText = "${item.rcept_dt.take(4)}.${item.rcept_dt.substring(4, 6)}.${item.rcept_dt.substring(6)}"
+    // 레거시 숨김 항목 등 rcept_dt가 비었거나 형식이 짧을 수 있으므로 방어적으로 포맷.
+    val dateText = if (item.rcept_dt.length >= 8)
+        "${item.rcept_dt.take(4)}.${item.rcept_dt.substring(4, 6)}.${item.rcept_dt.substring(6)}"
+    else item.rcept_dt
 
     Card(
         modifier = Modifier
@@ -1373,7 +1376,7 @@ fun DisclosureCard(
                     }
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        item.corp_name,
+                        item.corp_name.ifBlank { "(이전에 숨긴 공시)" },
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         color = if (isHidden) Color.White.copy(alpha = 0.55f) else Color.White,

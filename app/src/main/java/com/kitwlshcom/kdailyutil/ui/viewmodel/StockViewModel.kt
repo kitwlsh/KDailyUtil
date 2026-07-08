@@ -292,17 +292,29 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 val raw = stockRepository.fetchRecentDisclosures(bgnDe, endDe, apiKey).toMutableList()
                 val favorites = stockRepository.loadFavorites()
                 val favIds = favorites.map { it.rcept_no }.toSet()
-                val hidden = stockRepository.loadHidden()
+                val hiddenObjs = stockRepository.loadHiddenObjects()
+                val hidden = hiddenObjs.map { it.rcept_no }.filter { it.isNotBlank() }.toSet()
                 _favoriteIds.value = favIds
                 _hiddenIds.value = hidden
 
+                // AI 요약/회사명 등 복원·보강용 캐시
+                val cachedById = stockRepository.loadCachedDisclosures().associateBy { it.rcept_no }
+
                 // 즐겨찾기 항목이 조회 기간 밖이라 목록에 없으면 추가 (계속 보이도록)
-                val ids = raw.map { it.rcept_no }.toSet()
+                var ids = raw.map { it.rcept_no }.toSet()
                 favorites.forEach { if (it.rcept_no !in ids) raw.add(it) }
 
-                // 이미 분석한 AI 결과(요약/뱃지)를 rcept_no로 복원 — 조회기간 변경 등으로 새로 가져와도 초기화되지 않도록.
-                // (AI 재분석은 '새로고침' 또는 재분석 버튼에서만 일어남)
-                val cachedById = stockRepository.loadCachedDisclosures().associateBy { it.rcept_no }
+                // 숨김 보기 모드: 조회기간 밖의 옛 숨김 항목도 보이도록 강제 포함(객체 저장분).
+                // 레거시(id만 저장) 항목은 캐시에서 회사명 등 정보를 보강한다.
+                if (_showHidden.value) {
+                    ids = raw.map { it.rcept_no }.toSet()
+                    hiddenObjs.forEach { h ->
+                        if (h.rcept_no.isNotBlank() && h.rcept_no !in ids) {
+                            val enriched = if (h.corp_name.isBlank()) (cachedById[h.rcept_no] ?: h) else h
+                            raw.add(enriched)
+                        }
+                    }
+                }
                 var merged = raw.map { item ->
                     val cached = cachedById[item.rcept_no]
                     val cachedSummary = cached?.aiSummary
@@ -460,12 +472,17 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** 공시 숨김 토글 */
+    /** 공시 숨김 토글 (전체 객체를 저장 → 조회기간과 무관하게 '숨김 보기'에서 복원 가능) */
     fun toggleHidden(item: EarningsDisclosure) {
         viewModelScope.launch {
-            val hidden = stockRepository.loadHidden().toMutableSet()
-            if (item.rcept_no in hidden) hidden.remove(item.rcept_no) else hidden.add(item.rcept_no)
-            stockRepository.saveHidden(hidden)
+            val objs = stockRepository.loadHiddenObjects().toMutableList()
+            if (objs.any { it.rcept_no == item.rcept_no }) {
+                objs.removeAll { it.rcept_no == item.rcept_no }
+            } else {
+                objs.add(item.copy(isFavorite = false))
+            }
+            stockRepository.saveHiddenObjects(objs)
+            val hidden = objs.map { it.rcept_no }.filter { it.isNotBlank() }.toSet()
             _hiddenIds.value = hidden
             if (!_showHidden.value) {
                 _disclosures.value = _disclosures.value.filter { it.rcept_no !in hidden }
