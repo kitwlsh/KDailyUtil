@@ -4,7 +4,10 @@
 > 최종 업데이트: 2026-07-07
 
 > ### 🚩 지금 상태 (신규 세션 필독)
-> - **스토어 배포본 = v1.1 (versionCode 2)**. **소스는 v1.2(versionCode 3)로 상향 완료**([app/build.gradle.kts](../app/build.gradle.kts)). ⚠️ **AAB 재빌드 필요**: `391f93e`에서 빌드한 AAB 이후 증시 개선이 더 붙었으므로, **업로드 직전 `./gradlew.bat :app:bundleRelease` 재실행** 후 콘솔 업로드(프로덕션, 출시노트 작성→검토→출시).
+> - **스토어 배포본 = v1.1 (versionCode 2)**. **소스는 v1.2(versionCode 3)로 상향 완료**([app/build.gradle.kts](../app/build.gradle.kts)). **업로드용 AAB·출시노트 준비 완료 → Google Play 콘솔 업로드만 남음.**
+>   - 올릴 파일: [`app/release/kdailyutil-v1.2.aab`](../app/release/kdailyutil-v1.2.aab) (versionCode 3, 서명됨, 이번 세션 변경 전부 포함).
+>   - 출시노트/버전별 내역: [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md) (콘솔 '출시 노트'란 붙여넣기용 문구 포함).
+>   - 코드 수정 후 재빌드 시: `./gradlew.bat :app:bundleRelease` → 산출물을 `app/release/kdailyutil-v{버전}.aab`로 복사(파일명 관례).
 > - working tree 깨끗, `origin/main` 동기화됨.
 > - **v1.1 이후 주요 변경(= v1.2에 담길 분)**: 오디오 SAF 복구·미디어버튼·인터럽트 재개 / 뉴스 저작권 보수화 / 퀴즈 중복방지 3중화·AI 퀴즈 가이드·커스텀 편집·오류신고 게이팅 / 증시 '실적 뉴스·전망' 개편·과거 실적 조회+회사 검색·조회기간 AI캐시 복원·DART 키 도움말 / 탭 ＋빠른추가 / **(2026-07-07) 퀴즈 파싱 내구성·상식백과 복구·데이터 검증 CI·퀴즈/독서 뒤로가기·AI 실적공시 헤더통합 스크롤·동일회사 1건 축약·숨김 객체영속·과거실적 회계기준월·증시 키워드 2종 구분(설정 분리)**.
 > - **다음 후보**: **AAB 재빌드+업로드(프로덕션)+실기기 최종 점검**, (선택) 키워드 순서변경(Set→List), 과거실적 추세 종합 AI 코멘트, (선택) '시세 및 차트' 관심종목 편집 UI에도 두-목록 안내.
