@@ -48,6 +48,7 @@ fun MorningBriefingSettingsScreen(
     val apiKey by viewModel.geminiApiKey.collectAsState()
     val aiCommands by viewModel.aiBriefingCommands.collectAsState()
     val stockKeywords by viewModel.stockKeywords.collectAsState()
+    val watchStockKeywords by viewModel.watchStockKeywords.collectAsState()
     val aiAudioPath by viewModel.aiCommandAudioPath.collectAsState()
     val isRecording by viewModel.isRecordingCommand.collectAsState()
     val sttPartialText by viewModel.sttPartialText.collectAsState()
@@ -79,6 +80,7 @@ fun MorningBriefingSettingsScreen(
     var newKeyword by remember { mutableStateOf("") }
     var newCategory by remember { mutableStateOf("") }
     var newStockKeyword by remember { mutableStateOf("") }
+    var newWatchKeyword by remember { mutableStateOf("") }
     var newAiCommand by remember { mutableStateOf("") }
     var showTimePicker by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
@@ -235,8 +237,14 @@ fun MorningBriefingSettingsScreen(
 
         // ===== 증시 탭 (1) =====
         if (selectedSettingsTab == 1) {
-        // 증시 키워드 관리
-        Text("관심 증시/종목 (증시 서브 탭)", style = MaterialTheme.typography.titleMedium)
+        // ── 섹션 1: 뉴스탭 증시 서브탭 필터 키워드 (STOCK_KEYWORDS) ──
+        Text("📰 뉴스탭 · 증시 키워드", style = MaterialTheme.typography.titleMedium, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+        Text(
+            "‘뉴스’ 탭 > 증시 서브탭에 표시되는 뉴스 필터 키워드입니다. 지수·해외·가상자산(예: 나스닥·테슬라·비트코인)도 자유롭게 넣을 수 있어요.\n" +
+                "※ 아래 ‘증시 대시보드 관심종목’과는 서로 다른 목록입니다.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.White.copy(alpha = 0.6f)
+        )
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = newStockKeyword,
@@ -263,6 +271,58 @@ fun MorningBriefingSettingsScreen(
                     trailingIcon = {
                         IconButton(
                             onClick = { viewModel.updateStockKeywords(stockKeywords - keyword) },
+                            modifier = Modifier.size(16.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "삭제",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    },
+                    modifier = Modifier.padding(end = 4.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // ── 섹션 2: 증시 대시보드 관심종목 (WATCH_STOCK_KEYWORDS) ──
+        Text("📈 증시 대시보드 관심종목", style = MaterialTheme.typography.titleMedium, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+        Text(
+            "‘증시’ 탭의 시세·차트와 실적 뉴스·전망에 나오는 종목입니다. (증시 탭 > 시세 및 차트에서도 관리할 수 있어요)\n" +
+                "※ 시세 조회를 위해 실제 종목명/티커를 권장합니다(예: 삼성전자, AAPL, 비트코인). 실적 뉴스·전망에는 이 중 ‘한국 상장사’만 표시됩니다.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.White.copy(alpha = 0.6f)
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = newWatchKeyword,
+                onValueChange = { newWatchKeyword = it },
+                label = { Text("종목 추가 (예: 삼성전자, AAPL)") },
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = {
+                if (newWatchKeyword.isNotBlank()) {
+                    viewModel.updateWatchStockKeywords(watchStockKeywords + newWatchKeyword.trim())
+                    newWatchKeyword = ""
+                }
+            }) {
+                Icon(Icons.Default.Add, contentDescription = "추가")
+            }
+        }
+
+        LazyRow(modifier = Modifier.padding(vertical = 8.dp)) {
+            items(watchStockKeywords.toList()) { keyword ->
+                InputChip(
+                    selected = true,
+                    onClick = { },
+                    label = { Text(keyword) },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = { viewModel.updateWatchStockKeywords(watchStockKeywords - keyword) },
                             modifier = Modifier.size(16.dp)
                         ) {
                             Icon(

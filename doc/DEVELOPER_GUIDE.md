@@ -506,7 +506,15 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
   - **과거실적 다이얼로그(2026-07-07)**: 카드에 **회계 기준월**(`periodEndLabel`: 사업=YYYY.12/3분기=.09/반기=.06/1분기=.03) 표기, 캡션에 **연결=연결재무제표/개별=별도재무제표** 설명 추가('연결'은 라벨일 뿐 클릭 대상 아님).
 - **과거 실적 조회 + 회사 검색 (2026-07-06)**: 공시 카드의 **📊 과거실적** 또는 상단 **회사명 검색**(리스트에 없는 회사도) → `StockRepository.fetchFinancialHistory(corpCode)`가 최근 8개 정기보고서(연도×보고서코드)를 조회해 **매출·영업이익·순이익 + 전년동기%** 목록으로 표시(참고용, 분석 X). 분기·반기는 **누적(YTD)**. 검색은 `ensureCorpCodes()`가 DART `corpCode.xml`(zip)을 1회 다운로드→상장사만 캐시(`corp_codes.json`) 후 이름 검색. ⚠️ 검색은 **디바운스(350ms·2글자)+Mutex 단일화+스트리밍 파싱**(과거 입력마다 대용량 재다운로드→OOM 크래시 있었음).
 - **실적 뉴스·전망 (2026-07-06 개편)**: 국내는 정확한 실적 발표 예정일·컨센서스를 무료로 제공하지 않아, '예정일'을 맞추는 대신 **관심 종목의 '실적' 관련 뉴스 + AI 사전 전망**을 제공하도록 개편(이전 '실적 예정 일정' 탭 대체). 종목 카드 탭=AI 사전 전망(`generatePreReport`), **📰 실적 뉴스 보기**=`StockViewModel.loadEarningsNews()`→`NewsRepository.getNewsByKeyword("{종목} 실적")`→다이얼로그, 헤드라인 탭 시 원문을 외부 브라우저로 오픈. 날짜 배지는 `nextStatutoryDeadline()`의 **정기보고서 법정 제출기한(분기말+45일 등)** 을 '기한' 참고로만 표기(실제 발표일 아님).
-  - **목록 출처**: `fetchExpectedEarnings(watchNames)`가 `watchStockKeywordsFlow`(증시 관심종목, 기본값 나스닥·코스피·테슬라·비트코인)에서 **`CORP_CODE_MAP`에 매핑된 한국 상장사만** 필터. 매핑 결과가 없으면 대표 6종목으로 폴백. 그래서 관심종목에 삼성전자·SK하이닉스만 매핑되면 그 둘만 보임(지수·해외·가상자산은 실적 공시 없어 제외). 관심종목 관리 = `PricesTab`(시세 및 차트) 관심종목 편집/＋ 또는 설정>증시. 탭 상단 안내 문구로 출처·관리 위치 고지(2026-07-07).
+  - **목록 출처**: `fetchExpectedEarnings(watchNames)`가 `watchStockKeywordsFlow`(증시 대시보드 관심종목)에서 **`CORP_CODE_MAP`에 매핑된 한국 상장사만** 필터. 매핑 결과가 없으면 대표 6종목으로 폴백. 그래서 관심종목에 삼성전자·SK하이닉스만 매핑되면 그 둘만 보임(지수·해외·가상자산은 실적 공시 없어 제외). 탭 상단 안내 문구로 출처·관리 위치 고지(2026-07-07).
+
+### ⚠️ 증시 키워드 = 저장소 2개 (혼동 주의, 2026-07-07 명확화)
+DataStore에 **독립된 두 키워드 저장소**가 있고 UI에서 각각 관리한다. 서로 값이 공유되지 않는다.
+| 저장소 | 용도 | Flow / 갱신 | 편집 위치 | 기본값 |
+|--------|------|-------------|-----------|--------|
+| `STOCK_KEYWORDS` | 📰 **뉴스탭 > 증시 서브탭** 뉴스 필터 | `stockKeywordsFlow` / `updateStockKeywords` (BriefingViewModel) | 설정 > 증시 ‘📰 뉴스탭 증시 키워드’ · 뉴스탭 증시 서브탭 ＋ | 나스닥·코스피·테슬라·비트코인 |
+| `WATCH_STOCK_KEYWORDS` | 📈 **증시 대시보드**(시세·차트 + 실적 뉴스·전망) 종목 | `watchStockKeywordsFlow` / `updateWatchStockKeywords` (Stock/BriefingViewModel) | 증시탭 > 시세 및 차트 관심종목(＋·편집) · **설정 > 증시 ‘📈 증시 대시보드 관심종목’(2026-07-07 신설)** | 나스닥·코스피·테슬라·비트코인 |
+> 이전엔 대시보드 관심종목을 설정에서 못 고쳐 "설정>증시에 넣어도 실적뉴스에 안 나온다"는 혼동이 있었음. 설정 > 증시 탭을 **두 섹션(뉴스/대시보드)** 으로 나누고 각 설명을 달아 해소. `BriefingViewModel`에 `watchStockKeywords`/`updateWatchStockKeywords` 추가(같은 DataStore 키라 증시 대시보드 `StockViewModel` collector가 실시간 반영).
 
 ### 로컬 캐시 파일 (`filesDir`)
 - `stock_prices_cache.json` — 시세 인메모리+파일 캐시

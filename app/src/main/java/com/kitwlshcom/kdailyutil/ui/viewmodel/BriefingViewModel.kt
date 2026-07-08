@@ -39,6 +39,8 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     val aiBriefingCommand = settingsRepository.aiBriefingCommandFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val aiBriefingCommands = settingsRepository.aiBriefingCommandsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
     val stockKeywords = settingsRepository.stockKeywordsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
+    // 📈 증시 대시보드 관심종목(시세·차트/실적 뉴스·전망). 뉴스탭 증시 필터(stockKeywords)와 별개 저장소.
+    val watchStockKeywords = settingsRepository.watchStockKeywordsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
     val aiCommandAudioPath = settingsRepository.aiCommandAudioPathFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val isApiKeyValidated = settingsRepository.isApiKeyValidatedFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
     val autoRefreshIntervalHours = settingsRepository.autoRefreshIntervalFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), 2)
@@ -483,6 +485,13 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
             if (_selectedAiCommand.value != null && !commands.contains(_selectedAiCommand.value)) {
                 _selectedAiCommand.value = commands.firstOrNull()
             }
+        }
+    }
+
+    // 📈 증시 대시보드 관심종목 갱신(증시탭 시세·차트/실적 뉴스·전망에 반영). 뉴스탭 필터와 별개.
+    fun updateWatchStockKeywords(keywords: Set<String>) {
+        viewModelScope.launch {
+            settingsRepository.updateWatchStockKeywords(keywords)
         }
     }
 
