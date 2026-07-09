@@ -114,4 +114,21 @@ K로 시작하는 형제 앱(KDailyUtil · KLotto645 · 향후 K-DiviTrack, K-Pa
   - **로고 크기**: 코드에서 `화면폭 × 0.80` 정사각으로 지정(KDailyUtil `fillMaxWidth(0.8)`와 동일). 에셋은 tight(여백X) 투명 PNG → fitCenter 시 높이 기준으로 맞아 KDailyUtil과 크기 일치.
   - **확대 시 잘림 방지**: 로고 컨테이너들에 `android:clipChildren="false"` / `clipToPadding="false"` 필수(펄스/확대가 뷰 밖으로 나가도 안 잘림).
   - **shimmer**: 커스텀 `ShimmerLogoView`가 `PorterDuff.SRC_ATOP`로 이미지 불투명 영역(엠블럼)에만 반사광을 얹음 → 아이콘 안에서만 빛이 흐름.
+
+---
+
+## 8. 향후 작업 (Planned / TODO)
+
+### ▶ KDailyUtil 스플래시를 "자체 앱 아이콘"으로 교체 (예정)
+- **현황**: KDailyUtil 스플래시는 공용 **mainlogo**(`ic_k_logo_3d`, 깨끗한 육각 엠블럼)를 표시.
+  실제 런처(앱) 아이콘은 **톱니바퀴/나침반이 포함된 버전**이라 스플래시와 다름.
+  (KLotto645는 2026-07-09 작업에서 스플래시를 자체 아이콘(엠블럼+645볼)으로 이미 통일함.)
+- **목표**: KDailyUtil도 스플래시가 **자기 앱 아이콘(톱니바퀴 버전)** 을 표시하도록 통일.
+- **방식(KDailyUtil은 Compose 앱)**:
+  1. 앱 아이콘 아트(엠블럼+톱니바퀴/나침반)를 **투명 배경 PNG**로 준비
+     (플레이스토어 아이콘 `ic_launcher-playstore.png`에서 배경 분리 또는 재추출 → `extract_emblem.py` 방식 활용).
+  2. `ui/screens/SplashScreen.kt`의 `painterResource(R.drawable.ic_k_logo_3d)`를 새 드로어블로 교체.
+  3. shimmer/meteor는 현행 유지(`HexagonShape` 클립으로 아이콘 내부에서만 흐름). 크기는 `fillMaxWidth(0.8)` 유지.
+- **주의**: KDailyUtil은 **이미 출시된 앱** → 에뮬레이터/실기기 확인 후 versionCode 올려 배포. 되돌리기 쉬운 단위로 커밋.
+- **상태**: 계획됨(미착수).
 - 공통: 런처 인텐트를 SplashActivity(또는 스플래시 표시 액티비티)에 두고, 실제 메인은 내부에서 실행.
