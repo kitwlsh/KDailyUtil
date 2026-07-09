@@ -51,8 +51,9 @@ K로 시작하는 형제 앱(KDailyUtil · KLotto645 · 향후 K-DiviTrack, K-Pa
 
 ### KLotto645 확정 스펙 (디자인 A)
 - 배경: 라디얼 그라데이션 `#2c2c32`(중앙) → `#0b0b0d`(가장자리)
-- 엠블럼: 폭 372px(512 캔버스 기준), 중심 (262, 222)
-- 볼(r=54): **6**(빨강, 138·352) / **4**(금, 100·452) / **5**(파랑, 196·460) — 좌하단 삼각 클러스터
+- 엠블럼: **폭 = 캔버스의 0.80**, **bbox 중앙 정렬**(상하 여백 균형 → 상단 안 비고, KDailyUtil 런처 폭 0.80과 동일)
+  - ⚠️ 육각형중심(hex-center)이 아니라 **bbox 중심**으로 정렬해야 상단이 안 빔. 폭 0.88↑는 마스크가 5시 슬랜트를 자름
+- 볼: **6**(빨강)/**4**(금)/**5**(파랑), 육각형 중심 기준 **상대 배치**(엠블럼 폭 대비 비율) — 좌하단 삼각 클러스터
 
 ---
 
@@ -109,5 +110,8 @@ K로 시작하는 형제 앱(KDailyUtil · KLotto645 · 향후 K-DiviTrack, K-Pa
 
 ### 구현 분기
 - **Compose 앱(KDailyUtil)**: `ui/screens/SplashScreen.kt` — shimmer/meteor Canvas 애니메이션 + `installSplashScreen()`.
-- **View/XML 앱(KLotto645)**: `SplashActivity` + `res/layout/activity_splash.xml` + `Theme.App.Starting`(system splash) + `Theme.<App>.Splash`. 애니메이션은 `ViewPropertyAnimator`/`ObjectAnimator`(페이드·확대·펄스)와 사선 shimmer View 스윕으로 재현. 의존성: `androidx.core:core-splashscreen`.
+- **View/XML 앱(KLotto645)**: `SplashActivity` + `res/layout/activity_splash.xml` + `Theme.App.Starting`(system splash) + `Theme.<App>.Splash`. 애니메이션은 `ViewPropertyAnimator`/`ObjectAnimator`(페이드·확대·펄스)와 shimmer로 재현. 의존성: `androidx.core:core-splashscreen`.
+  - **로고 크기**: 코드에서 `화면폭 × 0.80` 정사각으로 지정(KDailyUtil `fillMaxWidth(0.8)`와 동일). 에셋은 tight(여백X) 투명 PNG → fitCenter 시 높이 기준으로 맞아 KDailyUtil과 크기 일치.
+  - **확대 시 잘림 방지**: 로고 컨테이너들에 `android:clipChildren="false"` / `clipToPadding="false"` 필수(펄스/확대가 뷰 밖으로 나가도 안 잘림).
+  - **shimmer**: 커스텀 `ShimmerLogoView`가 `PorterDuff.SRC_ATOP`로 이미지 불투명 영역(엠블럼)에만 반사광을 얹음 → 아이콘 안에서만 빛이 흐름.
 - 공통: 런처 인텐트를 SplashActivity(또는 스플래시 표시 액티비티)에 두고, 실제 메인은 내부에서 실행.
