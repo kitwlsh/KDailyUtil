@@ -30,7 +30,7 @@ img.putalpha(a)
 img=img.crop(img.getbbox())
 cw,ch=img.size
 # 여백 추가: 내용이 캔버스의 0.84 차지(≈8% 마진) → 육각형 안 잘림
-side=int(max(cw,ch)/0.78)
+side=int(max(cw,ch)/0.70)
 canvas=Image.new("RGBA",(side,side),(0,0,0,0))
 canvas.alpha_composite(img,((side-cw)//2,(side-ch)//2))
 canvas.save(DST)
