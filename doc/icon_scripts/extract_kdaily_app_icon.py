@@ -1,42 +1,43 @@
 # -*- coding: utf-8 -*-
-"""KDailyUtil 앱아이콘 투명 추출 v2: 흰/그림자 배경 더 확실히 제거 + 여백(패딩) 추가(육각형 안 잘리게)."""
+"""ic_app_logo_full.png(완전한 로고, 흰배경)에서 흰배경 제거 → 스플래시용 투명 아이콘.
+완전한 육각형 + 톱니바퀴/나침반이 원본 통합돼 있어 잘림/크롭 문제 없음."""
 import numpy as np
 from PIL import Image, ImageFilter
 import os
-SRC=r"D:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil\app\src\main\ic_launcher-playstore.png"
+SRC=r"D:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil\app\src\main\res\drawable\ic_app_logo_full.png"
 DST=r"D:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil\app\src\main\res\drawable-nodpi\ic_k_app_icon.png"
 SC=r"C:\Users\shlee16\AppData\Local\Temp\claude\d--DATA-20-Source-80-Git-HUB-KDailyUtil-KDailyUtil\c5517410-c134-4714-825a-554377416594\scratchpad"
 
 im=Image.open(SRC).convert("RGB")
-W=1024;H=int(im.size[1]*W/im.size[0]);im=im.resize((W,H),Image.LANCZOS)
-arr=np.asarray(im).astype(np.int16)
+print("source size",im.size)
+arr=np.array(im).astype(int)
 r,g,b=arr[...,0],arr[...,1],arr[...,2]
 mx=np.maximum(np.maximum(r,g),b);mn=np.minimum(np.minimum(r,g),b)
-# 흰 + 밝은 회색(그림자)까지: 저채도 & 밝음. (골드/유채색은 채도 높아 보존)
-lightbg=((mx-mn)<42)&(mn>150)
-bg=np.zeros((H,W),bool)
-bg[0,:]|=lightbg[0,:];bg[-1,:]|=lightbg[-1,:];bg[:,0]|=lightbg[:,0];bg[:,-1]|=lightbg[:,-1]
+white=((mx-mn)<48)&(mn>150)     # 흰 + 회색 그림자(드롭섀도)까지 배경으로
+H,W=white.shape;bg=np.zeros((H,W),bool)
+bg[0,:]|=white[0,:];bg[-1,:]|=white[-1,:];bg[:,0]|=white[:,0];bg[:,-1]|=white[:,-1]
 while True:
-    grown=bg.copy()
-    grown[1:,:]|=bg[:-1,:];grown[:-1,:]|=bg[1:,:];grown[:,1:]|=bg[:,:-1];grown[:,:-1]|=bg[:,1:]
-    grown&=lightbg
-    if np.array_equal(grown,bg):break
-    bg=grown
+    gr=bg.copy();gr[1:,:]|=bg[:-1,:];gr[:-1,:]|=bg[1:,:];gr[:,1:]|=bg[:,:-1];gr[:,:-1]|=bg[:,1:];gr&=white
+    if np.array_equal(gr,bg):break
+    bg=gr
 alpha=np.where(bg,0,255).astype(np.uint8)
 img=Image.fromarray(np.dstack([arr.astype(np.uint8),alpha]),"RGBA")
-# 경계 정리(잔여 밝은 테두리 1px 침식) + 부드럽게
-a=img.split()[3].filter(ImageFilter.GaussianBlur(0.8));a=a.point(lambda p:255 if p>140 else 0)
+# 흰 프린지 제거: 알파를 살짝 침식(임계 상향)해 가장자리 1~2px 안으로 당김
+a=img.split()[3].filter(ImageFilter.GaussianBlur(1.3));a=a.point(lambda p:255 if p>175 else 0)
 img.putalpha(a)
 img=img.crop(img.getbbox())
 cw,ch=img.size
-# 여백 추가: 내용이 캔버스의 0.84 차지(≈8% 마진) → 육각형 안 잘림
-side=int(max(cw,ch)/0.70)
+print("content",(cw,ch),"ratio",round(ch/cw,3))
+# 여백 패딩(내용 0.86 → 스플래시 확대에도 안 잘림)
+side=int(max(cw,ch)/0.86)
 canvas=Image.new("RGBA",(side,side),(0,0,0,0))
 canvas.alpha_composite(img,((side-cw)//2,(side-ch)//2))
 canvas.save(DST)
-print("saved",DST,"content",(cw,ch),"canvas",canvas.size)
-
-# 차콜 미리보기
+print("saved",DST,canvas.size)
+# 흰끼 잔여 체크
+a2=np.array(canvas);R,G,B,A=[a2[...,i].astype(int) for i in range(4)]
+mx2=np.maximum(np.maximum(R,G),B);mn2=np.minimum(np.minimum(R,G),B)
+w2=(A>150)&(mn2>212)&((mx2-mn2)<22)
+print("흰끼 잔여 픽셀",int(w2.sum()))
 c=Image.new("RGBA",canvas.size,(26,26,28,255));c.alpha_composite(canvas)
-c.convert("RGB").resize((520,520)).save(os.path.join(SC,"kdaily_v2_charcoal.png"))
-print("preview saved")
+c.convert("RGB").resize((520,520)).save(os.path.join(SC,"logo_full_charcoal.png"))
