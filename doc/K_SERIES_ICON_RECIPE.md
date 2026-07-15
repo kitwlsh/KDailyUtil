@@ -126,7 +126,9 @@ K로 시작하는 형제 앱(KDailyUtil · KLotto645 · 향후 K-DiviTrack, K-Pa
   2. `ui/screens/SplashScreen.kt`: 이미지 소스를 `ic_k_logo_3d` → `ic_k_app_icon`으로 교체.
   3. **`HexagonShape` 클립 제거**(톱니바퀴가 육각형 바깥 코너에 있어 클립되면 안 됨) → 대신 `graphicsLayer{compositingStrategy=Offscreen}` + `drawWithContent`에서 shimmer를 **`BlendMode.SrcAtop`** 로 아이콘 불투명 영역에만 얹음(아이콘 안에서만 빛 흐름, KLotto와 동일 컨셉).
   4. meteor 테마·`fillMaxWidth(0.8)` 크기는 유지.
-  5. **여백 보정**: 앱 아이콘은 육각형이 원본 가장자리에 꽉 차서, 투명 캔버스에 **패딩(내용≈0.70)** 을 줘야 안 잘림. 또한 스플래시 진입 `scaleAnim`이 **1.05로 rest(상시 5% 확대)** 하던 것을 **1.0**으로 낮춤(마스크 없는 아이콘이라 여백 확보). 실기기(adb) 캡처로 최종 확인함.
+  5. **여백/스케일 보정**: 스플래시 진입 `scaleAnim` **1.05→1.0**(상시 5% 확대 제거). 실기기(adb install+screencap)로 확인.
+  6. ⚠️ **핵심 함정**: 플레이스토어 아이콘(`ic_launcher-playstore.png`)은 **육각형이 프레임 상/하 끝(y=0,511)까지 꽉 차 꼭짓점이 잘려 있음** → 그대로 쓰면 스플래시에서 상하가 잘려 보임(패딩으로 해결 안 됨).
+     **해결=재구성**: 온전한 mainlogo 육각형(`ic_k_logo_3d`)을 위에 얹고, 플레이스토어 좌하단 **톱니바퀴/나침반만 뒤에 깔아** 노출. → `doc/icon_scripts/reconstruct_kdaily_app_icon.py`. 결과가 최종 `ic_k_app_icon.png`.
 - **주의(다음 배포 시)**: KDailyUtil은 출시 앱 → 실기기 확인 후 **versionCode 올려 재배포** 필요.
 
 > KLotto645는 2026-07-09 작업에서 이미 자체 아이콘(엠블럼+645볼)으로 통일 완료.
