@@ -117,18 +117,16 @@ K로 시작하는 형제 앱(KDailyUtil · KLotto645 · 향후 K-DiviTrack, K-Pa
 
 ---
 
-## 8. 향후 작업 (Planned / TODO)
+## 8. 작업 이력 (Done)
 
-### ▶ KDailyUtil 스플래시를 "자체 앱 아이콘"으로 교체 (예정)
-- **현황**: KDailyUtil 스플래시는 공용 **mainlogo**(`ic_k_logo_3d`, 깨끗한 육각 엠블럼)를 표시.
-  실제 런처(앱) 아이콘은 **톱니바퀴/나침반이 포함된 버전**이라 스플래시와 다름.
-  (KLotto645는 2026-07-09 작업에서 스플래시를 자체 아이콘(엠블럼+645볼)으로 이미 통일함.)
-- **목표**: KDailyUtil도 스플래시가 **자기 앱 아이콘(톱니바퀴 버전)** 을 표시하도록 통일.
-- **방식(KDailyUtil은 Compose 앱)**:
-  1. 앱 아이콘 아트(엠블럼+톱니바퀴/나침반)를 **투명 배경 PNG**로 준비
-     (플레이스토어 아이콘 `ic_launcher-playstore.png`에서 배경 분리 또는 재추출 → `extract_emblem.py` 방식 활용).
-  2. `ui/screens/SplashScreen.kt`의 `painterResource(R.drawable.ic_k_logo_3d)`를 새 드로어블로 교체.
-  3. shimmer/meteor는 현행 유지(`HexagonShape` 클립으로 아이콘 내부에서만 흐름). 크기는 `fillMaxWidth(0.8)` 유지.
-- **주의**: KDailyUtil은 **이미 출시된 앱** → 에뮬레이터/실기기 확인 후 versionCode 올려 배포. 되돌리기 쉬운 단위로 커밋.
-- **상태**: 계획됨(미착수).
+### ✅ KDailyUtil 스플래시를 "자체 앱 아이콘"으로 교체 (완료, 2026-07-15)
+- **배경**: 기존엔 공용 mainlogo(`ic_k_logo_3d`, 깨끗한 육각 엠블럼)를 표시 → 실제 앱 아이콘(톱니바퀴/나침반 포함)과 달랐음.
+- **구현**:
+  1. 플레이스토어 아이콘(`ic_launcher-playstore.png`, 흰 배경)에서 엠블럼+톱니바퀴/나침반을 **투명 PNG로 추출** → `res/drawable-nodpi/ic_k_app_icon.png` (테두리 flood-fill로 흰 배경 제거, `extract_kdaily.py` 방식).
+  2. `ui/screens/SplashScreen.kt`: 이미지 소스를 `ic_k_logo_3d` → `ic_k_app_icon`으로 교체.
+  3. **`HexagonShape` 클립 제거**(톱니바퀴가 육각형 바깥 코너에 있어 클립되면 안 됨) → 대신 `graphicsLayer{compositingStrategy=Offscreen}` + `drawWithContent`에서 shimmer를 **`BlendMode.SrcAtop`** 로 아이콘 불투명 영역에만 얹음(아이콘 안에서만 빛 흐름, KLotto와 동일 컨셉).
+  4. meteor 테마·`fillMaxWidth(0.8)` 크기는 유지.
+- **주의(다음 배포 시)**: KDailyUtil은 출시 앱 → 실기기 확인 후 **versionCode 올려 재배포** 필요.
+
+> KLotto645는 2026-07-09 작업에서 이미 자체 아이콘(엠블럼+645볼)으로 통일 완료.
 - 공통: 런처 인텐트를 SplashActivity(또는 스플래시 표시 액티비티)에 두고, 실제 메인은 내부에서 실행.

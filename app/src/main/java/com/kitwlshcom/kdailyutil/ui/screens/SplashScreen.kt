@@ -11,7 +11,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
@@ -158,40 +160,40 @@ fun SplashScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(0.8f) // 85% -> 80%로 조정
+                        .fillMaxWidth(0.8f)
                         .aspectRatio(1f)
-                        .clip(HexagonShape()) 
+                        // 아이콘(엠블럼+톱니바퀴) 자체를 표시. shimmer는 아이콘 불투명 영역에만 얹어
+                        // 아이콘 안에서만 빛이 흐르도록 SrcAtop 마스킹 (KLotto645와 동일 컨셉)
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .drawWithContent {
+                            drawContent()
+                            if (theme == "shimmer") {
+                                rotate(degrees = shimmerParams.rotationZ) {
+                                    drawRect(
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(
+                                                Color.Transparent,
+                                                shimmerParams.color.copy(alpha = shimmerParams.alpha),
+                                                Color.Transparent
+                                            ),
+                                            start = Offset(center.x + shimmerParams.translationX - size.width / 2f, center.y),
+                                            end = Offset(center.x + shimmerParams.translationX + size.width / 2f, center.y)
+                                        ),
+                                        blendMode = BlendMode.SrcAtop
+                                    )
+                                }
+                            }
+                        }
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.ic_k_logo_3d),
-                        contentDescription = "KITWLSH Logo",
+                        painter = painterResource(id = R.drawable.ic_k_app_icon),
+                        contentDescription = "KDailyUtil Icon",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit
                     )
                 }
-                
-                if (theme == "shimmer") {
-                    // 기존 백업된 2단계 사선 반사광 (Shimmer Overlay)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.8f)
-                            .aspectRatio(1f)
-                            .clip(HexagonShape())
-                            .graphicsLayer {
-                                translationX = shimmerParams.translationX
-                                rotationZ = shimmerParams.rotationZ
-                            }
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        shimmerParams.color.copy(alpha = shimmerParams.alpha),
-                                        Color.Transparent
-                                    )
-                                )
-                            )
-                    )
-                } else {
+
+                if (theme != "shimmer") {
                     // 신규 유성 스파이럴 궤도 및 반짝임 효과 (Meteor Orbit Canvas Overlay)
                     val p = shimmerProgress
                     Canvas(
