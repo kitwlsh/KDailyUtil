@@ -10,18 +10,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitwlshcom.kdailyutil.R
@@ -30,29 +26,6 @@ import com.kitwlshcom.kdailyutil.ui.theme.Gold24K
 import kotlinx.coroutines.delay
 import kotlin.math.cos
 import kotlin.math.sin
-
-class HexagonShape(private val insetPercent: Float = 0.005f) : Shape { 
-    override fun createOutline(
-        size: Size,
-        layoutDirection: LayoutDirection,
-        density: Density
-    ): Outline {
-        val path = Path().apply {
-            val centerX = size.width / 2f
-            val centerY = size.height / 2f
-            val radius = (minOf(size.width, size.height) / 2f) * (1f - insetPercent)
-            
-            for (i in 0..5) {
-                val angle = Math.toRadians(i * 60.0 - 90.0)
-                val x = centerX + radius * cos(angle).toFloat()
-                val y = centerY + radius * sin(angle).toFloat()
-                if (i == 0) moveTo(x, y) else lineTo(x, y)
-            }
-            close()
-        }
-        return Outline.Generic(path)
-    }
-}
 
 data class ShimmerState(
     val translationX: Float,

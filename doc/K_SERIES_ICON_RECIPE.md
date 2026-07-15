@@ -97,39 +97,31 @@ K로 시작하는 형제 앱(KDailyUtil · KLotto645 · 향후 K-DiviTrack, K-Pa
 
 ## 7. 스플래시(Splash) 패밀리 룩
 
-모든 K앱은 **동일한 프리미엄 다크 스플래시**를 공유한다: 차콜 라디얼 배경 + 골드 육각 K 엠블럼(페이드/확대/펄스 + shimmer 사선 반사광) + 골드 타이틀 + "by KitwLSH".
+모든 K앱은 프리미엄 다크 스플래시를 공유하되, **각 앱은 자기 앱 아이콘**을 표시한다.
 
 | 항목 | 값 |
 | :--- | :--- |
-| 배경 | 라디얼 `#2C2C2E`(중앙, centerY≈0.42) → `#1A1A1B`(가장자리) |
-| 엠블럼 | 투명 육각 엠블럼(`emblem_clean` 계열), 화면 폭의 약 46%, 중앙 상단 |
-| 타이틀 | 골드(`#D4AF37`) Bold, 자간 넓게. 표기는 **"K-<앱명>"** 통일 (예: `K-DailyUtil`, `K-Lotto645`) |
+| 배경 | 라디얼 차콜 `#2C2C2E`(중앙) → `#1A1A1B`(가장자리) |
+| 로고 | **해당 앱의 완전한 아이콘(투명 PNG)**, 화면 폭의 약 80%. KDailyUtil=`ic_app_logo_full`(엠블럼+톱니바퀴/나침반), KLotto645=엠블럼+645볼 |
+| 타이틀 | 골드 `#D4AF37` Bold, 자간 넓게. 표기 **"K-<앱명>"** (예: `K-DailyUtil`, `K-Lotto645`) |
 | 서브타이틀 | 골드 60% 알파, 앱 설명 (예: `Premium Utility Series`, `Smart Lotto 6/45`) |
 | 하단 | "by KitwLSH" 골드 35% 알파 |
-| 표시 시간 | 약 2.6~3.5초 후 메인 화면 전환 |
+| 동작 | 페이드/확대/펄스 + shimmer, 약 2.6~3.5초 후 메인 전환. 런처 인텐트는 스플래시 액티비티에, 메인은 내부 실행 |
+
+### 로고 아이콘 만들기 ⚠️ 핵심
+- **완전한 로고 원본이 있으면 그걸 사용**한다(예: `res/drawable/ic_app_logo_full.png` — 설정탭 브랜드 갤러리에도 쓰임). 흰 배경 + **회색 드롭섀도까지** flood 제거 + 가장자리 살짝 침식으로 프린지 제거.
+  → 스크립트 `doc/icon_scripts/extract_kdaily_app_icon.py`
+- ❌ **플레이스토어 아이콘(`ic_launcher-playstore.png`)은 금지**: 육각형이 프레임 상/하 끝까지 꽉 차 **꼭짓점이 잘려 있어** 스플래시에서 상하가 잘려 보인다(패딩으로 해결 안 됨).
 
 ### 구현 분기
-- **Compose 앱(KDailyUtil)**: `ui/screens/SplashScreen.kt` — shimmer/meteor Canvas 애니메이션 + `installSplashScreen()`.
-- **View/XML 앱(KLotto645)**: `SplashActivity` + `res/layout/activity_splash.xml` + `Theme.App.Starting`(system splash) + `Theme.<App>.Splash`. 애니메이션은 `ViewPropertyAnimator`/`ObjectAnimator`(페이드·확대·펄스)와 shimmer로 재현. 의존성: `androidx.core:core-splashscreen`.
-  - **로고 크기**: 코드에서 `화면폭 × 0.80` 정사각으로 지정(KDailyUtil `fillMaxWidth(0.8)`와 동일). 에셋은 tight(여백X) 투명 PNG → fitCenter 시 높이 기준으로 맞아 KDailyUtil과 크기 일치.
-  - **확대 시 잘림 방지**: 로고 컨테이너들에 `android:clipChildren="false"` / `clipToPadding="false"` 필수(펄스/확대가 뷰 밖으로 나가도 안 잘림).
-  - **shimmer**: 커스텀 `ShimmerLogoView`가 `PorterDuff.SRC_ATOP`로 이미지 불투명 영역(엠블럼)에만 반사광을 얹음 → 아이콘 안에서만 빛이 흐름.
+- **Compose(KDailyUtil)**: `ui/screens/SplashScreen.kt` — `Image(ic_k_app_icon)` + `drawWithContent`에서 shimmer를 `BlendMode.SrcAtop`(offscreen 레이어)로 아이콘 불투명 영역에만 얹음 + meteor Canvas. 진입 `scaleAnim` rest=1.0. `installSplashScreen()`.
+- **View/XML(KLotto645)**: `SplashActivity` + `activity_splash.xml` + `Theme.App.Starting` + 커스텀 `ShimmerLogoView`(`PorterDuff.SRC_ATOP`). 로고 크기는 코드에서 `화면폭×0.80`, 컨테이너 `clipChildren=false`(확대 잘림 방지). 의존성 `androidx.core:core-splashscreen`.
+- 공통: shimmer는 **아이콘 형태 안에서만** 흐르게(SrcAtop 마스킹).
 
 ---
 
 ## 8. 작업 이력 (Done)
 
-### ✅ KDailyUtil 스플래시를 "자체 앱 아이콘"으로 교체 (완료, 2026-07-15)
-- **배경**: 기존엔 공용 mainlogo(`ic_k_logo_3d`, 깨끗한 육각 엠블럼)를 표시 → 실제 앱 아이콘(톱니바퀴/나침반 포함)과 달랐음.
-- **구현**:
-  1. 플레이스토어 아이콘(`ic_launcher-playstore.png`, 흰 배경)에서 엠블럼+톱니바퀴/나침반을 **투명 PNG로 추출** → `res/drawable-nodpi/ic_k_app_icon.png` (테두리 flood-fill로 흰 배경 제거, `extract_kdaily.py` 방식).
-  2. `ui/screens/SplashScreen.kt`: 이미지 소스를 `ic_k_logo_3d` → `ic_k_app_icon`으로 교체.
-  3. **`HexagonShape` 클립 제거**(톱니바퀴가 육각형 바깥 코너에 있어 클립되면 안 됨) → 대신 `graphicsLayer{compositingStrategy=Offscreen}` + `drawWithContent`에서 shimmer를 **`BlendMode.SrcAtop`** 로 아이콘 불투명 영역에만 얹음(아이콘 안에서만 빛 흐름, KLotto와 동일 컨셉).
-  4. meteor 테마·`fillMaxWidth(0.8)` 크기는 유지.
-  5. **여백/스케일 보정**: 스플래시 진입 `scaleAnim` **1.05→1.0**(상시 5% 확대 제거). 실기기(adb install+screencap)로 확인.
-  6. ⚠️ **함정**: 플레이스토어 아이콘(`ic_launcher-playstore.png`)은 **육각형이 프레임 상/하 끝까지 꽉 차 꼭짓점이 잘려 있음** → 스플래시 소스로 부적합(상하 잘림).
-  7. ✅ **정답 소스 = `res/drawable/ic_app_logo_full.png`** (설정탭 브랜드 아이콘 갤러리에도 쓰이는 **완전한 로고**: 온전한 육각형 + 톱니바퀴/나침반이 원본 통합, 흰 배경). **흰 배경만 제거**해서 `ic_k_app_icon.png`로 사용 → 잘림/크롭 문제 없음. 스크립트: `doc/icon_scripts/extract_kdaily_app_icon.py` (흰+드롭섀도 flood 제거, 가장자리 침식). **다음 K앱도 완전한 로고 원본이 있으면 그걸 우선 사용**할 것.
-- **주의(다음 배포 시)**: KDailyUtil은 출시 앱 → 실기기 확인 후 **versionCode 올려 재배포** 필요.
-
-> KLotto645는 2026-07-09 작업에서 이미 자체 아이콘(엠블럼+645볼)으로 통일 완료.
-- 공통: 런처 인텐트를 SplashActivity(또는 스플래시 표시 액티비티)에 두고, 실제 메인은 내부에서 실행.
+- **2026-07-09** — KLotto645 스플래시를 자체 아이콘(엠블럼+645볼)으로 통일.
+- **2026-07-15** — KDailyUtil 스플래시를 자체 아이콘(`ic_app_logo_full`, 톱니바퀴/나침반 포함)으로 통일. (mainlogo→앱아이콘, shimmer SrcAtop 마스킹, 흰+회색 배경 제거)
+  - **주의**: KDailyUtil은 이미 출시된 앱 → 다음 배포 시 **versionCode 올려 재배포** 필요(현재 소스+로컬 설치까지만 반영).
