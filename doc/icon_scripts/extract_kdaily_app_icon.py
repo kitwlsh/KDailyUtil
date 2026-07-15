@@ -13,7 +13,7 @@ print("source size",im.size)
 arr=np.array(im).astype(int)
 r,g,b=arr[...,0],arr[...,1],arr[...,2]
 mx=np.maximum(np.maximum(r,g),b);mn=np.minimum(np.minimum(r,g),b)
-white=((mx-mn)<48)&(mn>150)     # 흰 + 회색 그림자(드롭섀도)까지 배경으로
+white=((mx-mn)<38)&(mn>92)      # 흰 + 회색 그림자(드롭섀도)까지 배경으로 (중간톤 회색까지)
 H,W=white.shape;bg=np.zeros((H,W),bool)
 bg[0,:]|=white[0,:];bg[-1,:]|=white[-1,:];bg[:,0]|=white[:,0];bg[:,-1]|=white[:,-1]
 while True:
