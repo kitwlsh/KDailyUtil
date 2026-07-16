@@ -20,10 +20,14 @@ fun BrandWatermark(
         contentAlignment = Alignment.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.ic_k_logo_3d),
+            // 배경 워터마크는 '해당 앱의 고유 아이콘'을 사용(엠블럼+톱니/나침반).
+            // KLotto645가 자기 풀아이콘(ic_k_emblem_balls)을 워터마크로 쓰는 것과 동일한 패밀리 규칙.
+            // 크기 = 스플래시와 동일하게 화면폭 × 0.80 (정사각). 고정 dp가 아니라 상대 비율.
+            painter = painterResource(id = R.drawable.ic_k_app_icon),
             contentDescription = null,
             modifier = Modifier
-                .size(360.dp)
+                .fillMaxWidth(0.8f)
+                .aspectRatio(1f)
                 .alpha(0.28f), // 28% 투명도로 명품화
             contentScale = ContentScale.Fit
         )

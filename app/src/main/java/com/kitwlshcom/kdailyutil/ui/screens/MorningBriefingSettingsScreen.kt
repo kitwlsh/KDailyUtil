@@ -1023,7 +1023,8 @@ fun MorningBriefingSettingsScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.ic_k_logo_3d),
+                            // 앱 소개에는 '해당 앱의 실제 아이콘'(엠블럼+톱니/나침반)을 노출
+                            painter = painterResource(id = R.drawable.ic_k_app_icon),
                             contentDescription = "Logo",
                             modifier = Modifier.size(64.dp)
                         )
@@ -1175,9 +1176,9 @@ fun MorningBriefingSettingsScreen(
                         }
                     }
 
-                    // 2. 통합 로고 Full
+                    // 2. 앱 아이콘 (엠블럼 + 톱니/나침반) — 런처·스플래시·워터마크 공통
                     Card(
-                        onClick = { showFullScreenIcon = R.drawable.ic_app_logo_full },
+                        onClick = { showFullScreenIcon = R.drawable.ic_k_app_icon },
                         colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
                         border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f)),
                         modifier = Modifier.fillMaxWidth()
@@ -1187,16 +1188,16 @@ fun MorningBriefingSettingsScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Image(
-                                painter = painterResource(id = R.drawable.ic_app_logo_full),
-                                contentDescription = "Full Logo",
+                                painter = painterResource(id = R.drawable.ic_k_app_icon),
+                                contentDescription = "App Icon",
                                 modifier = Modifier.size(80.dp),
                                 contentScale = ContentScale.Fit
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("KDailyUtil 대표 로고 (Full)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                            Text("KDailyUtil 앱 아이콘", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                "3D 골드 육각 엠블럼과 앱의 정체성을 보여주는 히어로 심볼(마이크 및 볼륨 웨이브)이 결합된 공식 전체 통합 로고입니다.",
+                                "3D 골드 육각 엠블럼과 앱 정체성을 보여주는 히어로 심볼(톱니바퀴 및 나침반)이 결합된 공식 앱 아이콘입니다. 런처·스플래시·배경 워터마크에 동일하게 사용됩니다.",
                                 fontSize = 12.sp,
                                 color = Color.White.copy(alpha = 0.7f),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
