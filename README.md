@@ -14,6 +14,7 @@
 | **구글 플레이 가이드** | [GOOGLE_PLAY_RELEASE_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/GOOGLE_PLAY_RELEASE_GUIDE.md) | 구글 플레이 콘솔 업로드 및 릴리즈 빌드 전체 단계 안내 |
 | **콘솔 기입 정보 엑셀** | [google_play_release_info.xlsx](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/google_play_release_info.xlsx) | 구글 플레이에 제출한 27개 질문과 상세 텍스트 기록 보관함 |
 | **디자인 & 브랜딩** | [BRANDING_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/BRANDING_GUIDE.md) | 로고 아이콘 규격, 색상 파레트 및 다크 테마 가이드라인 |
+| **K-시리즈 아이콘 표준** | [K_SERIES_ICON_RECIPE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/K_SERIES_ICON_RECIPE.md) | 형제 앱(KDailyUtil·KLotto645 등) 아이콘·스플래시·워터마크 패밀리 통일 규격 및 신규 앱 제작 절차(단일 기준 문서) |
 | **개인정보처리방침** | [privacy-kdailyutil.html](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/privacy-kdailyutil.html) | 구글 스토어 마이크 및 오디오 권한 대응 개인정보방침 HTML |
 | **뉴스 우회 보고서** | [Google_News_Redirect_Issue_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/Google_News_Redirect_Issue_Report.md) | 구글 뉴스 수집 시 발생하는 리디렉션 이슈 분석 및 해결책 |
 | **오디오 개선 보고서** | [20260422_Audio_System_Enhancement_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/20260422_Audio_System_Enhancement_Report.md) | 미니 플레이어 및 오디오 수집 성능 최적화 개선 보고서 |
