@@ -8,6 +8,8 @@
 ## 🗂️ 프로젝트 문서 인덱스 (Documentation Index)
 프로젝트의 아키텍처, 브랜딩, 배포 및 이슈 리포트 문서는 모두 [doc/](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/) 폴더 내에 체계적으로 격리 정리되어 있습니다. 아래의 링크를 통해 필요한 상세 문서를 즉시 열람하실 수 있습니다.
 
+> 📌 **문서 관리 규칙**: `doc/`에 **새 문서를 추가하거나 중요한 문서를 개정하면 반드시 이 표에 등록**한다. README만 읽으면 "어디에 어떤 문서가 있는지" 전부 파악되도록 유지하는 것이 원칙이다. (이 인덱스가 프로젝트 문서의 단일 진입점)
+
 | 문서 구분 | 상세 문서 링크 | 설명 |
 | :--- | :--- | :--- |
 | **개발자 가이드** | [DEVELOPER_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/DEVELOPER_GUIDE.md) | 프로젝트 아키텍처, 파일 구조, 개발 시 주의사항 총정리 |
@@ -20,6 +22,10 @@
 | **오디오 개선 보고서** | [20260422_Audio_System_Enhancement_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/20260422_Audio_System_Enhancement_Report.md) | 미니 플레이어 및 오디오 수집 성능 최적화 개선 보고서 |
 | **공시 AI 요약 가이드** | [FEATURE_DART_AI_SUMMARY.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/FEATURE_DART_AI_SUMMARY.md) | Open DART API + Gemini 실적 공시 자동 요약 설계 가이드 |
 | **빠른 독서 훈련 설계** | [FEATURE_SPEED_READING.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/FEATURE_SPEED_READING.md) | 배움터 속독 훈련(드릴/OCR/AI 이해도/보관함) 기능 설계서 |
+| **브랜드 가이드라인(KITWLSH)** | [KITWLSH_Brand_Guidelines.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KITWLSH_Brand_Guidelines.md) | KITWLSH 제작사 브랜드 아이덴티티/가이드라인 |
+| **퀴즈 시스템 워크스루** | [walkthrough_quiz_system.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/walkthrough_quiz_system.md) | KuizGenius 퀴즈 시스템 동작 흐름 워크스루(개발 참고) |
+| **전체 구현 계획 / 작업 현황** | [implementation_plan.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/implementation_plan.md) · [task.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/task.md) | 초기 설계 계획서 및 단계별 작업 체크리스트 |
+| _(개인 메모)_ | 동전주전략_claude/gpt/jemini.md | 앱과 무관한 개인 투자 전략 메모 — 참고용, 앱 문서 아님 |
 
 ---
 
