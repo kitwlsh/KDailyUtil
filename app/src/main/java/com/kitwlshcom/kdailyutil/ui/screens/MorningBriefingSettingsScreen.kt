@@ -163,30 +163,12 @@ fun MorningBriefingSettingsScreen(
             }
         }
 
-        LazyRow(modifier = Modifier.padding(vertical = 8.dp)) {
-            items(categories.toList()) { category ->
-                InputChip(
-                    selected = true,
-                    onClick = { },
-                    label = { Text(category) },
-                    trailingIcon = {
-                        if (category !in setOf("전체", "증시", "AI")) {
-                            IconButton(
-                                onClick = { viewModel.updateCategories(categories - category) },
-                                modifier = Modifier.size(16.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "삭제",
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    },
-                    modifier = Modifier.padding(end = 4.dp)
-                )
-            }
-        }
+        ReorderableChipRow(
+            items = categories,
+            onReorder = { viewModel.updateCategories(it) },
+            onDelete = { viewModel.updateCategories(categories - it) },
+            fixedItems = setOf("전체", "증시", "AI")
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -209,28 +191,11 @@ fun MorningBriefingSettingsScreen(
             }
         }
 
-        LazyRow(modifier = Modifier.padding(vertical = 8.dp)) {
-            items(keywords.toList()) { keyword ->
-                InputChip(
-                    selected = true,
-                    onClick = { },
-                    label = { Text(keyword) },
-                    trailingIcon = {
-                        IconButton(
-                            onClick = { viewModel.updateKeywords(keywords - keyword) },
-                            modifier = Modifier.size(16.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "삭제",
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    },
-                    modifier = Modifier.padding(end = 4.dp)
-                )
-            }
-        }
+        ReorderableChipRow(
+            items = keywords,
+            onReorder = { viewModel.updateKeywords(it) },
+            onDelete = { viewModel.updateKeywords(keywords - it) }
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
         } // end 브리핑 탭 (0) - 키워드까지
@@ -262,28 +227,11 @@ fun MorningBriefingSettingsScreen(
             }
         }
 
-        LazyRow(modifier = Modifier.padding(vertical = 8.dp)) {
-            items(stockKeywords.toList()) { keyword ->
-                InputChip(
-                    selected = true,
-                    onClick = { },
-                    label = { Text(keyword) },
-                    trailingIcon = {
-                        IconButton(
-                            onClick = { viewModel.updateStockKeywords(stockKeywords - keyword) },
-                            modifier = Modifier.size(16.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "삭제",
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    },
-                    modifier = Modifier.padding(end = 4.dp)
-                )
-            }
-        }
+        ReorderableChipRow(
+            items = stockKeywords,
+            onReorder = { viewModel.updateStockKeywords(it) },
+            onDelete = { viewModel.updateStockKeywords(stockKeywords - it) }
+        )
 
         Spacer(modifier = Modifier.height(20.dp))
         HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
@@ -314,28 +262,11 @@ fun MorningBriefingSettingsScreen(
             }
         }
 
-        LazyRow(modifier = Modifier.padding(vertical = 8.dp)) {
-            items(watchStockKeywords.toList()) { keyword ->
-                InputChip(
-                    selected = true,
-                    onClick = { },
-                    label = { Text(keyword) },
-                    trailingIcon = {
-                        IconButton(
-                            onClick = { viewModel.updateWatchStockKeywords(watchStockKeywords - keyword) },
-                            modifier = Modifier.size(16.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "삭제",
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    },
-                    modifier = Modifier.padding(end = 4.dp)
-                )
-            }
-        }
+        ReorderableChipRow(
+            items = watchStockKeywords,
+            onReorder = { viewModel.updateWatchStockKeywords(it) },
+            onDelete = { viewModel.updateWatchStockKeywords(watchStockKeywords - it) }
+        )
 
         } // end 증시 탭 (1)
 
@@ -712,28 +643,11 @@ fun MorningBriefingSettingsScreen(
             }
         }
 
-        LazyRow(modifier = Modifier.padding(vertical = 8.dp)) {
-            items(aiCommands.toList()) { command ->
-                InputChip(
-                    selected = true,
-                    onClick = { },
-                    label = { Text(command) },
-                    trailingIcon = {
-                        IconButton(
-                            onClick = { viewModel.updateAiCommands(aiCommands - command) },
-                            modifier = Modifier.size(16.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "삭제",
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    },
-                    modifier = Modifier.padding(end = 4.dp)
-                )
-            }
-        }
+        ReorderableChipRow(
+            items = aiCommands,
+            onReorder = { viewModel.updateAiCommands(it) },
+            onDelete = { viewModel.updateAiCommands(aiCommands - it) }
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -1339,4 +1253,76 @@ fun MorningBriefingSettingsScreen(
             tonalElevation = 0.dp
         )
     }
+}
+
+/**
+ * 순서 변경이 가능한 키워드/카테고리 칩 목록. (2026-07-20)
+ * 칩을 누르면 '◀ 앞으로 / ▶ 뒤로 / 삭제' 메뉴가 열린다.
+ * fixedItems 는 이동·삭제 불가(예: 뉴스 카테고리의 "전체"·"증시"·"AI").
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReorderableChipRow(
+    items: List<String>,
+    onReorder: (List<String>) -> Unit,
+    onDelete: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    fixedItems: Set<String> = emptySet()
+) {
+    LazyRow(modifier = modifier.padding(vertical = 8.dp)) {
+        items(items, key = { it }) { item ->
+            val index = items.indexOf(item)
+            val isFixed = item in fixedItems
+            var expanded by remember(item) { mutableStateOf(false) }
+            Box(modifier = Modifier.padding(end = 4.dp)) {
+                InputChip(
+                    selected = true,
+                    onClick = { if (!isFixed) expanded = true },
+                    label = { Text(item) },
+                    trailingIcon = {
+                        if (!isFixed) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "순서 변경 / 삭제",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                )
+                if (!isFixed) {
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        val canLeft = index > 0 && items[index - 1] !in fixedItems
+                        val canRight = index in 0 until items.lastIndex
+                        DropdownMenuItem(
+                            text = { Text("앞으로 이동") },
+                            enabled = canLeft,
+                            leadingIcon = { Icon(Icons.Default.KeyboardArrowLeft, contentDescription = null) },
+                            onClick = { onReorder(items.movedItem(index, index - 1)); expanded = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("뒤로 이동") },
+                            enabled = canRight,
+                            leadingIcon = { Icon(Icons.Default.KeyboardArrowRight, contentDescription = null) },
+                            onClick = { onReorder(items.movedItem(index, index + 1)); expanded = false }
+                        )
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("삭제") },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                            onClick = { onDelete(item); expanded = false }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 리스트에서 from 위치 원소를 to 위치로 옮긴 새 리스트 반환(범위 밖이면 원본 유지). */
+private fun <T> List<T>.movedItem(from: Int, to: Int): List<T> {
+    if (from == to || from !in indices || to !in indices) return this
+    val m = toMutableList()
+    val e = m.removeAt(from)
+    m.add(to, e)
+    return m
 }

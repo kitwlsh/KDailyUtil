@@ -245,14 +245,14 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** 증시탭 관심종목에 종목을 추가 */
+    /** 증시탭 관심종목에 종목을 추가 (순서 보존 — 맨 뒤에 추가) */
     fun addStockKeyword(name: String) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
-            val current = settingsRepository.watchStockKeywordsFlow.first().toMutableSet()
-            if (current.add(trimmed)) {
-                settingsRepository.updateWatchStockKeywords(current)
+            val current = settingsRepository.watchStockKeywordsFlow.first()
+            if (trimmed !in current) {
+                settingsRepository.updateWatchStockKeywords(current + trimmed)
                 loadStockPrices(showLoading = true)
             }
         }
@@ -261,11 +261,18 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
     /** 증시탭 관심종목에서 종목을 제거 */
     fun removeStockKeyword(name: String) {
         viewModelScope.launch {
-            val current = settingsRepository.watchStockKeywordsFlow.first().toMutableSet()
-            if (current.remove(name)) {
-                settingsRepository.updateWatchStockKeywords(current)
+            val current = settingsRepository.watchStockKeywordsFlow.first()
+            if (name in current) {
+                settingsRepository.updateWatchStockKeywords(current - name)
                 _stockPrices.value = _stockPrices.value.filter { it.name != name }
             }
+        }
+    }
+
+    /** 증시탭 관심종목 순서 변경(설정/증시탭 순서변경 UI에서 호출) */
+    fun reorderStockKeywords(newOrder: List<String>) {
+        viewModelScope.launch {
+            settingsRepository.updateWatchStockKeywords(newOrder)
         }
     }
 

@@ -656,7 +656,7 @@ class NewsRepository(private val context: Context? = null) {
             .trim()
     }
 
-    suspend fun getAllNews(keywords: Set<String>, limitPerKeyword: Int = 3): List<NewsItem> {
+    suspend fun getAllNews(keywords: Collection<String>, limitPerKeyword: Int = 3): List<NewsItem> {
         return keywords.flatMap { keyword ->
             getNewsByKeyword(keyword, limitPerKeyword)
         }.sortedByDescending { parsePubDateToMillis(it.pubDate) }

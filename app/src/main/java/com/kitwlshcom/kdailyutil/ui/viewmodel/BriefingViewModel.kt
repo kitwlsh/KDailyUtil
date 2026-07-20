@@ -30,17 +30,17 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         private const val TAG = "BriefingViewModel"
     }
 
-    val keywords = settingsRepository.keywordsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
+    val keywords = settingsRepository.keywordsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
     val briefingTime = settingsRepository.briefingTimeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), Pair(7, 0))
     val isBriefingEnabled = settingsRepository.isBriefingEnabledFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
     val geminiApiKey = settingsRepository.geminiApiKeyFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
     val dartApiKey = settingsRepository.dartApiKeyFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY)
     
     val aiBriefingCommand = settingsRepository.aiBriefingCommandFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
-    val aiBriefingCommands = settingsRepository.aiBriefingCommandsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
-    val stockKeywords = settingsRepository.stockKeywordsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
+    val aiBriefingCommands = settingsRepository.aiBriefingCommandsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
+    val stockKeywords = settingsRepository.stockKeywordsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
     // 📈 증시 대시보드 관심종목(시세·차트/실적 뉴스·전망). 뉴스탭 증시 필터(stockKeywords)와 별개 저장소.
-    val watchStockKeywords = settingsRepository.watchStockKeywordsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
+    val watchStockKeywords = settingsRepository.watchStockKeywordsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
     val aiCommandAudioPath = settingsRepository.aiCommandAudioPathFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val isApiKeyValidated = settingsRepository.isApiKeyValidatedFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
     val autoRefreshIntervalHours = settingsRepository.autoRefreshIntervalFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), 2)
@@ -50,8 +50,8 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     val categories = settingsRepository.categoriesFlow.map { cats ->
         val fixed = listOf("전체", "증시", "AI")
         val userCats = cats.filter { it !in fixed }
-        (fixed + userCats).toSet()
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), setOf("전체", "증시", "AI"))
+        (fixed + userCats).distinct()
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), listOf("전체", "증시", "AI"))
 
     private val _selectedAiCommand = MutableStateFlow<String?>(null)
     val selectedAiCommand: StateFlow<String?> = _selectedAiCommand.asStateFlow()
@@ -123,7 +123,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepository.updateSplashTheme(theme) }
     }
 
-    fun updateKeywords(newKeywords: Set<String>) {
+    fun updateKeywords(newKeywords: List<String>) {
         viewModelScope.launch { settingsRepository.updateKeywords(newKeywords) }
     }
 
@@ -191,7 +191,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun updateCategories(newCategories: Set<String>) {
+    fun updateCategories(newCategories: List<String>) {
         viewModelScope.launch { settingsRepository.updateCategories(newCategories) }
     }
 
@@ -478,7 +478,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepository.updateAiBriefingCommand(command) }
     }
 
-    fun updateAiCommands(commands: Set<String>) {
+    fun updateAiCommands(commands: List<String>) {
         viewModelScope.launch {
             settingsRepository.updateAiBriefingCommands(commands)
             // 지워졌을 때 selectedAiCommand 갱신
@@ -489,13 +489,13 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     }
 
     // 📈 증시 대시보드 관심종목 갱신(증시탭 시세·차트/실적 뉴스·전망에 반영). 뉴스탭 필터와 별개.
-    fun updateWatchStockKeywords(keywords: Set<String>) {
+    fun updateWatchStockKeywords(keywords: List<String>) {
         viewModelScope.launch {
             settingsRepository.updateWatchStockKeywords(keywords)
         }
     }
 
-    fun updateStockKeywords(keywords: Set<String>) {
+    fun updateStockKeywords(keywords: List<String>) {
         viewModelScope.launch {
             settingsRepository.updateStockKeywords(keywords)
             if (_selectedStockKeyword.value != null && !keywords.contains(_selectedStockKeyword.value)) {
