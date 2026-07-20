@@ -164,4 +164,11 @@ class ReadingTrainingRepository(private val context: Context) {
         target?.imagePath?.let { runCatching { File(it).delete() } }
         saveAll(loadPassages().filter { it.id != id })
     }
+
+    /** 보관함 지문의 제목만 변경(본문·이미지·생성시각은 유지). 빈 제목은 무시. */
+    fun renamePassage(id: String, newTitle: String) {
+        val clean = newTitle.trim().replace("\n", " ").take(40)
+        if (clean.isBlank()) return
+        saveAll(loadPassages().map { if (it.id == id) it.copy(title = clean) else it })
+    }
 }

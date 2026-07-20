@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import com.kitwlshcom.kdailyutil.data.repository.SavedPassage
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -193,6 +194,8 @@ private fun ReadingHub(
 
     var customText by remember { mutableStateOf("") }
     var showCustomInput by remember { mutableStateOf(false) }
+    // 보관함 지문 제목 편집 대상(null이면 다이얼로그 닫힘)
+    var editingPassage by remember { mutableStateOf<SavedPassage?>(null) }
 
     // 책 페이지 촬영/업로드 → OCR
     val context = LocalContext.current
@@ -433,11 +436,41 @@ private fun ReadingHub(
                                 maxLines = 1
                             )
                         }
+                        Text("✏️", fontSize = 15.sp,
+                            modifier = Modifier.clip(CircleShape).clickable { editingPassage = p }.padding(8.dp))
                         Text("✕", color = Color.White.copy(0.5f), fontSize = 16.sp,
                             modifier = Modifier.clip(CircleShape).clickable { viewModel.deletePassage(p.id) }.padding(8.dp))
                     }
                 }
             }
+        }
+
+        // 보관함 지문 제목 편집 다이얼로그
+        editingPassage?.let { target ->
+            var titleInput by remember(target.id) { mutableStateOf(target.title) }
+            AlertDialog(
+                onDismissRequest = { editingPassage = null },
+                title = { Text("지문 제목 편집", color = Gold24K, fontWeight = FontWeight.Bold) },
+                text = {
+                    OutlinedTextField(
+                        value = titleInput,
+                        onValueChange = { if (it.length <= 40) titleInput = it },
+                        label = { Text("제목 (최대 40자)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { viewModel.renamePassage(target.id, titleInput); editingPassage = null },
+                        enabled = titleInput.isNotBlank()
+                    ) { Text("저장", color = Gold24K) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { editingPassage = null }) { Text("취소", color = Color.White.copy(0.7f)) }
+                },
+                containerColor = DeepCharcoal
+            )
         }
 
         // 훈련 모듈

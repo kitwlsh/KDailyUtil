@@ -93,6 +93,14 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
+    /** 보관함 지문 제목 변경 */
+    fun renamePassage(id: String, newTitle: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { repo.renamePassage(id, newTitle) }
+            refreshPassages()
+        }
+    }
+
     /** 책 페이지 사진에서 본문 텍스트를 OCR 추출 (@param onResult (text, error)) */
     fun extractTextFromImage(bitmap: Bitmap, onResult: (String?, String?) -> Unit) {
         viewModelScope.launch {
