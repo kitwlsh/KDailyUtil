@@ -101,10 +101,13 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 
 - ✅ 신규 `AboutActivity`(HelpActivity 동형: 헤더+NestedScroll+FAB) 신설. 메뉴 버튼행에 '앱 정보' 버튼 추가해 진입.
   앱 소개 + 버전(`BuildConfig.VERSION_NAME` 단일 소스) + 법적 고지(기존 `legal_notice_*` 다이얼로그 재사용) 구성.
-- ✅ 브랜드 아이콘 갤러리 구현: 자기 앱 카드(`ic_k_emblem_balls`)=탭 시 미리보기, **KDailyUtil 카드(`ic_kdailyutil`)=`AppLinkUtil.openAppOrStore(ctx, "com.kitwlshcom.kdailyutil")`**. 설치 여부 배지('설치됨·열기 / 설치하기', `onResume` 재판정).
+- ✅ **'브랜드 & 자매앱' 갤러리(KDailyUtil과 동일 구성, §7-3 명명 규칙 적용)**:
+  - 자체 로고 영역 = **패밀리 메인로고 카드(`ic_k_logo_3d`, KDailyUtil에서 수신)** + **앱 아이콘 카드(`ic_k_emblem_balls`)**. 둘 다 탭 시 미리보기.
+  - 구분선 + 소제목 '🧩 K-시리즈 자매앱' 으로 구획 분리.
+  - 자매앱 영역 = **세로 1칸 1개 카드**를 `AboutActivity`의 `SIBLINGS` 레지스트리를 돌며 `item_sibling_app.xml`로 반복 인플레이트 → **신규앱은 레지스트리 한 줄만 추가**(유동 확장). 카드 탭 = `AppLinkUtil.openAppOrStore(ctx, pkg)`, 배지 = 설치됨(▶ 열기)/미설치(⬇ 설치하기), `onResume` 재판정.
 - ✅ `util/AppLinkUtil`(openAppOrStore/isInstalled) 신설 + `AndroidManifest`에 `<queries>`로 `com.kitwlshcom.kdailyutil` 선언(Android 11+ 가시성). JDK21 빌드 통과.
-- ✅ **KDailyUtil 아이콘 수신 완료**: `app/src/main/res/drawable-nodpi/ic_kdailyutil.png`(원본 = KDailyUtil `ic_k_app_icon.png`). 코드에서 `R.drawable.ic_kdailyutil` 사용.
-- 채택한 UX(§6 권장안 그대로): 자매앱 카드=즉시 스토어/실행, 설치 배지 표시. (사용자가 원하면 변경 가능)
+- ✅ **아이콘 수신**: `ic_kdailyutil.png`(원본 KDailyUtil `ic_k_app_icon.png`) + **패밀리 메인로고 `ic_k_logo_3d.png`**(원본 KDailyUtil `drawable/ic_k_logo_3d.png`). 둘 다 `drawable-nodpi/`.
+- 채택한 UX(§6 권장안 그대로): 자매앱 카드=즉시 스토어/실행, 설치 배지 표시.
 - ⏳ 남은 것: **실기기에서 시각 확인 + 실제 스토어 이동/설치 배지 동작 확인**.
 
 ## 5. 서로 주고받을 리소스 (교환 목록) — ✅ 양방향 전달 완료(2026-07-20)
@@ -115,8 +118,10 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 |---|---|---|---|
 | KLotto → KDailyUtil | `ic_k_emblem_balls.png` · `KLotto645/app/src/main/res/drawable-nodpi/` | `ic_klotto645.png` · `KDailyUtil/app/src/main/res/drawable-nodpi/` | ✅ 완료 |
 | KDailyUtil → KLotto | `ic_k_app_icon.png` · `KDailyUtil/app/src/main/res/drawable-nodpi/` | `ic_kdailyutil.png` · `KLotto645/app/src/main/res/drawable-nodpi/` | ✅ 완료 |
+| KDailyUtil → KLotto (패밀리 메인로고) | `ic_k_logo_3d.png` · `KDailyUtil/app/src/main/res/drawable/` | `ic_k_logo_3d.png` · `KLotto645/app/src/main/res/drawable-nodpi/` | ✅ 완료 |
 
 > 로컬 저장소 루트: `d:/DATA/20_Source/80_Git_HUB/`(하위에 `KDailyUtil/KDailyUtil`, `KLotto645`).
+> **패밀리 메인로고 `ic_k_logo_3d.png`**(K-Brand 3D Hexagon Emblem)는 앱별 아이콘과 별개로 **모든 자매앱이 공유하는 공통 브랜드 자산**이다. 각 앱의 '브랜드 & 자매앱' 최상단 카드로 동일하게 노출한다(파일명도 동일 유지).
 
 ## 6. KDailyUtil 세션이 확정할 결정사항
 
