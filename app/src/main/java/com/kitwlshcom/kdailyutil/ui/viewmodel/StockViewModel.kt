@@ -51,6 +51,11 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
     val financialHistoryTitle: StateFlow<String> = _financialHistoryTitle.asStateFlow()
     private val _financialHistoryLoading = MutableStateFlow(false)
     val financialHistoryLoading: StateFlow<Boolean> = _financialHistoryLoading.asStateFlow()
+    // 과거 실적 '추세 종합 AI 코멘트' (다분기 흐름 1회 요약)
+    private val _financialTrendComment = MutableStateFlow<String?>(null)
+    val financialTrendComment: StateFlow<String?> = _financialTrendComment.asStateFlow()
+    private val _financialTrendLoading = MutableStateFlow(false)
+    val financialTrendLoading: StateFlow<Boolean> = _financialTrendLoading.asStateFlow()
 
     private val _corpSearchResults = MutableStateFlow<List<com.kitwlshcom.kdailyutil.data.model.CorpEntry>>(emptyList())
     val corpSearchResults: StateFlow<List<com.kitwlshcom.kdailyutil.data.model.CorpEntry>> = _corpSearchResults.asStateFlow()
@@ -417,6 +422,45 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
     fun clearFinancialHistory() {
         _financialHistory.value = emptyList()
         _financialHistoryTitle.value = ""
+        _financialTrendComment.value = null
+        _financialTrendLoading.value = false
+    }
+
+    /**
+     * 현재 조회된 과거 실적(최근 정기보고서들)의 다분기 흐름을 Gemini로 1회 종합 요약한다.
+     * 결과는 [financialTrendComment]에 담기며, 다이얼로그를 닫으면(clearFinancialHistory) 초기화된다.
+     */
+    fun generateFinancialTrendComment(forceRefresh: Boolean = false) {
+        val periods = _financialHistory.value
+        if (periods.isEmpty()) return
+        if (!forceRefresh && !_financialTrendComment.value.isNullOrBlank()) return // 이미 생성됨
+        viewModelScope.launch {
+            _financialTrendLoading.value = true
+            try {
+                val geminiKey = settingsRepository.geminiApiKeyFlow.first()
+                if (geminiKey.isNullOrBlank()) {
+                    _financialTrendComment.value = "설정에서 Gemini API Key를 먼저 입력해야 추세 코멘트를 생성할 수 있습니다."
+                    return@launch
+                }
+                fun won(v: Long): String = "%,d원".format(v)
+                fun yoy(cur: Long, prev: Long): String =
+                    if (prev == 0L) "전년동기 -"
+                    else "전년동기 %+.1f%%".format((cur - prev) * 100.0 / kotlin.math.abs(prev))
+                val periodsText = periods.joinToString("\n") { p ->
+                    "- ${p.reportLabel} [${p.fsDiv}] " +
+                        "매출 ${won(p.revenue)}(${yoy(p.revenue, p.revenuePrev)}), " +
+                        "영업이익 ${won(p.operatingProfit)}(${yoy(p.operatingProfit, p.operatingProfitPrev)}), " +
+                        "순이익 ${won(p.netIncome)}(${yoy(p.netIncome, p.netIncomePrev)})"
+                }
+                val gemini = GeminiManager(geminiKey)
+                _financialTrendComment.value = gemini.summarizeFinancialTrend(_financialHistoryTitle.value, periodsText)
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ 추세 코멘트 생성 실패: ${e.message}")
+                _financialTrendComment.value = "추세 코멘트 생성 중 오류가 발생했습니다: ${e.message}"
+            } finally {
+                _financialTrendLoading.value = false
+            }
+        }
     }
 
     private var searchJob: kotlinx.coroutines.Job? = null

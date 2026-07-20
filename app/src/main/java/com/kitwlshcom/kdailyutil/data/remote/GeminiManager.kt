@@ -510,4 +510,43 @@ class GeminiManager(private val apiKey: String?) {
             "사전 리포트 생성 중 오류가 발생했습니다: ${e.message}"
         }
     }
+
+    /**
+     * 과거 실적(최근 정기보고서 여러 건)의 다분기 추이를 1회 종합해 한국어 코멘트로 요약한다.
+     * @param periodsText 보고서별 매출/영업이익/순이익 + 전년동기% 를 사람이 읽을 수 있게 이어붙인 문자열.
+     */
+    suspend fun summarizeFinancialTrend(
+        companyName: String,
+        periodsText: String
+    ): String = withContext(Dispatchers.IO) {
+        if (generativeModel == null || apiKey.isNullOrBlank()) {
+            return@withContext "설정에서 Gemini API 키를 입력하면 추세 종합 AI 코멘트를 받을 수 있습니다."
+        }
+
+        val prompt = content {
+            text(
+                "당신은 대한민국 주식시장 전문 금융 애널리스트입니다. 아래는 '$companyName'의 최근 정기보고서(분기·반기·사업) 실적 추이입니다. " +
+                "분기·반기 수치는 DART 기준 누적(YTD)이며, 괄호 %는 전년 동기 대비입니다.\n\n" +
+                "실적 데이터(과거→최근 또는 최근→과거 순서일 수 있음, 라벨의 연도/보고서로 판단):\n$periodsText\n\n" +
+                "요구 조건:\n" +
+                "1. 데이터에 드러난 사실만 근거로, 과장·투자 권유 없이 담백한 한국어로 작성하세요.\n" +
+                "2. 매출·영업이익·순이익의 '추세(성장/둔화/흑자·적자 전환)'와 '수익성 변화'를 종합하세요.\n" +
+                "3. 누적(YTD) 특성상 분기 간 단순 비교가 왜곡될 수 있으면 전년 동기(%) 위주로 해석하세요.\n" +
+                "4. 아래 마크다운 형식을 지키세요:\n\n" +
+                "### 🤖 $companyName 실적 추세 종합\n" +
+                "* **매출 추세**: ...\n" +
+                "* **수익성(영업이익·순이익)**: ...\n" +
+                "* **한줄 코멘트**: ...\n\n" +
+                "마지막 줄에 '※ 참고용 요약이며 투자 판단과 책임은 본인에게 있습니다.'를 덧붙이세요."
+            )
+        }
+
+        return@withContext try {
+            val response = generativeModel?.generateContent(prompt)
+            response?.text ?: "코멘트를 생성할 수 없습니다."
+        } catch (e: Exception) {
+            android.util.Log.e("GeminiManager", "❌ summarizeFinancialTrend error: ${e.message}", e)
+            "추세 코멘트 생성 중 오류가 발생했습니다: ${e.message}"
+        }
+    }
 }

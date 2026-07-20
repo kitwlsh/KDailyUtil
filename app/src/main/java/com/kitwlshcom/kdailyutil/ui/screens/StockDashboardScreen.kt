@@ -977,6 +977,8 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
     val financialHistory by viewModel.financialHistory.collectAsState()
     val historyTitle by viewModel.financialHistoryTitle.collectAsState()
     val historyLoading by viewModel.financialHistoryLoading.collectAsState()
+    val trendComment by viewModel.financialTrendComment.collectAsState()
+    val trendLoading by viewModel.financialTrendLoading.collectAsState()
     val corpResults by viewModel.corpSearchResults.collectAsState()
     val corpSearchLoading by viewModel.corpSearchLoading.collectAsState()
     var showHistoryDialog by remember { mutableStateOf(false) }
@@ -1025,6 +1027,33 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
                                     FinancialRow("영업이익", p.operatingProfit, p.operatingProfitPrev)
                                     FinancialRow("당기순이익", p.netIncome, p.netIncomePrev)
                                 }
+                            }
+                        }
+                        // 🤖 추세 종합 AI 코멘트 (다분기 흐름 1회 요약)
+                        item {
+                            when {
+                                trendLoading -> Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                                    CircularProgressIndicator(color = Gold24K, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    Spacer(Modifier.width(8.dp)); Text("추세를 종합 분석하는 중…", color = Color.White.copy(0.8f), fontSize = 13.sp)
+                                }
+                                trendComment != null -> Card(
+                                    colors = CardDefaults.cardColors(containerColor = Gold24K.copy(0.08f)),
+                                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.35f))
+                                ) {
+                                    Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                                        Text(trendComment ?: "", color = Color.White.copy(0.92f), fontSize = 13.sp, lineHeight = 19.sp)
+                                        Spacer(Modifier.height(6.dp))
+                                        TextButton(
+                                            onClick = { viewModel.generateFinancialTrendComment(forceRefresh = true) },
+                                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                                        ) { Text("🔄 다시 분석", color = Gold24K, fontSize = 12.sp) }
+                                    }
+                                }
+                                else -> OutlinedButton(
+                                    onClick = { viewModel.generateFinancialTrendComment() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.5f))
+                                ) { Text("🤖 추세 종합 AI 코멘트", color = Gold24K, fontSize = 13.sp) }
                             }
                         }
                     }
