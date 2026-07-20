@@ -765,8 +765,8 @@ fun MorningBriefingSettingsScreen(
                     Icon(Icons.Default.Image, contentDescription = null, tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("브랜드 아이콘 갤러리", fontWeight = FontWeight.Bold)
-                        Text("공식 3D 엠블럼 및 로고 가이드", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        Text("브랜드 & 자매앱", fontWeight = FontWeight.Bold)
+                        Text("앱 로고 갤러리 + K-시리즈 자매앱", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                     }
                     Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.Gray)
                 }
@@ -1044,7 +1044,7 @@ fun MorningBriefingSettingsScreen(
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("브랜드 아이콘 갤러리", fontWeight = FontWeight.Bold)
+                    Text("브랜드 & 자매앱", fontWeight = FontWeight.Bold)
                 }
             },
             text = {
@@ -1121,6 +1121,17 @@ fun MorningBriefingSettingsScreen(
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
+                    }
+
+                    // ── 구획: 자기 로고(위) / 자매앱(아래) 시각 분리 ──
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("🧩 K-시리즈 자매앱", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                        Text(
+                            "같은 제작사(KITWLSH)의 다른 앱입니다. 카드를 누르면 스토어로 이동하거나 설치된 앱을 실행합니다.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
                     }
 
                     // 3. 자매앱 — KLotto645 (누르면 설치/실행)
