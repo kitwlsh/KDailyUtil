@@ -1,16 +1,16 @@
 # 🛠 KDailyUtil - 개발자 가이드 (Developer Context Guide)
 
 > **신규 세션 또는 AI 어시스턴트가 이 파일을 먼저 읽으면 프로젝트 전체 맥락을 즉시 파악할 수 있습니다.**
-> 최종 업데이트: 2026-07-07
+> 최종 업데이트: 2026-07-20
 
 > ### 🚩 지금 상태 (신규 세션 필독)
-> - **스토어 배포본 = v1.1 (versionCode 2)**. **소스는 v1.2(versionCode 3)로 상향 완료**([app/build.gradle.kts](../app/build.gradle.kts)). **업로드용 AAB·출시노트 준비 완료 → Google Play 콘솔 업로드만 남음.**
->   - 올릴 파일: [`app/release/kdailyutil-v1.2.aab`](../app/release/kdailyutil-v1.2.aab) (versionCode 3, 서명됨, 이번 세션 변경 전부 포함).
+> - **스토어 배포본 = v1.1 (versionCode 2)**. **소스는 v1.2(versionCode 3)로 상향 완료**([app/build.gradle.kts](../app/build.gradle.kts)). Google Play 콘솔 업로드만 남음.
+> - **⚠️ 업로드용 AAB 재빌드 필요**: [`app/release/kdailyutil-v1.2.aab`](../app/release/kdailyutil-v1.2.aab)는 **2026-07-08 빌드**라, 그 뒤 추가된 **아이콘/스플래시 패밀리 통일(2026-07-15~16, 커밋 `2a8ee18`~`1744b6d`)이 포함돼 있지 않다.** 스토어 업로드 전 반드시 `./gradlew.bat :app:bundleRelease` 재실행 후 산출물을 `app/release/kdailyutil-v1.2.aab`로 복사(versionCode는 이미 3이라 그대로).
 >   - 출시노트/버전별 내역: [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md) (콘솔 '출시 노트'란 붙여넣기용 문구 포함).
->   - 코드 수정 후 재빌드 시: `./gradlew.bat :app:bundleRelease` → 산출물을 `app/release/kdailyutil-v{버전}.aab`로 복사(파일명 관례).
 > - working tree 깨끗, `origin/main` 동기화됨.
-> - **v1.1 이후 주요 변경(= v1.2에 담길 분)**: 오디오 SAF 복구·미디어버튼·인터럽트 재개 / 뉴스 저작권 보수화 / 퀴즈 중복방지 3중화·AI 퀴즈 가이드·커스텀 편집·오류신고 게이팅 / 증시 '실적 뉴스·전망' 개편·과거 실적 조회+회사 검색·조회기간 AI캐시 복원·DART 키 도움말 / 탭 ＋빠른추가 / **(2026-07-07) 퀴즈 파싱 내구성·상식백과 복구·데이터 검증 CI·퀴즈/독서 뒤로가기·AI 실적공시 헤더통합 스크롤·동일회사 1건 축약·숨김 객체영속·과거실적 회계기준월·증시 키워드 2종 구분(설정 분리)**.
-> - **다음 후보**: **AAB 재빌드+업로드(프로덕션)+실기기 최종 점검**, (선택) 키워드 순서변경(Set→List), 과거실적 추세 종합 AI 코멘트, (선택) '시세 및 차트' 관심종목 편집 UI에도 두-목록 안내.
+> - **v1.1 이후 주요 변경(= v1.2에 담길 분)**: 오디오 SAF 복구·미디어버튼·인터럽트 재개 / 뉴스 저작권 보수화 / 퀴즈 중복방지 3중화·AI 퀴즈 가이드·커스텀 편집·오류신고 게이팅 / 증시 '실적 뉴스·전망' 개편·과거 실적 조회+회사 검색·조회기간 AI캐시 복원·DART 키 도움말 / 탭 ＋빠른추가 / (2026-07-07) 퀴즈 파싱 내구성·상식백과 복구·데이터 검증 CI·퀴즈/독서 뒤로가기·AI 실적공시 헤더통합 스크롤·동일회사 1건 축약·숨김 객체영속·과거실적 회계기준월·증시 키워드 2종 구분(설정 분리) / **(2026-07-15~16) K-시리즈 아이콘·스플래시·워터마크 패밀리 통일**.
+> - **아이콘/스플래시 패밀리 통일 (2026-07-15~16)**: 런처 아이콘(mipmap 전 밀도)·플레이스토어 아이콘·스플래시(`ic_app_logo_full` 자체 앱 아이콘으로 교체)·워터마크([BrandComponents.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/components/BrandComponents.kt))·설정 브랜드 갤러리를 형제 앱(KLotto645 등)과 통일. 단일 기준 문서 = [doc/K_SERIES_ICON_RECIPE.md](K_SERIES_ICON_RECIPE.md), 원본/스크립트 = `doc/family_icons/`, `doc/icon_scripts/`. **미사용 `HexagonShape` 제거됨.**
+> - **다음 후보**: **AAB 재빌드+업로드(프로덕션)+실기기 최종 점검**, 빠른 독서 개선(보관함 제목 편집·통계 상세), (선택) '시세 및 차트' 관심종목 편집 UI에도 두-목록 안내. (~~키워드 순서변경~~·~~과거실적 추세 AI 코멘트~~는 2026-07-20 완료)
 > - **AAB 재빌드 방법**: `./gradlew.bat :app:bundleRelease` (서명은 `local.properties`의 `release.*` 키로 자동 — VCS 제외). 산출물: `app/build/outputs/bundle/release/app-release.aab`.
 
 ---
@@ -21,7 +21,7 @@
 - **패키지**: `com.kitwlshcom.kdailyutil`
 - **언어**: Kotlin (Jetpack Compose)
 - **최소 SDK**: 26 / 타겟 SDK: 36
-- **버전**: 소스 = versionCode 3 / versionName 1.2 (AAB 빌드 완료, 업로드 대기) · 스토어 배포본 = versionCode 2 / versionName 1.1
+- **버전**: 소스 = versionCode 3 / versionName 1.2 (⚠️ AAB는 07-08 빌드로 아이콘 통일분 미포함 → 업로드 전 재빌드 필요) · 스토어 배포본 = versionCode 2 / versionName 1.1
 - **빌드 도구**: AGP 8.13.2, Kotlin 2.0.21
 - **GitHub**: `kitwlsh/KDailyUtil`
 - **로컬 경로**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil`
@@ -340,7 +340,15 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 ### 뉴스/증시/AI 탭 '＋ 빠른 추가' (2026-07-06)
 설정 화면에만 있던 카테고리·키워드·명령 추가를, 각 탭에서도 바로 할 수 있게 `NewsBriefingScreen`에 '＋' 진입점 추가(상시 노출은 '＋'만, 삭제/순서변경은 설정 화면 유지).
 - 세로 주제(카테고리)탭 끝 '＋' → `updateCategories`, 증시 가로 서브탭 끝 '＋' → `updateStockKeywords`, AI 가로 서브탭 끝 '＋' → `updateAiCommands`. 하나의 추가 다이얼로그(`addTarget`)로 처리하며 설정과 동일 저장 로직 재사용.
-- ⚠️ 키워드는 `Set`(순서 없음) 저장이라 '순서 변경'은 미지원(하려면 `List` 전환 필요).
+- ✅ **키워드 순서 변경 지원(2026-07-20)**: 카테고리·브리핑 키워드·뉴스탭 증시 키워드·증시 대시보드 관심종목·AI 명령을 모두 `Set`→**순서 보존 `List`** 저장으로 전환. 설정 화면의 각 칩을 누르면 **'앞으로/뒤로 이동·삭제'** 메뉴(`ReorderableChipRow`, MorningBriefingSettingsScreen). 자세한 저장 규격은 아래 "키워드 순서 보존 저장" 참조.
+
+#### 키워드 순서 보존 저장 (Set→List, 2026-07-20)
+DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 목록을 **구분자(`\n`)로 이은 문자열**(`stringPreferencesKey`)로 저장한다.
+- 대상 5종 + 저장 키(순서용): `keywords_order` / `news_categories_order` / `ai_briefing_commands_order` / `stock_keywords_order` / `watch_stock_keywords_order`. (기존 `stringSetPreferencesKey`는 마이그레이션 읽기용으로 남겨 둠)
+- 읽기(`SettingsRepository.readOrderedList`): 순서 키가 있으면 그대로(빈 문자열 `""`=사용자가 전부 지운 상태 → 빈 목록), 없으면 **레거시 Set 키에서 1회 마이그레이션**(항목 보존, 순서는 임의), 둘 다 없으면 기본값.
+- 쓰기(`saveOrderedList`): trim + blank 제거 + `distinct()`(첫 등장만 유지해 Set의 유일성 보존) 후 `joinToString("\n")`.
+- 관련 Flow/메서드는 전부 `List<String>`으로 변경(`BriefingViewModel`, `StockViewModel.reorderStockKeywords`). `NewsRepository.getAllNews`는 `Collection<String>` 수신으로 완화.
+- ⚠️ 카테고리의 고정 항목("전체"·"증시"·"AI")은 `ReorderableChipRow(fixedItems=...)`로 이동·삭제 불가 처리(고정 항목 앞으로는 이동 못 함).
 
 #### ⚠️ DART 기본 제공 키 (빌드 시 필수 확인)
 - 사용자가 DART 키를 직접 입력하지 않으면 **기본 제공 키**로 폴백하여 실적 공시 기능이 동작함.
@@ -439,10 +447,10 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 > **최우선(배포)**: 다음 스토어 업로드 전 **versionCode 3 / versionName 1.2** 상향 → 릴리즈 AAB 빌드/업로드. 실기기 최종 점검(검색·과거실적·조회기간 유지·오디오 복구·퀴즈 가져오기).
 
 - [ ] **버전 상향 + 스토어 업로드** (v1.1 이후 변경분 배포)
-- [ ] (선택) **키워드 순서 변경**: 현재 `Set` 저장이라 미지원 → `List` 전환 필요
-- [ ] (선택) **과거 실적 추세 종합 AI 코멘트** 버튼(다분기 흐름 1회 요약)
+- [x] ~~(선택) **키워드 순서 변경**: `Set`→`List` 전환~~ ✅ 완료(2026-07-20, 위 "키워드 순서 보존 저장" 참조)
+- [x] ~~(선택) **과거 실적 추세 종합 AI 코멘트** 버튼(다분기 흐름 1회 요약)~~ ✅ 완료(2026-07-20, 위 증시 메모 "추세 종합 AI 코멘트" 참조)
 - [ ] **AI 스마트 관심종목 포트폴리오 분석**: 보유 종목 실적 트렌드 종합 리포트 (README Phase 3)
-- [ ] **빠른 독서**: 보관함 제목 편집, 통계 상세 화면, 난이도 자동 추천
+- [ ] **빠른 독서**: ~~보관함 제목 편집~~(✅ 2026-07-20), 통계 상세 화면, 난이도 자동 추천
 - [ ] **이미지 퀴즈 공유 개선**: 크롭 이미지를 Base64로 `.kquiz`에 내장
 - [ ] **AI 마크다운 렌더링**: 브리핑/요약 결과에 Rich Text 뷰어
 
@@ -454,7 +462,23 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
 
 ## 🔄 최근 커밋 이력 (최신순)
 
-> 최신 상태는 항상 `git log --oneline -20` 으로 확인. **`8f51481`(v1.1)까지가 스토어 배포본**, 그 위(2026-06-29~07-07)는 미배포(다음 v1.2).
+> 최신 상태는 항상 `git log --oneline -20` 으로 확인. **`8f51481`(v1.1)까지가 스토어 배포본**, 그 위(2026-06-29~07-16)는 미배포(다음 v1.2).
+
+**2026-07-15~16 세션 (K-시리즈 아이콘/스플래시/워터마크 패밀리 통일, 모두 푸시)**
+| 커밋 | 내용 |
+|------|------|
+| `ac6d41b`·`8e4fb3c`·`a1a44bc` | docs: README 문서 인덱스 완성 + '새 문서는 인덱스에 등록' 규칙 명시(K_SERIES_ICON_RECIPE·RELEASE_NOTES 등록) |
+| `1744b6d` | feat: K-시리즈 아이콘/스플래시/워터마크 패밀리 통일 + 표준 문서화(런처 전 밀도·플레이스토어·워터마크·설정 갤러리) |
+| `a374358` | chore: 미사용 `HexagonShape` 제거 + 아이콘 레시피 §7~8 정리 |
+| `2a8ee18`~`d329f0a` | fix: 스플래시를 자체 앱 아이콘(`ic_app_logo_full`)으로 교체 — 육각형 상하 잘림·흰 배경 잔여·하단 드롭섀도 해결 |
+| `8667616`~`402c811` | docs: K-시리즈 아이콘/스플래시 제작 레시피 + KLotto645 패밀리 아이콘 아카이브 |
+> ⚠️ **이 세션 변경분은 2026-07-08 빌드된 `kdailyutil-v1.2.aab`에 미포함** → 스토어 업로드 전 AAB 재빌드 필요(위 "지금 상태" 참조).
+
+**2026-07-08 세션 (v1.2 AAB·릴리즈 노트)**
+| 커밋 | 내용 |
+|------|------|
+| `c77e709` | release: v1.2 업로드용 AAB(`kdailyutil-v1.2.aab`) + 릴리즈 노트(`RELEASE_NOTES.md`) 추가, 가이드 배포 상태 최신화 |
+| `2bd034c` | docs: 2026-07-07 세션 커밋 이력/현재 상태 최신화 + AAB 재빌드 안내 |
 
 **2026-07-07 세션 (배움터 퀴즈 안정화·뒤로가기·증시 개선·v1.2 상향, 모두 푸시)**
 | 커밋 | 내용 |
@@ -514,7 +538,8 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
   - **숨김 항목 표시(2026-07-07)**: 숨김 보기 모드에서 숨긴 카드는 **흐리게 + "숨김" 뱃지**로 구분(`DisclosureCard(isHidden)`).
   - **숨김을 객체로 영속화(2026-07-07)**: 예전엔 `hidden_disclosures.json`에 `rcept_no`(id)만 저장해, 조회기간 밖의 옛 숨김 항목은 숨김 보기에도 안 나타나고 "(2)" 숫자만 남는 문제가 있었음. → 즐겨찾기처럼 **전체 객체 저장**(`saveHiddenObjects`/`loadHiddenObjects`, 문자열 원소는 레거시 호환 파싱)하고, `loadDisclosures`가 **숨김 보기 시 조회기간 밖 숨김 항목을 강제 포함**(레거시 id-only는 AI캐시 `cachedById`에서 회사명 보강, 없으면 "(이전에 숨긴 공시)" 표기로 해제만 가능). `rcept_dt` 빈 값 대비 `DisclosureCard` 날짜 포맷 방어(`length>=8`).
   - **과거실적 다이얼로그(2026-07-07)**: 카드에 **회계 기준월**(`periodEndLabel`: 사업=YYYY.12/3분기=.09/반기=.06/1분기=.03) 표기, 캡션에 **연결=연결재무제표/개별=별도재무제표** 설명 추가('연결'은 라벨일 뿐 클릭 대상 아님).
-- **과거 실적 조회 + 회사 검색 (2026-07-06)**: 공시 카드의 **📊 과거실적** 또는 상단 **회사명 검색**(리스트에 없는 회사도) → `StockRepository.fetchFinancialHistory(corpCode)`가 최근 8개 정기보고서(연도×보고서코드)를 조회해 **매출·영업이익·순이익 + 전년동기%** 목록으로 표시(참고용, 분석 X). 분기·반기는 **누적(YTD)**. 검색은 `ensureCorpCodes()`가 DART `corpCode.xml`(zip)을 1회 다운로드→상장사만 캐시(`corp_codes.json`) 후 이름 검색. ⚠️ 검색은 **디바운스(350ms·2글자)+Mutex 단일화+스트리밍 파싱**(과거 입력마다 대용량 재다운로드→OOM 크래시 있었음).
+- **과거 실적 조회 + 회사 검색 (2026-07-06)**: 공시 카드의 **📊 과거실적** 또는 상단 **회사명 검색**(리스트에 없는 회사도) → `StockRepository.fetchFinancialHistory(corpCode)`가 최근 8개 정기보고서(연도×보고서코드)를 조회해 **매출·영업이익·순이익 + 전년동기%** 목록으로 표시(참고용, 분석 X). 분기·반기는 **누적(YTD)**.
+  - **추세 종합 AI 코멘트(2026-07-20)**: 과거 실적 다이얼로그 하단 **🤖 추세 종합 AI 코멘트** 버튼 → `StockViewModel.generateFinancialTrendComment()`가 조회된 보고서들을 텍스트로 이어 `GeminiManager.summarizeFinancialTrend()`에 1회 전달, 매출/수익성 추세를 마크다운 요약(`financialTrendComment` state)으로 표시. Gemini 키 필요, 🔄 다시 분석 지원, 다이얼로그 닫으면(`clearFinancialHistory`) 초기화. (마크다운 렌더러는 아직 없어 원문 텍스트로 노출) 검색은 `ensureCorpCodes()`가 DART `corpCode.xml`(zip)을 1회 다운로드→상장사만 캐시(`corp_codes.json`) 후 이름 검색. ⚠️ 검색은 **디바운스(350ms·2글자)+Mutex 단일화+스트리밍 파싱**(과거 입력마다 대용량 재다운로드→OOM 크래시 있었음).
 - **실적 뉴스·전망 (2026-07-06 개편)**: 국내는 정확한 실적 발표 예정일·컨센서스를 무료로 제공하지 않아, '예정일'을 맞추는 대신 **관심 종목의 '실적' 관련 뉴스 + AI 사전 전망**을 제공하도록 개편(이전 '실적 예정 일정' 탭 대체). 종목 카드 탭=AI 사전 전망(`generatePreReport`), **📰 실적 뉴스 보기**=`StockViewModel.loadEarningsNews()`→`NewsRepository.getNewsByKeyword("{종목} 실적")`→다이얼로그, 헤드라인 탭 시 원문을 외부 브라우저로 오픈. 날짜 배지는 `nextStatutoryDeadline()`의 **정기보고서 법정 제출기한(분기말+45일 등)** 을 '기한' 참고로만 표기(실제 발표일 아님).
   - **목록 출처**: `fetchExpectedEarnings(watchNames)`가 `watchStockKeywordsFlow`(증시 대시보드 관심종목)에서 **`CORP_CODE_MAP`에 매핑된 한국 상장사만** 필터. 매핑 결과가 없으면 대표 6종목으로 폴백. 그래서 관심종목에 삼성전자·SK하이닉스만 매핑되면 그 둘만 보임(지수·해외·가상자산은 실적 공시 없어 제외). 탭 상단 안내 문구로 출처·관리 위치 고지(2026-07-07).
 
@@ -554,6 +579,7 @@ DataStore에 **독립된 두 키워드 저장소**가 있고 UI에서 각각 관
 - 저장:
   - DataStore `reading_training`: best_wpm / streak_days / last_trained_date / total_sessions / best_comprehension / trained_dates(집합)
   - `filesDir/reading_passages.json`(지문 보관함) + `filesDir/reading_pages/`(썸네일 JPEG)
+    - **보관함 제목 편집(2026-07-20)**: 보관함 카드의 ✏️ → 제목 편집 다이얼로그 → `ReadingTrainingViewModel.renamePassage(id, title)` → `ReadingTrainingRepository.renamePassage()`(본문·이미지·생성시각 유지, 최대 40자). 카드의 ✕는 삭제.
   - `filesDir/reading_wpm_history.json`(WPM 최근 30회)
 - AI: `GeminiManager.extractTextFromImage()`(책 페이지 OCR), `generateComprehensionQuiz()`(이해도 4지선다). 이미지 OCR은 전송 전 최대 2048px 축소.
 - ⚠️ 저작권: 일반 속독 기법 + 직접 작성/공개/사용자 텍스트만 사용. '퀀텀독서법'은 브랜드명으로 쓰지 않고 추천 도서로만 언급. 상세 설계: `doc/FEATURE_SPEED_READING.md`.
