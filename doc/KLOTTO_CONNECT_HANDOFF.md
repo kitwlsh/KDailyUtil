@@ -87,21 +87,14 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 
 ---
 
-## 3. KDailyUtil 측 작업 항목 (이 세션에서 할 일)
+## 3. KDailyUtil 측 작업 항목 — ✅ 구현 완료(2026-07-20, 커밋 `9fc3c37`)
 
-> ⚠️ **줄번호는 참고용(수시로 밀림)**: 본 문서의 줄번호는 작성 시점 기준이며 다른 작업으로 쉽게 어긋난다.
-> 실제 편집 시엔 심볼명(`showIconGalleryDialog` 다이얼로그 블록, `showFullScreenIcon`, `R.drawable.ic_k_logo_3d`/`ic_k_app_icon`)으로 위치를 찾을 것.
+> ⚠️ **줄번호는 참고용(수시로 밀림)**: 심볼명(`showIconGalleryDialog` 다이얼로그 블록, `openAppOrStore()`, `R.drawable.ic_klotto645`)으로 위치를 찾을 것.
 
-1. ✅ **KLotto645 아이콘 리소스 추가 완료(2026-07-20)**
-   - KLotto 원본 `KLotto645/app/src/main/res/drawable-nodpi/ic_k_emblem_balls.png` →
-     KDailyUtil `app/src/main/res/drawable-nodpi/**ic_klotto645.png**`로 복사 완료. (코드에서 `R.drawable.ic_klotto645` 사용)
-2. **갤러리에 KLotto645 카드 추가** — `showIconGalleryDialog { ... }` 블록의 기존 카드 2장(`ic_k_logo_3d`·`ic_k_app_icon`)과 동형으로 3번째 `Card` 추가.
-   - 카드 이미지: `painterResource(R.drawable.ic_klotto645)` (위 1번에서 추가한 파일).
-   - 라벨 예: "KLotto645 — 로또 6/45 분석·생성" / 부제 "자매앱 · 탭하여 설치"
-   - `onClick`을 기존처럼 전체화면 미리보기로 두지 말고 **`openAppOrStore(context, "com.kitwlshCom.klotto645")` 호출**로.
-   - (선택) 설치 여부에 따라 배지 "설치됨/설치하기" 표시 — `getLaunchIntentForPackage != null`로 판정.
-3. **자기 아이콘 카드 동작은 현행 유지**(자기 앱을 스토어로 보낼 필요 없음). 필요 시 자기 카드엔 미리보기, 상대 카드엔 스토어 이동으로 분기.
-4. 하드코딩 문자열이 늘어나므로, 여력 되면 `strings.xml`로 추출 권장(원 프로젝트 관례상 현재는 하드코딩이라 필수는 아님).
+1. ✅ **KLotto645 아이콘 리소스 추가** — KLotto 원본 `ic_k_emblem_balls.png` → KDailyUtil `app/src/main/res/drawable-nodpi/ic_klotto645.png` 복사(코드에서 `R.drawable.ic_klotto645`).
+2. ✅ **갤러리에 KLotto645 카드 추가** — `showIconGalleryDialog { ... }` 블록에 3번째 `Card`(이미지 `ic_klotto645`, 라벨 "KLotto645 — 로또 6/45 분석·생성"). 탭 시 **`openAppOrStore(context, "com.kitwlshCom.klotto645")`**(파일 하단 top-level 헬퍼 신설). **설치 상태 배지**: 설치됨=▶ 열기 / 미설치=⬇ 설치하기(`getLaunchIntentForPackage != null` 판정).
+3. ✅ **자기 아이콘 카드는 현행 유지**(미리보기). 자매 카드만 스토어/실행으로 분기. 갤러리 안내 문구도 이에 맞게 수정.
+4. (미적용) 문자열 하드코딩 → `strings.xml` 추출: 원 프로젝트 관례상 현재 하드코딩이라 보류(추후 여력 시).
 
 ## 4. KLotto645 측 작업 항목 (KLotto 세션에서 별도 진행)
 
@@ -129,9 +122,9 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 
 ### KDailyUtil 세션 회신 (2026-07-20)
 1. **applicationId = `com.kitwlshcom.kdailyutil`(소문자 c) 확정**(build.gradle.kts에서 확인). **KDailyUtil은 v1.1(versionCode 2)로 스토어 출시됨** → 다른 앱의 KDailyUtil 카드 **링크 활성화 가능**(실제 리스팅 최종 확인은 권장). Play URL: `https://play.google.com/store/apps/details?id=com.kitwlshcom.kdailyutil`.
-2. (권장) 자매앱 카드는 **즉시 `openAppOrStore`**(미리보기 불필요), 자기 앱 카드는 현행 미리보기 유지. → **사용자 최종 확정 대기**.
-3. (권장) **설치됨/설치하기 배지 표시**(`getLaunchIntentForPackage != null`). → 사용자 확정 대기.
-4. KLotto에 넘길 아이콘: **`ic_k_app_icon.png`**(현재 앱 아이콘, drawable-nodpi) 권장.
+2. ✅ **확정·적용**: 자매앱 카드는 **즉시 `openAppOrStore`**(미리보기 없음), 자기 앱 카드는 현행 미리보기 유지.
+3. ✅ **확정·적용**: **설치됨(▶ 열기)/미설치(⬇ 설치하기) 배지 표시**(`getLaunchIntentForPackage != null`).
+4. ✅ **확정**: KLotto에 넘긴 아이콘 = `ic_k_app_icon.png` → KLotto엔 `ic_kdailyutil.png`로 저장(§5).
 > 갤러리 다이얼로그 실제 위치(2026-07-20): `showIconGalleryDialog { ... }` 블록(자기 아이콘 2종: `ic_k_logo_3d`·`ic_k_app_icon`). 여기 3번째 카드로 자매앱을 추가.
 
 ---
