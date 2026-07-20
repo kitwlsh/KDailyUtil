@@ -1,9 +1,13 @@
 package com.kitwlshcom.kdailyutil.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -1055,7 +1059,7 @@ fun MorningBriefingSettingsScreen(
                             color = Color.Gray
                         )
                         Text(
-                            "🔍 카드를 클릭하면 로고를 전체 화면으로 볼 수 있습니다.",
+                            "🔍 자체 로고 카드는 전체 화면 보기, 자매앱 카드는 스토어로 이동합니다.",
                             style = MaterialTheme.typography.labelSmall,
                             color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
                         )
@@ -1116,6 +1120,54 @@ fun MorningBriefingSettingsScreen(
                                 color = Color.White.copy(alpha = 0.7f),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
+                        }
+                    }
+
+                    // 3. 자매앱 — KLotto645 (누르면 설치/실행)
+                    val klottoPkg = "com.kitwlshCom.klotto645"
+                    val klottoInstalled = remember {
+                        context.packageManager.getLaunchIntentForPackage(klottoPkg) != null
+                    }
+                    Card(
+                        onClick = { openAppOrStore(context, klottoPkg) },
+                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_klotto645),
+                                contentDescription = "KLotto645",
+                                modifier = Modifier.size(80.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("KLotto645 — 로또 6/45 분석·생성", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "같은 제작사의 자매앱입니다. 로또 6/45 데이터를 과학적으로 분석하고 조합을 생성해요.",
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.7f),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            // 설치됨=열기 / 미설치=설치하기 배지
+                            Surface(
+                                color = if (klottoInstalled) Color.White.copy(alpha = 0.10f)
+                                        else com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                                shape = RoundedCornerShape(50)
+                            ) {
+                                Text(
+                                    if (klottoInstalled) "▶ 열기" else "⬇ 설치하기",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (klottoInstalled) Color.White else Color.Black,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -1325,4 +1377,23 @@ private fun <T> List<T>.movedItem(from: Int, to: Int): List<T> {
     val e = m.removeAt(from)
     m.add(to, e)
     return m
+}
+
+/**
+ * 자매앱 유도: 설치돼 있으면 앱 실행, 없으면 Play 스토어(마켓→브라우저 폴백)로 이동. (2026-07-20)
+ * K-시리즈 자매앱 상호연결 표준(doc/KLOTTO_CONNECT_HANDOFF.md §2)의 Compose 구현.
+ */
+private fun openAppOrStore(context: android.content.Context, pkg: String) {
+    val launch = context.packageManager.getLaunchIntentForPackage(pkg)
+    if (launch != null) {
+        context.startActivity(launch)
+        return
+    }
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pkg")))
+    } catch (e: ActivityNotFoundException) {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$pkg"))
+        )
+    }
 }
