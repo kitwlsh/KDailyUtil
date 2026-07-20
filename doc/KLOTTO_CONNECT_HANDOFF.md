@@ -94,13 +94,18 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 1. ✅ **KLotto645 아이콘 리소스 추가** — KLotto 원본 `ic_k_emblem_balls.png` → KDailyUtil `app/src/main/res/drawable-nodpi/ic_klotto645.png` 복사(코드에서 `R.drawable.ic_klotto645`).
 2. ✅ **갤러리에 KLotto645 카드 추가** — `showIconGalleryDialog { ... }` 블록에 3번째 `Card`(이미지 `ic_klotto645`, 라벨 "KLotto645 — 로또 6/45 분석·생성"). 탭 시 **`openAppOrStore(context, "com.kitwlshCom.klotto645")`**(파일 하단 top-level 헬퍼 신설). **설치 상태 배지**: 설치됨=▶ 열기 / 미설치=⬇ 설치하기(`getLaunchIntentForPackage != null` 판정).
 3. ✅ **자기 아이콘 카드는 현행 유지**(미리보기). 자매 카드만 스토어/실행으로 분기. 갤러리 안내 문구도 이에 맞게 수정.
+   - ✅ **화면 개칭·구획 분리(커밋 `d595c9f`)**: '브랜드 아이콘 갤러리' → **'브랜드 & 자매앱'**, 자기 로고와 자매앱 사이에 구분선 + 소제목 '🧩 K-시리즈 자매앱' 추가(§7-3 명명 규칙). KLotto/신규앱도 동일 적용 권장.
 4. (미적용) 문자열 하드코딩 → `strings.xml` 추출: 원 프로젝트 관례상 현재 하드코딩이라 보류(추후 여력 시).
 
-## 4. KLotto645 측 작업 항목 (KLotto 세션에서 별도 진행)
+## 4. KLotto645 측 작업 항목 — ✅ 구현 완료(2026-07-20)
 
-- 신규 AboutActivity(또는 MenuActivity 확장)에 앱 소개/버전(`BuildConfig.VERSION_NAME`)/법적 고지(기존 `legal_notice_*` 재사용)/브랜드 아이콘 갤러리 구성.
-- 갤러리에 **KDailyUtil 카드** 추가 → `openAppOrStore(ctx, "com.kitwlshcom.kdailyutil")`(View 방식으로 동일 로직).
-- ✅ **KDailyUtil 아이콘 전달 완료(2026-07-20)**: KLotto 리소스에 `app/src/main/res/drawable-nodpi/**ic_kdailyutil.png**`로 복사됨(원본 = KDailyUtil `ic_k_app_icon.png`). 코드에서 `R.drawable.ic_kdailyutil` 사용.
+- ✅ 신규 `AboutActivity`(HelpActivity 동형: 헤더+NestedScroll+FAB) 신설. 메뉴 버튼행에 '앱 정보' 버튼 추가해 진입.
+  앱 소개 + 버전(`BuildConfig.VERSION_NAME` 단일 소스) + 법적 고지(기존 `legal_notice_*` 다이얼로그 재사용) 구성.
+- ✅ 브랜드 아이콘 갤러리 구현: 자기 앱 카드(`ic_k_emblem_balls`)=탭 시 미리보기, **KDailyUtil 카드(`ic_kdailyutil`)=`AppLinkUtil.openAppOrStore(ctx, "com.kitwlshcom.kdailyutil")`**. 설치 여부 배지('설치됨·열기 / 설치하기', `onResume` 재판정).
+- ✅ `util/AppLinkUtil`(openAppOrStore/isInstalled) 신설 + `AndroidManifest`에 `<queries>`로 `com.kitwlshcom.kdailyutil` 선언(Android 11+ 가시성). JDK21 빌드 통과.
+- ✅ **KDailyUtil 아이콘 수신 완료**: `app/src/main/res/drawable-nodpi/ic_kdailyutil.png`(원본 = KDailyUtil `ic_k_app_icon.png`). 코드에서 `R.drawable.ic_kdailyutil` 사용.
+- 채택한 UX(§6 권장안 그대로): 자매앱 카드=즉시 스토어/실행, 설치 배지 표시. (사용자가 원하면 변경 가능)
+- ⏳ 남은 것: **실기기에서 시각 확인 + 실제 스토어 이동/설치 배지 동작 확인**.
 
 ## 5. 서로 주고받을 리소스 (교환 목록) — ✅ 양방향 전달 완료(2026-07-20)
 
@@ -154,6 +159,7 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 
 ### 7-3. 공통 규칙
 - **자기 앱 카드 = 미리보기(현행)**, **자매앱 카드 = `openAppOrStore`(스토어/실행)**. 설치 여부 배지(설치됨/설치하기)는 `getLaunchIntentForPackage != null`로 판정(선택).
+- **화면/섹션 명명 규칙(2026-07-20 확정)**: 자매앱을 '브랜드 아이콘 갤러리' 같은 로고 감상용 화면에 그냥 섞지 말 것. 화면 이름은 **'브랜드 & 자매앱'** 처럼 자매앱을 포함함을 드러내고, **자기 로고 영역과 자매앱 영역을 구분선 + 소제목('🧩 K-시리즈 자매앱')으로 분리**해 동작(미리보기 vs 스토어 이동) 차이를 시각적으로 구분한다. (KDailyUtil 적용 완료, KLotto/신규앱 동일 적용)
 - 아이콘 규격/패밀리 통일은 [K_SERIES_ICON_RECIPE.md](K_SERIES_ICON_RECIPE.md)를 따른다(그 문서=아이콘 규격, 이 문서=앱 간 연결).
 - 코드 공유 불가(스택 상이): 교환 대상은 **(a) applicationId (b) 브랜드 아이콘 파일** 두 가지뿐(§2·§5).
 - 새 앱이 늘어도 `openAppOrStore(context, pkg)`(§2) **하나의 헬퍼로 N개 카드 모두 처리** — 카드마다 패키지명만 바꿔 재사용.
