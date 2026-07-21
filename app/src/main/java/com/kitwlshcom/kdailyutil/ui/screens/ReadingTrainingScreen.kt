@@ -109,7 +109,7 @@ private fun randomPassageExcept(current: String): String {
     return next
 }
 
-private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, CHUNK, EYE, RESULT, COMPREHENSION }
+private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, CHUNK, EYE, RESULT, COMPREHENSION, STATS }
 
 @Composable
 fun ReadingTrainingScreen(
@@ -124,6 +124,8 @@ fun ReadingTrainingScreen(
     BackHandler(enabled = module != ReadingModule.HUB) {
         module = ReadingModule.HUB
     }
+
+    val recommendedWpm by viewModel.recommendedWpm.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         when (module) {
@@ -141,16 +143,19 @@ fun ReadingTrainingScreen(
             )
             ReadingModule.PACER -> PacerModule(
                 passage = passage,
+                initialWpm = recommendedWpm,
                 onExit = { module = ReadingModule.HUB },
                 onComplete = { wpm -> viewModel.recordSession(wpm); lastWpm = wpm; module = ReadingModule.RESULT }
             )
             ReadingModule.RSVP -> RsvpModule(
                 passage = passage,
+                initialWpm = recommendedWpm,
                 onExit = { module = ReadingModule.HUB },
                 onComplete = { wpm -> viewModel.recordSession(wpm); lastWpm = wpm; module = ReadingModule.RESULT }
             )
             ReadingModule.CHUNK -> ChunkModule(
                 passage = passage,
+                initialWpm = recommendedWpm,
                 onExit = { module = ReadingModule.HUB },
                 onComplete = { wpm -> viewModel.recordSession(wpm); lastWpm = wpm; module = ReadingModule.RESULT }
             )
@@ -167,6 +172,10 @@ fun ReadingTrainingScreen(
                 viewModel = viewModel,
                 passage = passage,
                 onDone = { module = ReadingModule.HUB }
+            )
+            ReadingModule.STATS -> StatsModule(
+                viewModel = viewModel,
+                onExit = { module = ReadingModule.HUB }
             )
         }
     }
@@ -191,6 +200,7 @@ private fun ReadingHub(
     val savedPassages by viewModel.savedPassages.collectAsState()
     val wpmHistory by viewModel.wpmHistory.collectAsState()
     val trainedDates by viewModel.trainedDates.collectAsState()
+    val recommendedWpm by viewModel.recommendedWpm.collectAsState()
 
     var customText by remember { mutableStateOf("") }
     var showCustomInput by remember { mutableStateOf(false) }
@@ -266,6 +276,22 @@ private fun ReadingHub(
                 StatItem("연속", if (streak > 0) "$streak" else "-", "일")
                 StatItem("누적", "$total", "회")
             }
+        }
+
+        // 난이도 자동 추천 + 통계 상세 진입
+        Row(
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                .background(Gold24K.copy(0.08f))
+                .clickable { onSelect(ReadingModule.STATS) }
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "🎯 추천 목표 $recommendedWpm WPM · ${difficultyLabel(recommendedWpm)}",
+                fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Gold24K
+            )
+            Text("통계 상세 ›", fontSize = 12.sp, color = Gold24K.copy(0.8f))
         }
 
         // 기록: WPM 추이 + 21일 챌린지
@@ -592,13 +618,13 @@ private fun WarmupModule(onExit: () -> Unit, onComplete: () -> Unit) {
 // ② 리듬 페이서
 // ────────────────────────────────────────────────────────────────
 @Composable
-private fun PacerModule(passage: String, onExit: () -> Unit, onComplete: (Int) -> Unit) {
+private fun PacerModule(passage: String, initialWpm: Int = 300, onExit: () -> Unit, onComplete: (Int) -> Unit) {
     val lines = remember(passage) {
         passage.split(Regex("(?<=[.!?])\\s+")).filter { it.isNotBlank() }
     }
     var currentLine by remember { mutableStateOf(0) }
     var running by remember { mutableStateOf(false) }
-    var wpm by remember { mutableStateOf(300f) }
+    var wpm by remember { mutableStateOf(initialWpm.toFloat()) }
 
     LaunchedEffect(running, currentLine, wpm) {
         if (running && currentLine <= lines.lastIndex) {
@@ -643,11 +669,11 @@ private fun PacerModule(passage: String, onExit: () -> Unit, onComplete: (Int) -
 // ③ 단어 점멸 (RSVP)
 // ────────────────────────────────────────────────────────────────
 @Composable
-private fun RsvpModule(passage: String, onExit: () -> Unit, onComplete: (Int) -> Unit) {
+private fun RsvpModule(passage: String, initialWpm: Int = 300, onExit: () -> Unit, onComplete: (Int) -> Unit) {
     val words = remember(passage) { passage.trim().split(Regex("\\s+")).filter { it.isNotBlank() } }
     var index by remember { mutableStateOf(0) }
     var running by remember { mutableStateOf(false) }
-    var wpm by remember { mutableStateOf(300f) }
+    var wpm by remember { mutableStateOf(initialWpm.toFloat()) }
 
     LaunchedEffect(running, index, wpm) {
         if (running && index <= words.lastIndex) {
@@ -673,13 +699,13 @@ private fun RsvpModule(passage: String, onExit: () -> Unit, onComplete: (Int) ->
 // ④ 묶어 읽기 (청크)
 // ────────────────────────────────────────────────────────────────
 @Composable
-private fun ChunkModule(passage: String, onExit: () -> Unit, onComplete: (Int) -> Unit) {
+private fun ChunkModule(passage: String, initialWpm: Int = 300, onExit: () -> Unit, onComplete: (Int) -> Unit) {
     val words = remember(passage) { passage.trim().split(Regex("\\s+")).filter { it.isNotBlank() } }
     var chunkSize by remember { mutableStateOf(3) }
     val chunks = remember(words, chunkSize) { words.chunked(chunkSize) }
     var index by remember { mutableStateOf(0) }
     var running by remember { mutableStateOf(false) }
-    var wpm by remember { mutableStateOf(300f) }
+    var wpm by remember { mutableStateOf(initialWpm.toFloat()) }
 
     // 묶음 크기 변경 시 처음부터
     LaunchedEffect(chunkSize) { index = 0; running = false }
@@ -740,6 +766,115 @@ private fun ControlBar(running: Boolean, wpm: Float, onToggle: () -> Unit, onWpm
 // ────────────────────────────────────────────────────────────────
 // 읽기 완료 결과
 // ────────────────────────────────────────────────────────────────
+@Composable
+private fun difficultyLabel(wpm: Int): String = when {
+    wpm < 250 -> "초급"
+    wpm < 450 -> "중급"
+    else -> "고급"
+}
+
+// ────────────────────────────────────────────────────────────────
+// 통계 상세 화면
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun StatsModule(viewModel: ReadingTrainingViewModel, onExit: () -> Unit) {
+    val bestWpm by viewModel.bestWpm.collectAsState()
+    val bestComp by viewModel.bestComprehension.collectAsState()
+    val streak by viewModel.streak.collectAsState()
+    val total by viewModel.totalSessions.collectAsState()
+    val history by viewModel.wpmHistory.collectAsState()
+    val trainedDates by viewModel.trainedDates.collectAsState()
+    val recommended by viewModel.recommendedWpm.collectAsState()
+
+    val avg = if (history.isNotEmpty()) history.average().toInt() else 0
+    val latest = history.lastOrNull() ?: 0
+    val minV = history.minOrNull() ?: 0
+    val maxV = history.maxOrNull() ?: 0
+    val improvement = if (history.size >= 2 && history.first() > 0)
+        ((history.last() - history.first()).toFloat() / history.first() * 100).toInt() else 0
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        ModuleTopBar("📊 통계 상세", onExit)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 12.dp)
+        ) {
+            item {
+                StatsCard("⚡ 읽기 속도 (WPM)") {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                        StatItem("최고", if (bestWpm > 0) "$bestWpm" else "-", "WPM")
+                        StatItem("평균", if (avg > 0) "$avg" else "-", "최근")
+                        StatItem("최근", if (latest > 0) "$latest" else "-", "WPM")
+                    }
+                    if (history.size >= 2) {
+                        Text(
+                            "범위 $minV ~ $maxV WPM · 첫 기록 대비 ${if (improvement >= 0) "+" else ""}$improvement%",
+                            fontSize = 12.sp, color = Color.White.copy(0.6f)
+                        )
+                    }
+                }
+            }
+            if (history.size >= 2) {
+                item {
+                    StatsCard("📈 WPM 추이 · 최근 ${history.size}회") {
+                        Canvas(modifier = Modifier.fillMaxWidth().height(80.dp)) {
+                            val maxVf = history.max().toFloat()
+                            val minVf = history.min().toFloat()
+                            val range = (maxVf - minVf).coerceAtLeast(1f)
+                            val stepX = size.width / (history.size - 1)
+                            val path = Path()
+                            history.forEachIndexed { i, v ->
+                                val x = i * stepX
+                                val y = size.height - ((v - minVf) / range) * (size.height - 8f) - 4f
+                                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                            }
+                            drawPath(path, color = Gold24K, style = Stroke(width = 2.dp.toPx()))
+                        }
+                    }
+                }
+            }
+            item {
+                StatsCard("🏆 훈련 기록") {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                        StatItem("최고 이해도", if (bestComp > 0) "$bestComp%" else "-", "정답률")
+                        StatItem("연속", if (streak > 0) "$streak" else "-", "일")
+                        StatItem("누적", "$total", "회")
+                        StatItem("훈련일", "${trainedDates.size}", "일")
+                    }
+                }
+            }
+            item {
+                StatsCard("🎯 다음 목표 (난이도 추천)") {
+                    Text("$recommended WPM · ${difficultyLabel(recommended)}", fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold, color = Gold24K)
+                    Text(
+                        if (history.isEmpty())
+                            "아직 기록이 없어 기본값(300 WPM)으로 시작해요. 리듬 페이서·단어 점멸·묶어 읽기를 하면 최근 실력에 맞춰 목표가 자동 조정됩니다."
+                        else
+                            "최근 실력(평균 $avg WPM)을 약간 상향한 목표예요. 드릴을 시작하면 이 속도로 맞춰지고, 슬라이더로 언제든 조절할 수 있어요.",
+                        fontSize = 12.sp, color = Color.White.copy(0.65f), lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(0.85f)),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.2f))
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+            content()
+        }
+    }
+}
+
 @Composable
 private fun ResultModule(wpm: Int, onQuiz: () -> Unit, onDone: () -> Unit) {
     Column(

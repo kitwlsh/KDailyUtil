@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -45,6 +46,21 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
 
     private val _wpmHistory = MutableStateFlow<List<Int>>(emptyList())
     val wpmHistory: StateFlow<List<Int>> = _wpmHistory.asStateFlow()
+
+    /**
+     * 난이도 자동 추천: 최근 기록(최대 5회) 평균을 약 8% 상향한 '다음 목표 속도'(WPM).
+     * 기록이 없으면 일반 성인 평균에 가까운 300으로 시작. 드릴 초기 속도·통계 화면에 사용.
+     */
+    val recommendedWpm: StateFlow<Int> = _wpmHistory
+        .map { computeRecommendedWpm(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 300)
+
+    private fun computeRecommendedWpm(history: List<Int>): Int {
+        if (history.isEmpty()) return 300
+        val recent = history.takeLast(5)
+        val target = (recent.average() * 1.08).toInt()
+        return (target / 10 * 10).coerceIn(150, 700) // 10단위 반올림 + 슬라이더 범위로 clamp
+    }
 
     private val _isGeneratingQuiz = MutableStateFlow(false)
     val isGeneratingQuiz: StateFlow<Boolean> = _isGeneratingQuiz.asStateFlow()
