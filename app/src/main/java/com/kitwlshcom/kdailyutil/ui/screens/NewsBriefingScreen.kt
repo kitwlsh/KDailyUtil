@@ -120,7 +120,8 @@ fun NewsBriefingScreen(
     Scaffold(
         containerColor = Color.Transparent,
         floatingActionButton = {
-            if (newsItems.isNotEmpty()) {
+            // AI 대화 탭에서는 브리핑 FAB를 숨긴다(대화 입력 바와 겹침 방지, 낭독은 말풍선 🔊로 제공).
+            if (newsItems.isNotEmpty() && selectedCategory != "AI") {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
