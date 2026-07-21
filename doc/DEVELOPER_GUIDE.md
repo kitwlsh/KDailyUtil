@@ -4,7 +4,7 @@
 > 최종 업데이트: 2026-07-21
 
 > ### 🚩 지금 상태 (신규 세션 필독)
-> - **v1.4 (versionCode 4) — 2026-07-21 Google Play 업로드, 현재 '출시 검토중'.** (직전 게시본 v1.2=vc3, 07-08 / 그 이전 v1.1=vc2.) 소스 = v1.4([app/build.gradle.kts](../app/build.gradle.kts)). **다음 배포는 versionCode 5 / versionName 1.5부터.**
+> - **v1.4 (versionCode 4) — 2026-07-21 Google Play 출시 완료(현재 게시본 = v1.4).** (그 이전 게시본 v1.2=vc3, 07-08 / v1.1=vc2.) 소스 = v1.4([app/build.gradle.kts](../app/build.gradle.kts)). **다음 배포는 versionCode 5 / versionName 1.5부터 — 버전업은 사용자 요청 시 진행.**
 > - **버전 스킴**: versionName **끝자리 = versionCode**(vc4=1.4, 이후 vc5=1.5…, 1.3은 건너뜀). versionCode는 정수만·매 업로드 증가, versionName은 표시용 문자열(점 자유).
 > - **v1.4 AAB 업로드 완료**: [`app/release/kdailyutil-v1.4.aab`](../app/release/kdailyutil-v1.4.aab)(게시본 v1.2 이후 변경: 아이콘/스플래시 통일·키워드 순서변경·추세 AI·제목편집·자매앱 상호연결). 스토어 자산도 갱신함 — 앱 아이콘 512=`app/src/main/ic_launcher-playstore.png`(톱니바퀴), 그래픽 이미지 1024×500=[`doc/screenshot/feature_graphic_1024x500.png`](screenshot/feature_graphic_1024x500.png), 설명 문구=[`doc/STORE_LISTING.md`](STORE_LISTING.md). **다음 배포 시 versionCode 5·versionName 1.5로 올리고 `./gradlew.bat :app:bundleRelease` → `kdailyutil-v1.5.aab`로 복사.**
 >   - 출시노트/버전별 내역: [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md) (콘솔 '출시 노트'란 붙여넣기용 문구 포함).
@@ -13,7 +13,7 @@
 > - **아이콘/스플래시 패밀리 통일 (2026-07-15~16)**: 런처 아이콘(mipmap 전 밀도)·플레이스토어 아이콘·스플래시(`ic_app_logo_full` 자체 앱 아이콘으로 교체)·워터마크([BrandComponents.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/components/BrandComponents.kt))·설정 브랜드 갤러리를 형제 앱(KLotto645 등)과 통일. 단일 기준 문서 = [doc/K_SERIES_ICON_RECIPE.md](K_SERIES_ICON_RECIPE.md), 원본/스크립트 = `doc/family_icons/`, `doc/icon_scripts/`. **미사용 `HexagonShape` 제거됨.**
 > - **자매앱 상호연결 (2026-07-20)**: 설정 > 앱정보 > **'브랜드 & 자매앱'** 갤러리에 KLotto645 카드 추가(탭 시 설치/실행, `openAppOrStore` 헬퍼). 아이콘 교환(`ic_klotto645.png` 수신), 표준·신규앱 편입 절차 = [doc/KLOTTO_CONNECT_HANDOFF.md](KLOTTO_CONNECT_HANDOFF.md)(양쪽 저장소 doc/ 동기화). **KLotto645 저장소 쪽 구현/커밋은 그쪽 세션 담당**(RENEWAL_PLAN '다음 착수점 ⑥').
 > - **🆕 뉴스 AI 대화창 (2026-07-21, 구현 완료·미배포)**: 뉴스탭 'AI' 탭에서 맞춤 분석을 첫 답으로 **멀티턴 대화**(이어 묻기) + **음성 입력(STT)·답변 낭독(TTS)**. 컨텍스트=제목+RSS 스니펫(제한매체 필터 승계, 본문 비스크랩). **대화 수명=세션(명령어+날짜)**, 로컬 보관 **30일 자동정리 + 사용자 수동 삭제(개별·전체)**, 지난 대화 읽기 전용 열람. 설계·구현서 = [doc/FEATURE_AI_NEWS_CHAT.md](FEATURE_AI_NEWS_CHAT.md). 구현: `GeminiManager.startNewsChat/sendChatMessage`, `AiChatSession`/`AiChatRepository`, `BriefingViewModel`(대화 상태·`sendChat`·`startChatVoiceInput`·세션관리), `NewsBriefingScreen.AiChatSection`. **v1.4 게시 후 vc5/v1.5로 배포**.
-> - **다음 후보**: **v1.4 출시 검토 통과 확인**(검토중 → 게시 완료 시 이 문서/메모리 '게시본=v1.4'로 갱신), 빠른 독서 개선(통계 상세·난이도 추천), (선택) '시세 및 차트' 관심종목 편집 UI에도 두-목록 안내, (선택) 이미지 퀴즈 공유 Base64 내장·AI 마크다운 렌더링.
+> - **다음 후보**: (v1.4 출시 완료됨) **뉴스 AI 대화창 등 미배포분은 다음 배포 vc5/v1.5로 반영 — 버전업은 사용자 요청 시**, 빠른 독서 개선(통계 상세·난이도 추천), (선택) '시세 및 차트' 관심종목 편집 UI에도 두-목록 안내, (선택) 이미지 퀴즈 공유 Base64 내장·AI 마크다운 렌더링.
 > - **AAB 재빌드 방법**: `./gradlew.bat :app:bundleRelease` (서명은 `local.properties`의 `release.*` 키로 자동 — VCS 제외). 산출물: `app/build/outputs/bundle/release/app-release.aab`.
 
 ---
@@ -24,7 +24,7 @@
 - **패키지**: `com.kitwlshcom.kdailyutil`
 - **언어**: Kotlin (Jetpack Compose)
 - **최소 SDK**: 26 / 타겟 SDK: 36
-- **버전**: 소스 = versionCode 4 / versionName 1.4 (**2026-07-21 업로드, 출시 검토중**) · 직전 게시본 = vc3 / v1.2(2026-07-08). 스킴: versionName 끝자리 = versionCode(다음은 vc5=1.5).
+- **버전**: 소스 = 게시본 = versionCode 4 / versionName 1.4 (**2026-07-21 출시 완료**) · 그 이전 게시본 = vc3 / v1.2(2026-07-08). 스킴: versionName 끝자리 = versionCode(다음은 vc5=1.5, 버전업은 요청 시).
 - **빌드 도구**: AGP 8.13.2, Kotlin 2.0.21
 - **GitHub**: `kitwlsh/KDailyUtil`
 - **로컬 경로**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil`
@@ -465,7 +465,7 @@ DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 �
 
 ## 🔄 최근 커밋 이력 (최신순)
 
-> 최신 상태는 항상 `git log --oneline -20` 으로 확인. **v1.4(versionCode 4) 2026-07-21 업로드·출시 검토중**(직전 게시본 v1.2=vc3, 07-08). 검토 통과 시 게시본 = v1.4.
+> 최신 상태는 항상 `git log --oneline -20` 으로 확인. **v1.4(versionCode 4) 2026-07-21 출시 완료(현재 게시본 = v1.4)**(그 이전 게시본 v1.2=vc3, 07-08). 이후 미배포분은 다음 배포 vc5/v1.5로.
 
 **2026-07-21 세션 (뉴스 AI 대화창 신규 + 브리핑 낭독 개선 — 커밋됨·미배포, v1.5 대기분)**
 | 커밋 | 내용 |
@@ -474,7 +474,7 @@ DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 �
 | `2666617` | fix: AI 대화 탭에서 '전체 브리핑 시작' FAB 숨김(대화 입력 바 겹침 방지) |
 | `79c5005` | feat: 뉴스 AI 대화창 — 브리핑 멀티턴 대화 + 음성(STT/TTS) + 30일 보관(AiChatSession/AiChatRepository·BriefingViewModel 확장·NewsBriefingScreen.AiChatSection) |
 | `43888db` | docs: 뉴스 AI 대화창 설계서 추가 — 대화 수명·30일 보관 정책 확정 |
-> ⚠️ 이 세션 변경분은 v1.4 AAB(검토중)에 미포함 → **v1.4 게시 확정 후 vc5/v1.5로 배포**. 상세 = [doc/FEATURE_AI_NEWS_CHAT.md](FEATURE_AI_NEWS_CHAT.md).
+> ⚠️ 이 세션 변경분은 게시본 v1.4 AAB에 미포함 → **다음 배포(vc5/v1.5)로 반영, 버전업은 사용자 요청 시**. 상세 = [doc/FEATURE_AI_NEWS_CHAT.md](FEATURE_AI_NEWS_CHAT.md).
 
 **2026-07-20 세션 (키워드 순서변경·과거실적 추세 AI·보관함 제목편집·자매앱 상호연결·v1.4 배포준비 — origin/main 푸시 완료)**
 | 커밋 | 내용 |
