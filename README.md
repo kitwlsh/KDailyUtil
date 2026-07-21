@@ -15,6 +15,7 @@
 | **개발자 가이드** | [DEVELOPER_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/DEVELOPER_GUIDE.md) | 프로젝트 아키텍처, 파일 구조, 개발 시 주의사항 총정리 |
 | **구글 플레이 가이드** | [GOOGLE_PLAY_RELEASE_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/GOOGLE_PLAY_RELEASE_GUIDE.md) | 구글 플레이 콘솔 업로드 및 릴리즈 빌드 전체 단계 안내 |
 | **릴리즈 노트 / 변경내역** | [RELEASE_NOTES.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/app/release/RELEASE_NOTES.md) | 버전별 Changelog + Google Play '출시 노트' 붙여넣기용 문구 (app/release/) |
+| **스토어 등록정보 (설명)** | [STORE_LISTING.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/STORE_LISTING.md) | Google Play 간단한 설명(≤80자)·자세한 설명(≤4000자) 최신본(버전별 갱신) |
 | **콘솔 기입 정보 엑셀** | [google_play_release_info.xlsx](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/google_play_release_info.xlsx) | 구글 플레이에 제출한 27개 질문과 상세 텍스트 기록 보관함 |
 | **디자인 & 브랜딩** | [BRANDING_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/BRANDING_GUIDE.md) | 로고 아이콘 규격, 색상 파레트 및 다크 테마 가이드라인 |
 | **K-시리즈 아이콘 표준** | [K_SERIES_ICON_RECIPE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/K_SERIES_ICON_RECIPE.md) | 형제 앱(KDailyUtil·KLotto645 등) 아이콘·스플래시·워터마크 패밀리 통일 규격 및 신규 앱 제작 절차(단일 기준 문서) |
