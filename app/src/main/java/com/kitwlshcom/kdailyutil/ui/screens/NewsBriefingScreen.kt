@@ -40,6 +40,7 @@ import com.kitwlshcom.kdailyutil.data.model.AiChatSession
 import com.kitwlshcom.kdailyutil.data.model.ChatMessage
 import com.kitwlshcom.kdailyutil.data.model.ChatRole
 import com.kitwlshcom.kdailyutil.data.model.NewsItem
+import com.kitwlshcom.kdailyutil.ui.components.MarkdownText
 import com.kitwlshcom.kdailyutil.ui.navigation.NavScreen
 import com.kitwlshcom.kdailyutil.ui.theme.Gold24K
 import com.kitwlshcom.kdailyutil.ui.viewmodel.BriefingViewModel
@@ -623,7 +624,12 @@ fun ChatBubble(msg: ChatMessage, onSpeak: () -> Unit) {
                 Text("🤖 AI", fontSize = 10.sp, color = Gold24K.copy(alpha = 0.8f), fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(2.dp))
             }
-            Text(msg.text, fontSize = 14.sp, color = Color.White.copy(alpha = 0.9f))
+            if (isUser) {
+                Text(msg.text, fontSize = 14.sp, color = Color.White.copy(alpha = 0.9f))
+            } else {
+                // AI 답변은 마크다운 서식(굵게·목록·제목)으로 렌더링
+                MarkdownText(msg.text, color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp)
+            }
             if (!isUser) {
                 Spacer(Modifier.height(4.dp))
                 Row(

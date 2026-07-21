@@ -838,8 +838,15 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     // --- 대화 답변 낭독(TTS) ---
     fun speakChatMessage(text: String) {
         ttsManager.stop()
-        ttsManager.speak(text, playBgm = false)
+        ttsManager.speak(stripMarkdownForSpeech(text), playBgm = false)
     }
+
+    /** 낭독 시 마크다운 기호(**, *, `, #, -)가 그대로 읽히지 않도록 제거. */
+    private fun stripMarkdownForSpeech(text: String): String =
+        text.replace(Regex("[*`#]"), "")
+            .replace(Regex("(?m)^\\s*[-•]\\s+"), "")
+            .replace(Regex("[ \\t]+"), " ")
+            .trim()
 
     fun stopSpeaking() { ttsManager.stop() }
 
