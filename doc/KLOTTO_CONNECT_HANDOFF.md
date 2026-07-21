@@ -148,8 +148,8 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 
 | 앱 | applicationId | 브랜드 아이콘 파일 | 한줄 소개 | Play 스토어(id=) | 출시상태 |
 |---|---|---|---|---|---|
-| KDailyUtil | `com.kitwlshcom.kdailyutil` | `ic_k_app_icon.png` | 데일리 라이프 유틸(뉴스/증시/오디오/퀴즈/배움터) | `com.kitwlshcom.kdailyutil` | 출시(v1.1) |
-| KLotto645 | `com.kitwlshCom.klotto645` | `ic_k_emblem_balls.png` | 로또 6/45 분석·생성 | `com.kitwlshCom.klotto645` | 출시(v0.0.8) |
+| KDailyUtil | `com.kitwlshcom.kdailyutil` | `ic_k_app_icon.png` | 데일리 라이프 유틸(뉴스/증시/오디오/퀴즈/배움터) | `com.kitwlshcom.kdailyutil` | 게시 v1.2(vc3) · **v1.4(vc4) 업로드 예정** |
+| KLotto645 | `com.kitwlshCom.klotto645` | `ic_k_emblem_balls.png` | 로또 6/45 분석·생성 | `com.kitwlshCom.klotto645` | **출시 v0.0.9(vc9, 2026-07-21)** |
 | _(신규앱)_ | _(applicationId)_ | _(아이콘.png)_ | _(소개)_ | _(id 값)_ | _(예정/출시)_ |
 
 > ⚠️ applicationId는 **대소문자 그대로** 사용(KLotto=`kitwlshCom` 대문자 C, KDailyUtil=`kitwlshcom` 소문자 c).
