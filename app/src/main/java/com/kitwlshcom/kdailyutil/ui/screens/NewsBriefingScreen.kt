@@ -14,12 +14,19 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,8 +36,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.rememberNavController
+import com.kitwlshcom.kdailyutil.data.model.AiChatSession
+import com.kitwlshcom.kdailyutil.data.model.ChatMessage
+import com.kitwlshcom.kdailyutil.data.model.ChatRole
 import com.kitwlshcom.kdailyutil.data.model.NewsItem
 import com.kitwlshcom.kdailyutil.ui.navigation.NavScreen
+import com.kitwlshcom.kdailyutil.ui.theme.Gold24K
 import com.kitwlshcom.kdailyutil.ui.viewmodel.BriefingViewModel
 import kotlinx.coroutines.launch
 
@@ -331,6 +342,12 @@ fun NewsBriefingScreen(
                         }
                         Text(emptyMsg, textAlign = TextAlign.Center)
                     }
+                } else if (selectedCategory == "AI" && newsItems.any { it.source == "Gemini AI" }) {
+                    // AI 탭: 맞춤 분석을 첫 답으로 두고 이어서 대화(멀티턴) — doc/FEATURE_AI_NEWS_CHAT.md
+                    AiChatSection(
+                        viewModel = viewModel,
+                        analysisItem = newsItems.first { it.source == "Gemini AI" }
+                    )
                 } else {
                     LazyColumn(
                         state = listState,
@@ -451,4 +468,255 @@ fun NewsCard(
             )
         }
     }
+}
+
+// ===== 뉴스 AI 대화 UI (doc/FEATURE_AI_NEWS_CHAT.md) =====
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AiChatSection(
+    viewModel: BriefingViewModel,
+    analysisItem: NewsItem
+) {
+    val messages by viewModel.chatMessages.collectAsState()
+    val isResponding by viewModel.isChatResponding.collectAsState()
+    val isListening by viewModel.isChatListening.collectAsState()
+    val sttPartial by viewModel.chatSttPartial.collectAsState()
+    val sessions by viewModel.chatSessions.collectAsState()
+    val viewing by viewModel.viewingSession.collectAsState()
+
+    var input by remember { mutableStateOf("") }
+    var showHistory by remember { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
+    val chatListState = rememberLazyListState()
+
+    // 세션이 아직 시딩되기 전이면 분석 결과를 임시로 첫 말풍선처럼 표시
+    val displayMessages = if (messages.isEmpty())
+        listOf(ChatMessage(ChatRole.AI, analysisItem.description)) else messages
+
+    // 새 메시지가 오면 맨 아래로 스크롤
+    LaunchedEffect(displayMessages.size, isResponding) {
+        if (displayMessages.isNotEmpty()) chatListState.animateScrollToItem(displayMessages.size)
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // 헤더: 대화 기록 진입
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = { viewModel.loadChatHistory(); showHistory = true }) {
+                Icon(Icons.Default.History, contentDescription = null, tint = Gold24K, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("대화 기록", color = Gold24K, fontSize = 12.sp)
+            }
+        }
+
+        // 대화 목록
+        LazyColumn(
+            state = chatListState,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            item {
+                Text(
+                    "⚠️ 오늘 뉴스의 제목·요약을 바탕으로 답합니다. 세부 사실은 부정확할 수 있으니 원문을 확인하세요.",
+                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+            items(displayMessages) { msg ->
+                ChatBubble(msg = msg, onSpeak = { viewModel.speakChatMessage(msg.text) })
+            }
+            if (isResponding) {
+                item {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(4.dp)
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Gold24K)
+                        Spacer(Modifier.width(8.dp))
+                        Text("AI가 답변 중…", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                    }
+                }
+            }
+        }
+
+        // 입력 바
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = if (isListening) sttPartial else input,
+                onValueChange = { if (!isListening) input = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text(if (isListening) "듣는 중…" else "이어서 물어보기", fontSize = 13.sp) },
+                enabled = !isResponding,
+                maxLines = 3,
+                shape = RoundedCornerShape(20.dp)
+            )
+            IconButton(
+                onClick = { if (isListening) viewModel.stopChatVoiceInput() else viewModel.startChatVoiceInput() },
+                enabled = !isResponding
+            ) {
+                Icon(Icons.Default.Mic, contentDescription = "음성 입력", tint = if (isListening) Color.Red else Gold24K)
+            }
+            IconButton(
+                onClick = { viewModel.sendChat(input); input = "" },
+                enabled = !isResponding && input.isNotBlank()
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "전송", tint = if (input.isNotBlank()) Gold24K else Color.White.copy(alpha = 0.3f))
+            }
+        }
+
+        // 신고 링크 (Google Play 생성형 AI 정책 대응)
+        Text(
+            "부적절한 AI 응답 신고",
+            fontSize = 11.sp,
+            color = Color.White.copy(alpha = 0.4f),
+            modifier = Modifier
+                .align(Alignment.End)
+                .clickable { uriHandler.openUri("mailto:kitwlsh@gmail.com?subject=AI%20%EC%9D%91%EB%8B%B5%20%EC%8B%A0%EA%B3%A0") }
+                .padding(bottom = 4.dp)
+        )
+    }
+
+    if (showHistory) {
+        ChatHistoryDialog(
+            sessions = sessions,
+            onDismiss = { showHistory = false },
+            onOpen = { viewModel.viewChatSession(it) },
+            onDelete = { viewModel.deleteChatSession(it) },
+            onClearAll = { viewModel.clearChatHistory() }
+        )
+    }
+
+    viewing?.let { session ->
+        SessionViewDialog(
+            session = session,
+            onDismiss = { viewModel.closeViewingSession() },
+            onSpeak = { viewModel.speakChatMessage(it) }
+        )
+    }
+}
+
+@Composable
+fun ChatBubble(msg: ChatMessage, onSpeak: () -> Unit) {
+    val isUser = msg.role == ChatRole.USER
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 300.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (isUser) Gold24K.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f))
+                .padding(10.dp)
+        ) {
+            if (!isUser) {
+                Text("🤖 AI", fontSize = 10.sp, color = Gold24K.copy(alpha = 0.8f), fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(2.dp))
+            }
+            Text(msg.text, fontSize = 14.sp, color = Color.White.copy(alpha = 0.9f))
+            if (!isUser) {
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onSpeak).padding(2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "낭독", tint = Gold24K, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("낭독", fontSize = 11.sp, color = Gold24K)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ChatHistoryDialog(
+    sessions: List<AiChatSession>,
+    onDismiss: () -> Unit,
+    onOpen: (AiChatSession) -> Unit,
+    onDelete: (String) -> Unit,
+    onClearAll: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("🕓 대화 기록", fontWeight = FontWeight.Bold, color = Gold24K) },
+        text = {
+            if (sessions.isEmpty()) {
+                Text("저장된 대화가 없습니다.", color = Color.White.copy(alpha = 0.6f))
+            } else {
+                Column {
+                    Text("최근 30일 대화만 보관됩니다. 탭하면 열람(읽기 전용), 🗑으로 삭제합니다.",
+                        fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f))
+                    Spacer(Modifier.height(8.dp))
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 360.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(sessions) { s ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.White.copy(alpha = 0.05f))
+                                    .clickable { onOpen(s); onDismiss() }
+                                    .padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(s.command.ifBlank { "(명령 없음)" }, fontSize = 13.sp, color = Color.White,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("${s.date} · 메시지 ${s.messages.size}개", fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
+                                }
+                                IconButton(onClick = { onDelete(s.key) }) {
+                                    Icon(Icons.Default.DeleteOutline, contentDescription = "삭제", tint = Color.White.copy(alpha = 0.6f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("닫기", color = Gold24K) } },
+        dismissButton = {
+            if (sessions.isNotEmpty()) TextButton(onClick = onClearAll) {
+                Text("전체 지우기", color = Color.Red.copy(alpha = 0.8f))
+            }
+        }
+    )
+}
+
+@Composable
+fun SessionViewDialog(session: AiChatSession, onDismiss: () -> Unit, onSpeak: (String) -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(session.command.ifBlank { "지난 대화" }, fontWeight = FontWeight.Bold, color = Gold24K,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${session.date} · 읽기 전용", fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
+            }
+        },
+        text = {
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 400.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    Text("지난 대화는 읽기 전용입니다. 이어가려면 오늘 탭에서 다시 물어보세요.",
+                        fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f))
+                }
+                items(session.messages) { m -> ChatBubble(msg = m, onSpeak = { onSpeak(m.text) }) }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("닫기", color = Gold24K) } }
+    )
 }

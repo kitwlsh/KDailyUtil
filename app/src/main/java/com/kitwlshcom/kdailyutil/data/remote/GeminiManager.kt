@@ -1,5 +1,6 @@
 package com.kitwlshcom.kdailyutil.data.remote
 
+import com.google.ai.client.generativeai.Chat
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.kitwlshcom.kdailyutil.data.model.NewsItem
@@ -119,6 +120,51 @@ class GeminiManager(private val apiKey: String?) {
 
         val response = generativeModel?.generateContent(prompt)
         response?.text ?: "응답을 생성할 수 없습니다."
+    }
+
+    /**
+     * 뉴스 AI 대화(멀티턴)를 위한 채팅 세션을 생성합니다.
+     * 저작권 보호: referenceNews는 호출부에서 이미 'AI 이용 금지' 매체가 걸러진 목록이어야 하며,
+     * 컨텍스트는 제목 + description(RSS 스니펫)만 사용합니다(본문 비스크랩 원칙).
+     *
+     * @param command 초기 명령/관심사(사용자가 등록한 AI 브리핑 명령어)
+     * @param referenceNews 필터링된 뉴스 목록(제목+스니펫)
+     * @param priorMessages 앱 재시작 후 대화를 이어가기 위한 과거 대화(user=사용자, model=AI). 없으면 새 대화.
+     */
+    fun startNewsChat(
+        command: String,
+        referenceNews: List<NewsItem>,
+        priorMessages: List<Pair<Boolean, String>> = emptyList() // (isUser, text)
+    ): Chat? {
+        val model = generativeModel ?: return null
+        val contextText = buildString {
+            append("당신은 개인 뉴스 비서입니다. 아래 '오늘의 뉴스 요약 목록'만 근거로 대화하세요.\n")
+            append("• 목록에 없는 세부 사실은 추측하지 말고 '원문 확인이 필요하다'고 안내하세요.\n")
+            append("• 기사 요약을 길게 그대로 옮기지 말고, 사용자 질문에 맞춰 짧게 정리·해설하세요.\n")
+            append("• 친절한 대화체로, 핵심 위주로 답하세요.\n\n")
+            append("사용자 관심(초기 명령): \"$command\"\n\n")
+            append("뉴스 목록(제목: 스니펫):\n")
+            append(referenceNews.joinToString("\n") { "- ${it.title}: ${it.description}" })
+        }
+        val history = mutableListOf(
+            content(role = "user") { text(contextText) },
+            content(role = "model") { text("네, 위 뉴스 목록을 바탕으로 답변하겠습니다.") }
+        )
+        priorMessages.forEach { (isUser, text) ->
+            history.add(content(role = if (isUser) "user" else "model") { text(text) })
+        }
+        return model.startChat(history = history)
+    }
+
+    /**
+     * 채팅 세션에 메시지를 보내고 AI 응답 텍스트를 반환합니다.
+     */
+    suspend fun sendChatMessage(chat: Chat, message: String): String = withContext(Dispatchers.IO) {
+        try {
+            chat.sendMessage(message).text ?: "응답을 생성할 수 없습니다."
+        } catch (e: Exception) {
+            "응답 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. (${e.message})"
+        }
     }
 
     /**

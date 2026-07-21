@@ -25,7 +25,7 @@
 | **오디오 개선 보고서** | [20260422_Audio_System_Enhancement_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/20260422_Audio_System_Enhancement_Report.md) | 미니 플레이어 및 오디오 수집 성능 최적화 개선 보고서 |
 | **공시 AI 요약 가이드** | [FEATURE_DART_AI_SUMMARY.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/FEATURE_DART_AI_SUMMARY.md) | Open DART API + Gemini 실적 공시 자동 요약 설계 가이드 |
 | **빠른 독서 훈련 설계** | [FEATURE_SPEED_READING.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/FEATURE_SPEED_READING.md) | 배움터 속독 훈련(드릴/OCR/AI 이해도/보관함) 기능 설계서 |
-| **뉴스 AI 대화창 설계** | [FEATURE_AI_NEWS_CHAT.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/FEATURE_AI_NEWS_CHAT.md) | 뉴스탭 'AI' 탭 멀티턴 대화(제목+스니펫 컨텍스트)+음성 STT/TTS 기능 설계서(미구현) |
+| **뉴스 AI 대화창 설계** | [FEATURE_AI_NEWS_CHAT.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/FEATURE_AI_NEWS_CHAT.md) | 뉴스탭 'AI' 탭 멀티턴 대화(제목+스니펫 컨텍스트)+음성 STT/TTS 설계·구현서(구현 완료, 30일 보관 정책) |
 | **브랜드 가이드라인(KITWLSH)** | [KITWLSH_Brand_Guidelines.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KITWLSH_Brand_Guidelines.md) | KITWLSH 제작사 브랜드 아이덴티티/가이드라인 |
 | **퀴즈 시스템 워크스루** | [walkthrough_quiz_system.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/walkthrough_quiz_system.md) | KuizGenius 퀴즈 시스템 동작 흐름 워크스루(개발 참고) |
 | **전체 구현 계획 / 작업 현황** | [implementation_plan.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/implementation_plan.md) · [task.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/task.md) | 초기 설계 계획서 및 단계별 작업 체크리스트 |

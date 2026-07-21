@@ -2,7 +2,15 @@
 
 > 뉴스탭 **'AI' 카테고리**의 기존 "1회성 맞춤 분석"에 **멀티턴 대화(채팅)** 를 얹는 기능 설계.
 > 오늘 수집된 뉴스(제목+RSS 스니펫, 제한매체 제외)를 컨텍스트로 **AI에게 이어서 물어보는** 대화형 비서 + **음성 입력(STT)·답변 낭독(TTS)**.
-> 작성: 2026-07-21 · 상태: **설계 검토중(미구현)**
+> 작성: 2026-07-21 · 상태: **✅ 구현 완료(2026-07-21, 미배포)** — v1.4 게시 확정 후 다음 배포(vc5/v1.5)에 포함.
+
+> ### 구현 메모 (2026-07-21)
+> - **상태 소유**: 신규 VM 대신 **`BriefingViewModel` 확장**(이미 newsRepository·geminiApiKey·selectedAiCommand·기존 `SttManager`/`TtsManager`를 모두 보유, MainScreen에서 생성돼 탭 이동에도 유지). §8-1 결정.
+> - **첫 답 통일**: 기존 맞춤 분석 결과를 **대화 첫 AI 말풍선으로 재활용**(자연스러운 이어가기). §8-3 결정.
+> - **Chat 세션 지연 생성**: 컨텍스트(필터링된 오늘 뉴스+기존 대화) 주입은 **첫 사용자 메시지 전송 시** 생성해 불필요한 토큰/네트워크 절약.
+> - **음성**: 기존 `SttManager`(ko-KR, 이미 RECORD_AUDIO 보유) 재사용 + `TtsManager.speak(playBgm=false)`로 답변 낭독.
+> - **구현 파일**: [GeminiManager.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/data/remote/GeminiManager.kt)(`startNewsChat`/`sendChatMessage`), [AiChatSession.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/data/model/AiChatSession.kt), [AiChatRepository.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/data/repository/AiChatRepository.kt)(30일 purge·삭제), [BriefingViewModel.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/viewmodel/BriefingViewModel.kt)(대화 상태·로직), [NewsBriefingScreen.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/screens/NewsBriefingScreen.kt)(`AiChatSection`·`ChatBubble`·`ChatHistoryDialog`·`SessionViewDialog`).
+> - **잔여(선택)**: §8-4 핸즈프리 자동 낭독(현재 수동 🔊), §8-5 히스토리 토큰 상한(장기 대화 시 압축).
 
 ---
 
@@ -175,11 +183,11 @@ Google Play **"AI-Generated Content" 정책**은 사용자와 상호작용하는
 
 ## 8. 미해결 / 결정 필요
 
-1. **상태 소유**: `BriefingViewModel` 확장 vs 신규 `NewsChatViewModel`(Activity 스코프). → 탭 이동 보존 원하면 후자 권장.
+1. ~~**상태 소유**~~ ✅ **결정됨**: `BriefingViewModel` 확장(의존성 재사용 + 탭 이동 보존).
 2. ~~**대화 영속화**~~ ✅ **결정됨(§5)**: 로컬 파일 보관 + 30일 자동정리 + 사용자 수동 삭제.
-3. **첫 답 통일 여부**: 기존 `processAiCustomBriefing` 결과 재활용 vs `startNewsChat`으로 일원화. (추천: 재활용 = 자연스러운 이어가기)
-4. **핸즈프리 자동 낭독**: 1차 제외(수동 🔊) → 2차 확장.
-5. **토큰/할당량**: 대화가 길어지면 히스토리 누적으로 토큰↑(무료 플랜 429 위험). 히스토리 길이 상한 or 오래된 턴 요약 압축 고려.
+3. ~~**첫 답 통일 여부**~~ ✅ **결정됨**: 기존 분석 결과를 대화 첫 AI 말풍선으로 재활용.
+4. **핸즈프리 자동 낭독**: 1차 제외(수동 🔊) → 2차 확장(미구현).
+5. **토큰/할당량**: 대화가 길어지면 히스토리 누적으로 토큰↑(무료 플랜 429 위험). 히스토리 길이 상한 or 오래된 턴 요약 압축 고려(미구현).
 
 ---
 

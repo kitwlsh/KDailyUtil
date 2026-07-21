@@ -6,8 +6,13 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitwlshcom.kdailyutil.audio.RecordingManager
 import com.kitwlshcom.kdailyutil.audio.TtsManager
+import com.google.ai.client.generativeai.Chat
+import com.kitwlshcom.kdailyutil.data.model.AiChatSession
+import com.kitwlshcom.kdailyutil.data.model.ChatMessage
+import com.kitwlshcom.kdailyutil.data.model.ChatRole
 import com.kitwlshcom.kdailyutil.data.model.NewsItem
 import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
+import com.kitwlshcom.kdailyutil.data.repository.AiChatRepository
 import com.kitwlshcom.kdailyutil.data.repository.NewsRepository
 import com.kitwlshcom.kdailyutil.data.repository.SettingsRepository
 import com.kitwlshcom.kdailyutil.domain.util.SttManager
@@ -25,6 +30,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     private val ttsManager = TtsManager(application)
     private val recordingManager = RecordingManager(application)
     private val sttManager = SttManager(application)
+    private val aiChatRepository = AiChatRepository(application)
 
     companion object {
         private const val TAG = "BriefingViewModel"
@@ -86,6 +92,35 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     // STT 실시간 피드백 및 타이핑 최적화용
     private val _sttPartialText = MutableStateFlow("")
     val sttPartialText: StateFlow<String> = _sttPartialText.asStateFlow()
+
+    // ===== 뉴스 AI 대화(멀티턴) 상태 — doc/FEATURE_AI_NEWS_CHAT.md =====
+    // 현재 활성 대화(오늘 세션). 첫 AI 말풍선 = 맞춤 분석 결과.
+    private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
+
+    private val _isChatResponding = MutableStateFlow(false)
+    val isChatResponding: StateFlow<Boolean> = _isChatResponding.asStateFlow()
+
+    // 대화 음성 입력(STT) 상태 — 명령 녹음(isRecordingCommand)과 별개
+    private val _isChatListening = MutableStateFlow(false)
+    val isChatListening: StateFlow<Boolean> = _isChatListening.asStateFlow()
+
+    private val _chatSttPartial = MutableStateFlow("")
+    val chatSttPartial: StateFlow<String> = _chatSttPartial.asStateFlow()
+
+    // 대화 기록(과거 세션 목록, 읽기 전용 열람용)
+    private val _chatSessions = MutableStateFlow<List<AiChatSession>>(emptyList())
+    val chatSessions: StateFlow<List<AiChatSession>> = _chatSessions.asStateFlow()
+
+    // 읽기 전용으로 열람 중인 과거 세션(null이면 열람 안 함)
+    private val _viewingSession = MutableStateFlow<AiChatSession?>(null)
+    val viewingSession: StateFlow<AiChatSession?> = _viewingSession.asStateFlow()
+
+    // 현재 대화 세션 컨텍스트(지연 생성). 세션 키 = (명령어 + 오늘 날짜).
+    private var currentChat: Chat? = null
+    private var currentSessionKey: String? = null
+    private var currentSessionCommand: String = ""
+    private var currentSessionDate: String = ""
     
     private val _apiKeyStatus = MutableStateFlow<ApiKeyStatus>(ApiKeyStatus.Idle)
     val apiKeyStatus: StateFlow<ApiKeyStatus> = _apiKeyStatus.asStateFlow()
@@ -371,7 +406,9 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         if (!forceRefresh) {
             // 1. RAM 캐시 우선 체크
             if (aiAnalysisCache.containsKey(targetCommand)) {
-                _newsItems.value = listOf(aiAnalysisCache[targetCommand]!!)
+                val cached = aiAnalysisCache[targetCommand]!!
+                _newsItems.value = listOf(cached)
+                seedChatFromAnalysis(targetCommand, cached.description)
                 Log.d(TAG, "✅ Loaded AI Analysis from RAM cache")
                 return
             }
@@ -381,6 +418,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 val cachedItem = persistentCached.first()
                 aiAnalysisCache[targetCommand] = cachedItem
                 _newsItems.value = listOf(cachedItem)
+                seedChatFromAnalysis(targetCommand, cachedItem.description)
                 Log.d(TAG, "✅ Loaded AI Analysis from persistent file cache")
                 return
             }
@@ -412,7 +450,9 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
             
             aiAnalysisCache[targetCommand] = aiNewsItem
             _newsItems.value = listOf(aiNewsItem)
-            
+            // 재분석(새 브리핑) → 오늘 세션을 새로 시작하고 첫 AI 말풍선으로 분석 결과를 심는다.
+            seedChatFromAnalysis(targetCommand, analysis, resetForNewBriefing = forceRefresh)
+
             // 파일 캐시로 영구 저장
             newsRepository.saveCachedNews(fileCacheKey, listOf(aiNewsItem))
 
@@ -644,6 +684,177 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         }
         if (_isBriefingPlaying.value) stopBriefing()
         Log.i(TAG, "🚫 원문 페이지에서 AI 이용 금지 고지 감지 → 낭독·쉐도잉 비활성: ${item.title}")
+    }
+
+    // ===== 뉴스 AI 대화 로직 (doc/FEATURE_AI_NEWS_CHAT.md §3·§5) =====
+
+    /**
+     * 맞춤 분석 결과가 나왔을 때 '오늘 세션'을 준비하고 첫 AI 말풍선으로 분석 결과를 심는다.
+     * - 세션 키 = (명령어 + 오늘 날짜). 같은 세션이면 유지, 날짜/명령어가 바뀌면 새 세션.
+     * - 같은 날 재진입: 저장된 대화가 있으면 복원, 없으면 분석 결과 한 줄로 시작.
+     * - resetForNewBriefing=true(🔄 재분석)면 기존 대화를 버리고 새로 시작.
+     * Gemini Chat 세션(컨텍스트 주입)은 비용 절감을 위해 첫 사용자 메시지 전송 시 지연 생성한다.
+     */
+    private fun seedChatFromAnalysis(command: String, analysis: String, resetForNewBriefing: Boolean = false) {
+        val today = todayDate()
+        val key = aiChatRepository.sessionKey(command, today)
+
+        // 재분석이 아니고 이미 같은 세션이 활성화돼 있으면 그대로 둔다(진행 중 대화 유지).
+        if (!resetForNewBriefing && key == currentSessionKey && _chatMessages.value.isNotEmpty()) return
+
+        currentSessionKey = key
+        currentSessionCommand = command
+        currentSessionDate = today
+        currentChat = null // 컨텍스트 재생성 필요 → 다음 전송 때 새로 만든다
+        _viewingSession.value = null
+
+        viewModelScope.launch {
+            val restored = if (resetForNewBriefing) null else aiChatRepository.loadSession(key)
+            _chatMessages.value = when {
+                restored != null && restored.messages.isNotEmpty() -> restored.messages
+                analysis.isNotBlank() -> listOf(ChatMessage(ChatRole.AI, analysis))
+                else -> emptyList()
+            }
+            // 새 세션(복원본 없음) 또는 재분석이면 첫 상태를 저장
+            if (restored == null || resetForNewBriefing) persistCurrentSession()
+        }
+    }
+
+    /** 사용자 메시지를 보내고 AI 응답을 대화에 추가한다. */
+    fun sendChat(userText: String) {
+        val text = userText.trim()
+        if (text.isBlank() || _isChatResponding.value) return
+        val apiKey = geminiApiKey.value
+        if (apiKey.isNullOrBlank()) {
+            _chatMessages.value = _chatMessages.value +
+                ChatMessage(ChatRole.AI, "API 키가 설정되지 않았습니다. 설정에서 Gemini 키를 입력해 주세요.")
+            return
+        }
+        // 사용자 말풍선 즉시 반영
+        _chatMessages.value = _chatMessages.value + ChatMessage(ChatRole.USER, text)
+        _isChatResponding.value = true
+
+        viewModelScope.launch {
+            try {
+                val gemini = GeminiManager(apiKey)
+                // 지연 생성: 세션이 없으면 지금 컨텍스트(필터링된 오늘 뉴스 + 기존 대화)로 만든다.
+                val chat = currentChat ?: withContext(Dispatchers.IO) {
+                    // 저작권 보호: 'AI 이용 금지' 매체는 대화 컨텍스트에서도 제외(§1).
+                    val referenceNews = newsRepository.getTopNews(20).filterNot {
+                        NewsRepository.detectAiRestrictionNotice(it.description) ||
+                            NewsRepository.isAiRestrictedDomain(it.link)
+                    }
+                    // 마지막(방금 추가한 USER) 메시지는 sendMessage로 보낼 것이므로 히스토리에서 제외
+                    val prior = _chatMessages.value.dropLast(1).map { (it.role == ChatRole.USER) to it.text }
+                    gemini.startNewsChat(currentSessionCommand.ifBlank { text }, referenceNews, prior)
+                }?.also { currentChat = it }
+
+                if (chat == null) {
+                    _chatMessages.value = _chatMessages.value +
+                        ChatMessage(ChatRole.AI, "대화를 시작할 수 없습니다. API 키를 확인해 주세요.")
+                } else {
+                    val answer = gemini.sendChatMessage(chat, text)
+                    _chatMessages.value = _chatMessages.value + ChatMessage(ChatRole.AI, answer)
+                }
+                persistCurrentSession()
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Chat error: ${e.message}", e)
+                _chatMessages.value = _chatMessages.value +
+                    ChatMessage(ChatRole.AI, "오류가 발생했습니다. 잠시 후 다시 시도해 주세요.")
+            } finally {
+                _isChatResponding.value = false
+            }
+        }
+    }
+
+    private suspend fun persistCurrentSession() {
+        val key = currentSessionKey ?: return
+        if (_chatMessages.value.isEmpty()) return
+        aiChatRepository.saveSession(
+            AiChatSession(
+                key = key,
+                command = currentSessionCommand,
+                date = currentSessionDate,
+                messages = _chatMessages.value,
+                lastActiveAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    // --- 대화 음성 입력(STT) : 명령 녹음과 별개 ---
+    fun startChatVoiceInput() {
+        if (_isChatListening.value) return
+        _chatSttPartial.value = ""
+        _isChatListening.value = true
+        sttManager.startListening(
+            onResult = { textResult ->
+                _isChatListening.value = false
+                sttManager.stopListening()
+                val t = textResult.trim()
+                _chatSttPartial.value = ""
+                if (t.isNotBlank()) sendChat(t)
+            },
+            onError = { _ ->
+                _isChatListening.value = false
+                sttManager.stopListening()
+                _chatSttPartial.value = ""
+            },
+            onPartialResult = { partial -> _chatSttPartial.value = partial }
+        )
+    }
+
+    fun stopChatVoiceInput() {
+        if (!_isChatListening.value) return
+        _isChatListening.value = false
+        sttManager.stopListening()
+        val t = _chatSttPartial.value.trim()
+        _chatSttPartial.value = ""
+        if (t.isNotBlank()) sendChat(t)
+    }
+
+    // --- 대화 답변 낭독(TTS) ---
+    fun speakChatMessage(text: String) {
+        ttsManager.stop()
+        ttsManager.speak(text, playBgm = false)
+    }
+
+    fun stopSpeaking() { ttsManager.stop() }
+
+    // --- 대화 기록(과거 세션) ---
+    fun loadChatHistory() {
+        viewModelScope.launch { _chatSessions.value = aiChatRepository.loadAllSessions() }
+    }
+
+    fun viewChatSession(session: AiChatSession) { _viewingSession.value = session }
+    fun closeViewingSession() { _viewingSession.value = null }
+
+    fun deleteChatSession(key: String) {
+        viewModelScope.launch {
+            aiChatRepository.deleteSession(key)
+            if (key == currentSessionKey) {
+                currentChat = null
+                currentSessionKey = null
+                _chatMessages.value = emptyList()
+            }
+            if (_viewingSession.value?.key == key) _viewingSession.value = null
+            _chatSessions.value = aiChatRepository.loadAllSessions()
+        }
+    }
+
+    fun clearChatHistory() {
+        viewModelScope.launch {
+            aiChatRepository.clearAll()
+            currentChat = null
+            currentSessionKey = null
+            _chatMessages.value = emptyList()
+            _viewingSession.value = null
+            _chatSessions.value = emptyList()
+        }
+    }
+
+    private fun todayDate(): String {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        return sdf.format(java.util.Date())
     }
 
     override fun onCleared() {
