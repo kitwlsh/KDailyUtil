@@ -1,11 +1,51 @@
 # 📱 KDailyUtil 릴리즈 노트 (Release Notes)
 
 > 업로드용 AAB는 같은 폴더의 `kdailyutil-v{버전}.aab` 파일입니다.
-> 최신: **`kdailyutil-v1.2.aab`** (versionCode 3 / versionName 1.2)
+> 최신: **`kdailyutil-v1.4.aab`** (versionCode 4 / versionName 1.4)
+> 스토어 게시 이력: v1.2(vc3) 게시됨(2026-07-08) · 그 이전 v1.1(vc2).
+> 버전 스킴: **versionName 끝자리 = versionCode** 로 맞춤(vc4=1.4, 이후 vc5=1.5…). versionCode는 정수만·증가만, versionName은 표시용 문자열.
 
 ---
 
-## 📌 Google Play '출시 노트' 붙여넣기용 문구 — v1.2
+## 📌 Google Play '출시 노트' 붙여넣기용 문구 — v1.4
+
+> Google Play Console > 프로덕션 > 새 버전 > **출시 노트(ko-KR)** 란에 아래 내용을 붙여넣으세요. (언어별 500자 제한)
+
+### ✅ 권장 (붙여넣기용)
+
+```
+이번 업데이트 주요 개선입니다.
+
+• 새 앱 아이콘·스플래시로 브랜드를 리프레시했어요.
+• 설정 > 앱 정보에 '브랜드 & 자매앱'을 추가해, 자매앱 KLotto645로 바로 이동/설치할 수 있어요.
+• 관심 키워드·카테고리의 순서를 직접 바꿀 수 있어요(앞으로/뒤로 이동).
+• 증시 과거 실적에 'AI 추세 종합 코멘트'를 추가했어요.
+• 배움터 빠른 독서: 보관함 지문의 제목을 편집할 수 있어요.
+
+이용해 주셔서 감사합니다!
+```
+
+### ✂️ 짧은 버전 (한 줄 요약형)
+
+```
+새 앱 아이콘·스플래시 적용, '브랜드 & 자매앱'(자매앱 바로가기) 추가, 관심 키워드/카테고리 순서 변경, 증시 AI 추세 종합 코멘트, 빠른 독서 보관함 제목 편집 등 편의 기능을 개선했습니다.
+```
+
+### 🇺🇸 English (en-US, 선택)
+
+```
+What's new in this update.
+• Refreshed the app icon and splash.
+• Added "Brand & Sister apps" in Settings > App info — jump to our sister app KLotto645.
+• Reorder your keywords/categories (move forward/back).
+• Stocks: added an AI trend-summary comment for past earnings.
+• Speed Reading: rename saved passages in your library.
+Thank you for using KDailyUtil!
+```
+
+---
+
+## 📌 Google Play '출시 노트' 붙여넣기용 문구 — v1.2 (이전, 게시됨 2026-07-08)
 
 > Google Play Console > 프로덕션 > 새 버전 > **출시 노트(ko-KR)** 란에 아래 내용을 붙여넣으세요. (언어별 500자 제한)
 
@@ -43,7 +83,27 @@ Thank you for using KDailyUtil!
 
 ## 🗂 버전별 수정 내역 (Changelog)
 
-### v1.2 (versionCode 3) — 2026-07-08
+### v1.4 (versionCode 4) — 2026-07-20
+> 스토어 게시본 v1.2(vc3, 07-08) 이후의 변경을 모아 배포하는 버전. (versionName 끝자리를 versionCode(4)와 맞추며 1.3은 건너뜀)
+
+**브랜드/아이콘**
+- 앱 아이콘·스플래시·워터마크를 K-시리즈 패밀리(형제 앱 KLotto645 등)와 통일(자체 앱 아이콘 기반 스플래시로 교체).
+
+**자매앱 상호연결**
+- 설정 > 앱 정보의 브랜드 갤러리를 **'브랜드 & 자매앱'**으로 개편. KLotto645 카드를 추가해 **설치돼 있으면 바로 실행, 없으면 Play 스토어로 이동**(설치/열기 배지). 자기 로고와 자매앱은 구분선·소제목으로 분리.
+
+**설정/편의**
+- 관심 키워드·뉴스 카테고리·증시 키워드·AI 명령의 **순서 변경 지원**(각 칩에서 앞으로/뒤로 이동, 기존 값 자동 유지).
+
+**증시**
+- 과거 실적 다이얼로그에 **🤖 추세 종합 AI 코멘트**(다분기 매출·수익성 흐름 1회 요약, 참고용) 추가.
+
+**배움터(빠른 독서)**
+- 보관함 지문 **제목 편집**(✏️) 추가.
+
+---
+
+### v1.2 (versionCode 3) — 2026-07-08  *(스토어 게시됨)*
 > v1.1 이후 누적된 개선을 모아 배포하는 버전.
 
 **배움터 / 퀴즈**
@@ -70,7 +130,7 @@ Thank you for using KDailyUtil!
 
 ---
 
-### v1.1 (versionCode 2) — 2026-06-25  *(현재 스토어 배포본)*
+### v1.1 (versionCode 2) — 2026-06-25
 - Google Play '사진·동영상 권한' 정책 대응: `READ_MEDIA_*` 권한 전면 제거.
 - 이미지 선택을 Android 사진 선택 도구(Photo Picker)로 전환(권한 불필요).
 - 기기 전체 미디어 스캔 제거(앱 전용 폴더만 사용).
