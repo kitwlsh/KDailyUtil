@@ -433,7 +433,7 @@ DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 �
 
 ## ⚠️ 알려진 주의사항 및 제약
 
-1. **이미지 퀴즈 공유 제한**: `.kquiz` 파일에 `imageUrl`(로컬 절대경로)이 포함되지만, 다른 기기에서는 해당 경로의 이미지가 존재하지 않아 이미지가 표시되지 않음. (현재 미해결)
+1. ~~**이미지 퀴즈 공유 제한**~~ ✅ **해결(2026-07-21)**: `.kquiz` 내보내기 시 크롭 이미지를 **Base64로 내장**(`imageBase64`/`imageExt`), 가져오기 시 디코딩해 `cropped_quizzes/imported_*.png`로 복원 후 `imageUrl` 세팅([QuizFileHandler.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/data/QuizFileHandler.kt) `decodeAndSaveImage`). 텍스트 붙여넣기 가져오기도 context를 넘겨 동일 동작. 구버전 파일(내장 없음)은 기존처럼 imageUrl 폴백.
 
 2. **Gemini API 할당량**: `generateVisualQuizzesFromImages()`는 멀티모달 요청으로 토큰 소비가 큼. 무료 플랜에서는 할당량 초과 시 `429` 에러 발생.
 
@@ -454,7 +454,7 @@ DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 �
 - [x] ~~(선택) **과거 실적 추세 종합 AI 코멘트** 버튼(다분기 흐름 1회 요약)~~ ✅ 완료(2026-07-20, 위 증시 메모 "추세 종합 AI 코멘트" 참조)
 - [ ] **AI 스마트 관심종목 포트폴리오 분석**: 보유 종목 실적 트렌드 종합 리포트 (README Phase 3)
 - [ ] **빠른 독서**: ~~보관함 제목 편집~~(✅ 2026-07-20), 통계 상세 화면, 난이도 자동 추천
-- [ ] **이미지 퀴즈 공유 개선**: 크롭 이미지를 Base64로 `.kquiz`에 내장
+- [x] ~~**이미지 퀴즈 공유 개선**: 크롭 이미지를 Base64로 `.kquiz`에 내장~~ ✅ 완료(2026-07-21)
 - [ ] **AI 마크다운 렌더링**: 브리핑/요약 결과에 Rich Text 뷰어
 
 > ✅ **완료(2026-07-07)**: `QuizViewModel.startQuiz` 중복 제거를 정답 기준 → **질문 기준**으로 변경. 정답이 빈 문항(그림 매칭 퀴즈 등)이 조용히 사라지던 잠재 취약 해소(정답 중복 제거는 `QuizRepository.dedupeQuizzes`가 이미 담당).

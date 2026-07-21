@@ -3,6 +3,7 @@ package com.kitwlshcom.kdailyutil.data
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Base64
 import android.util.Log
 import androidx.core.content.FileProvider
 import com.kitwlshcom.kdailyutil.data.model.QuizQuestion
@@ -47,6 +48,19 @@ class QuizFileHandler {
                             put("explanation", q.explanation)
                             put("semanticHint", q.semanticHint ?: "")
                             put("imageUrl", q.imageUrl ?: "")
+                            // 이미지가 로컬 파일이면 Base64로 내장 → 다른 기기에서도 그림이 보이도록
+                            val imgPath = q.imageUrl
+                            if (!imgPath.isNullOrBlank()) {
+                                try {
+                                    val f = File(imgPath)
+                                    if (f.exists() && f.length() > 0) {
+                                        put("imageBase64", Base64.encodeToString(f.readBytes(), Base64.NO_WRAP))
+                                        put("imageExt", f.extension.ifBlank { "png" })
+                                    }
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "이미지 Base64 인코딩 실패(건너뜀): ${e.message}")
+                                }
+                            }
                             q.options?.let { put("options", JSONArray(it)) }
                         }
                         questionsArray.put(qObj)
@@ -84,7 +98,7 @@ class QuizFileHandler {
             try {
                 inputStream = context.contentResolver.openInputStream(fileUri)
                 val jsonText = inputStream?.bufferedReader().use { it?.readText() } ?: return null
-                return importQuizzesFromText(jsonText)
+                return importQuizzesFromText(jsonText, context)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to import quizzes: ${e.message}", e)
                 return null
@@ -97,7 +111,7 @@ class QuizFileHandler {
          * .kquiz JSON '텍스트'를 직접 파싱한다. (AI가 파일이 아닌 텍스트로 준 경우 붙여넣기 가져오기용)
          * 앞뒤에 코드블록(```json)이나 잡텍스트가 섞여 있어도 첫 '{'부터 마지막 '}'까지만 추출해 시도한다.
          */
-        fun importQuizzesFromText(rawText: String): ImportedQuizPackage? {
+        fun importQuizzesFromText(rawText: String, context: Context? = null): ImportedQuizPackage? {
             return try {
                 val start = rawText.indexOf('{')
                 val end = rawText.lastIndexOf('}')
@@ -123,6 +137,15 @@ class QuizFileHandler {
                     val baseQuestion = obj.getString("question")
                     val uniqueId = Math.abs((category + baseQuestion).hashCode())
 
+                    // 내장 이미지(Base64)가 있으면 디코딩해 로컬 파일로 저장하고 그 경로를 사용.
+                    // (context가 없으면 디코딩 불가 → 기존 imageUrl 폴백, 없으면 이미지 없음)
+                    val base64 = obj.optString("imageBase64", "")
+                    val decodedPath = if (base64.isNotBlank() && context != null) {
+                        decodeAndSaveImage(context, base64, obj.optString("imageExt", "png"), uniqueId)
+                    } else null
+                    val finalImageUrl = decodedPath
+                        ?: obj.optString("imageUrl", "").takeIf { it.isNotBlank() }
+
                     questionsList.add(
                         QuizQuestion(
                             id = uniqueId,
@@ -134,7 +157,7 @@ class QuizFileHandler {
                             answer = obj.getString("answer"),
                             explanation = obj.getString("explanation"),
                             semanticHint = obj.optString("semanticHint", null),
-                            imageUrl = obj.optString("imageUrl", null)
+                            imageUrl = finalImageUrl
                         )
                     )
                 }
@@ -148,6 +171,24 @@ class QuizFileHandler {
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to parse quiz JSON text: ${e.message}", e)
+                null
+            }
+        }
+
+        /**
+         * 내장된 Base64 이미지를 디코딩해 앱 전용 폴더(cropped_quizzes)에 저장하고 절대 경로를 반환한다.
+         * 파일명은 uniqueId 기반이라 같은 문제를 재가져오면 덮어써진다(중복 누적 방지).
+         */
+        private fun decodeAndSaveImage(context: Context, base64: String, ext: String, uniqueId: Int): String? {
+            return try {
+                val bytes = Base64.decode(base64, Base64.NO_WRAP)
+                val dir = File(context.filesDir, "cropped_quizzes").apply { if (!exists()) mkdirs() }
+                val safeExt = ext.replace("[^a-zA-Z0-9]".toRegex(), "").ifBlank { "png" }
+                val out = File(dir, "imported_$uniqueId.$safeExt")
+                out.writeBytes(bytes)
+                out.absolutePath
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ 내장 이미지 디코딩 실패: ${e.message}", e)
                 null
             }
         }

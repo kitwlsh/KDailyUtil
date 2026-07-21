@@ -455,7 +455,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     {
         viewModelScope.launch {
             val context = getApplication<Application>().applicationContext
-            val pkg = com.kitwlshcom.kdailyutil.data.QuizFileHandler.importQuizzesFromText(rawText)
+            val pkg = com.kitwlshcom.kdailyutil.data.QuizFileHandler.importQuizzesFromText(rawText, context)
             if (pkg != null)
             {
                 if (_availableCategories.value.contains(pkg.category))
