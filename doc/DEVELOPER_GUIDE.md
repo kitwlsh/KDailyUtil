@@ -1,7 +1,7 @@
 # 🛠 KDailyUtil - 개발자 가이드 (Developer Context Guide)
 
 > **신규 세션 또는 AI 어시스턴트가 이 파일을 먼저 읽으면 프로젝트 전체 맥락을 즉시 파악할 수 있습니다.**
-> 최종 업데이트: 2026-07-20
+> 최종 업데이트: 2026-07-21
 
 > ### 🚩 지금 상태 (신규 세션 필독)
 > - **v1.4 (versionCode 4) — 2026-07-21 Google Play 업로드, 현재 '출시 검토중'.** (직전 게시본 v1.2=vc3, 07-08 / 그 이전 v1.1=vc2.) 소스 = v1.4([app/build.gradle.kts](../app/build.gradle.kts)). **다음 배포는 versionCode 5 / versionName 1.5부터.**
@@ -466,6 +466,15 @@ DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 �
 ## 🔄 최근 커밋 이력 (최신순)
 
 > 최신 상태는 항상 `git log --oneline -20` 으로 확인. **v1.4(versionCode 4) 2026-07-21 업로드·출시 검토중**(직전 게시본 v1.2=vc3, 07-08). 검토 통과 시 게시본 = v1.4.
+
+**2026-07-21 세션 (뉴스 AI 대화창 신규 + 브리핑 낭독 개선 — 커밋됨·미배포, v1.5 대기분)**
+| 커밋 | 내용 |
+|------|------|
+| `ad65fff` | fix: 브리핑 낭독 제목 중복 제거(RSS 스니펫이 제목과 동일/제목으로 시작 시 제목 1회) |
+| `2666617` | fix: AI 대화 탭에서 '전체 브리핑 시작' FAB 숨김(대화 입력 바 겹침 방지) |
+| `79c5005` | feat: 뉴스 AI 대화창 — 브리핑 멀티턴 대화 + 음성(STT/TTS) + 30일 보관(AiChatSession/AiChatRepository·BriefingViewModel 확장·NewsBriefingScreen.AiChatSection) |
+| `43888db` | docs: 뉴스 AI 대화창 설계서 추가 — 대화 수명·30일 보관 정책 확정 |
+> ⚠️ 이 세션 변경분은 v1.4 AAB(검토중)에 미포함 → **v1.4 게시 확정 후 vc5/v1.5로 배포**. 상세 = [doc/FEATURE_AI_NEWS_CHAT.md](FEATURE_AI_NEWS_CHAT.md).
 
 **2026-07-20 세션 (키워드 순서변경·과거실적 추세 AI·보관함 제목편집·자매앱 상호연결·v1.4 배포준비 — origin/main 푸시 완료)**
 | 커밋 | 내용 |

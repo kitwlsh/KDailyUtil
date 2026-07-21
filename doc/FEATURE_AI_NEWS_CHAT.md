@@ -10,6 +10,7 @@
 > - **Chat 세션 지연 생성**: 컨텍스트(필터링된 오늘 뉴스+기존 대화) 주입은 **첫 사용자 메시지 전송 시** 생성해 불필요한 토큰/네트워크 절약.
 > - **음성**: 기존 `SttManager`(ko-KR, 이미 RECORD_AUDIO 보유) 재사용 + `TtsManager.speak(playBgm=false)`로 답변 낭독.
 > - **구현 파일**: [GeminiManager.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/data/remote/GeminiManager.kt)(`startNewsChat`/`sendChatMessage`), [AiChatSession.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/data/model/AiChatSession.kt), [AiChatRepository.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/data/repository/AiChatRepository.kt)(30일 purge·삭제), [BriefingViewModel.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/viewmodel/BriefingViewModel.kt)(대화 상태·로직), [NewsBriefingScreen.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/screens/NewsBriefingScreen.kt)(`AiChatSection`·`ChatBubble`·`ChatHistoryDialog`·`SessionViewDialog`).
+> - **UX 처리**: AI 탭에서는 '전체 브리핑 시작' FAB를 숨겨 대화 입력 바와 겹치지 않게 함(분석/답변 낭독은 말풍선 🔊로). 브리핑 낭독 제목 중복(스니펫=제목)도 함께 정리 → `dedupeTitleFromSnippet`.
 > - **잔여(선택)**: §8-4 핸즈프리 자동 낭독(현재 수동 🔊), §8-5 히스토리 토큰 상한(장기 대화 시 압축).
 
 ---
