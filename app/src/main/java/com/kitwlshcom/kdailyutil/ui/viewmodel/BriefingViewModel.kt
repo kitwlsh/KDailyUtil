@@ -611,9 +611,12 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 // 저작권 보호: 본문 전문이 아니라 RSS 스니펫(요약)만 낭독.
                 // 'AI 이용 금지' 매체는 그조차 생략하고 원문 보기를 안내한다.
                 val content = if (item.aiRestricted) "원문 보기로 확인해 주세요."
-                              else stripHtml(item.summary.ifBlank { item.description })
-                val text = "${currentBriefingIndex + 1}번 뉴스, ${item.title}입니다.\n\n$content"
-                
+                              else dedupeTitleFromSnippet(item.title, stripHtml(item.summary.ifBlank { item.description }))
+                val text = if (content.isBlank())
+                    "${currentBriefingIndex + 1}번 뉴스, ${item.title}입니다."
+                else
+                    "${currentBriefingIndex + 1}번 뉴스, ${item.title}입니다.\n\n$content"
+
                 ttsManager.speak(text) {
                     if (_isBriefingPlaying.value) {
                         currentBriefingIndex++
@@ -652,7 +655,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 return@launch
             }
             // 저작권 보호: 본문 전문이 아니라 언론사가 배포한 RSS 스니펫(요약)만 낭독한다.
-            val snippet = stripHtml(item.summary.ifBlank { item.description })
+            val snippet = dedupeTitleFromSnippet(item.title, stripHtml(item.summary.ifBlank { item.description }))
             val textToSpeak = if (snippet.isBlank()) item.title else "${item.title}. $snippet"
             ttsManager.speak(textToSpeak) {
                 _isBriefingPlaying.value = false
@@ -663,6 +666,26 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     /** RSS 스니펫에 섞여 있을 수 있는 HTML 태그를 제거해 낭독용 텍스트로 정리 */
     private fun stripHtml(text: String): String =
         text.replace(Regex("<[^>]*>"), " ").replace(Regex("\\s+"), " ").trim()
+
+    /**
+     * 낭독 시 제목이 두 번 읽히는 것을 막는다.
+     * RSS 스니펫(summary/description)이 제목과 동일하거나 제목으로 시작하는 경우가 많아,
+     * "제목입니다. + 스니펫(=제목)"으로 제목이 중복 낭독된다. 앞쪽 중복 제목을 제거하고,
+     * 남은 스니펫이 사실상 제목과 같으면 빈 문자열을 돌려 제목만 한 번 읽게 한다.
+     */
+    private fun dedupeTitleFromSnippet(title: String, snippet: String): String {
+        val t = title.trim()
+        var s = snippet.trim()
+        if (t.isEmpty() || s.isEmpty()) return s
+        if (s.startsWith(t)) {
+            s = s.substring(t.length)
+                .trimStart(' ', '-', '·', ':', '.', ',', '…', '|', '"', '\'', '‘', '’', '“', '”')
+                .trim()
+        }
+        fun norm(x: String) = x.replace(Regex("[^\\p{L}\\p{N}]"), "")
+        if (norm(s).isEmpty() || norm(s) == norm(t)) return ""
+        return s
+    }
 
     fun stopBriefing() {
         ttsManager.stop()
