@@ -13,7 +13,7 @@
 > - **아이콘/스플래시 패밀리 통일 (2026-07-15~16)**: 런처 아이콘(mipmap 전 밀도)·플레이스토어 아이콘·스플래시(`ic_app_logo_full` 자체 앱 아이콘으로 교체)·워터마크([BrandComponents.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/components/BrandComponents.kt))·설정 브랜드 갤러리를 형제 앱(KLotto645 등)과 통일. 단일 기준 문서 = [doc/K_SERIES_ICON_RECIPE.md](K_SERIES_ICON_RECIPE.md), 원본/스크립트 = `doc/family_icons/`, `doc/icon_scripts/`. **미사용 `HexagonShape` 제거됨.**
 > - **자매앱 상호연결 (2026-07-20)**: 설정 > 앱정보 > **'브랜드 & 자매앱'** 갤러리에 KLotto645 카드 추가(탭 시 설치/실행, `openAppOrStore` 헬퍼). 아이콘 교환(`ic_klotto645.png` 수신), 표준·신규앱 편입 절차 = [doc/KLOTTO_CONNECT_HANDOFF.md](KLOTTO_CONNECT_HANDOFF.md)(양쪽 저장소 doc/ 동기화). **KLotto645 저장소 쪽 구현/커밋은 그쪽 세션 담당**(RENEWAL_PLAN '다음 착수점 ⑥').
 > - **🆕 뉴스 AI 대화창 (2026-07-21, 구현 완료·미배포)**: 뉴스탭 'AI' 탭에서 맞춤 분석을 첫 답으로 **멀티턴 대화**(이어 묻기) + **음성 입력(STT)·답변 낭독(TTS)**. 컨텍스트=제목+RSS 스니펫(제한매체 필터 승계, 본문 비스크랩). **대화 수명=세션(명령어+날짜)**, 로컬 보관 **30일 자동정리 + 사용자 수동 삭제(개별·전체)**, 지난 대화 읽기 전용 열람. 설계·구현서 = [doc/FEATURE_AI_NEWS_CHAT.md](FEATURE_AI_NEWS_CHAT.md). 구현: `GeminiManager.startNewsChat/sendChatMessage`, `AiChatSession`/`AiChatRepository`, `BriefingViewModel`(대화 상태·`sendChat`·`startChatVoiceInput`·세션관리), `NewsBriefingScreen.AiChatSection`. **v1.4 게시 후 vc5/v1.5로 배포**.
-> - **다음 후보**: (v1.4 출시 완료됨) **뉴스 AI 대화창 등 미배포분은 다음 배포 vc5/v1.5로 반영 — 버전업은 사용자 요청 시**, 빠른 독서 개선(통계 상세·난이도 추천), (선택) '시세 및 차트' 관심종목 편집 UI에도 두-목록 안내, (선택) 이미지 퀴즈 공유 Base64 내장·AI 마크다운 렌더링.
+> - **다음 후보**: **① AI 스마트 관심종목 포트폴리오 분석**(가장 큰 과제, 내일 착수 예정 — 아래 "다음 구현 예정 과제" 설계 초안). 그 외 미배포분(뉴스 AI 대화창·마크다운·핸즈프리·이미지 Base64·빠른독서 통계/난이도)은 다음 배포 vc5/v1.5로 반영(버전업은 사용자 요청 시). (완료: AI 마크다운 렌더링·핸즈프리·이미지 퀴즈 Base64·빠른독서 통계/난이도 = 2026-07-21)
 > - **AAB 재빌드 방법**: `./gradlew.bat :app:bundleRelease` (서명은 `local.properties`의 `release.*` 키로 자동 — VCS 제외). 산출물: `app/build/outputs/bundle/release/app-release.aab`.
 
 ---
@@ -452,7 +452,11 @@ DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 �
 - [ ] **버전 상향 + 스토어 업로드** (v1.1 이후 변경분 배포)
 - [x] ~~(선택) **키워드 순서 변경**: `Set`→`List` 전환~~ ✅ 완료(2026-07-20, 위 "키워드 순서 보존 저장" 참조)
 - [x] ~~(선택) **과거 실적 추세 종합 AI 코멘트** 버튼(다분기 흐름 1회 요약)~~ ✅ 완료(2026-07-20, 위 증시 메모 "추세 종합 AI 코멘트" 참조)
-- [ ] **AI 스마트 관심종목 포트폴리오 분석**: 보유 종목 실적 트렌드 종합 리포트 (README Phase 3)
+- [ ] **AI 스마트 관심종목 포트폴리오 분석** (내일 착수 예정, README Phase 3) — **설계 초안**:
+  - **입력**: `watchStockKeywords`(대시보드 관심종목) + 각 종목 최근 실적(`StockRepository` DART 재무/과거실적, 이미 개별 조회 구현됨)을 취합.
+  - **AI 출력**: ① 전반 성장세·수익성 흐름 ② 상대적 우량/우려 종목 ③ 집중도·쏠림 리스크 코멘트 ④ 참고 면책. → `GeminiManager.summarizePortfolio(...)` 1개 추가.
+  - **UI**: 증시 대시보드 상단 **'🤖 포트폴리오 종합 분석'** 버튼 → 결과 카드(마크다운은 `MarkdownText` 재사용), 결과는 파일 캐시(기존 AI 분석 캐싱 패턴 재사용).
+  - **비고**: 수치 데이터 기반이라 저작권 이슈 없음. 작업량 ≈ 반나절(취합 中 + 프롬프트/파싱 小 + UI 小).
 - [x] ~~**빠른 독서**: 보관함 제목 편집(✅ 2026-07-20), 통계 상세 화면, 난이도 자동 추천~~ ✅ 완료(2026-07-21: `StatsModule` 통계 상세 + `ReadingTrainingViewModel.recommendedWpm` 난이도 추천→드릴 초기 속도 반영)
 - [x] ~~**이미지 퀴즈 공유 개선**: 크롭 이미지를 Base64로 `.kquiz`에 내장~~ ✅ 완료(2026-07-21)
 - [ ] **AI 마크다운 렌더링**: 브리핑/요약 결과에 Rich Text 뷰어
@@ -467,14 +471,16 @@ DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 �
 
 > 최신 상태는 항상 `git log --oneline -20` 으로 확인. **v1.4(versionCode 4) 2026-07-21 출시 완료(현재 게시본 = v1.4)**(그 이전 게시본 v1.2=vc3, 07-08). 이후 미배포분은 다음 배포 vc5/v1.5로.
 
-**2026-07-21 세션 (뉴스 AI 대화창 신규 + 브리핑 낭독 개선 — 커밋됨·미배포, v1.5 대기분)**
+**2026-07-21 세션 (뉴스 AI 대화창 + 후속 편의기능 4종 — 커밋됨·미배포, v1.5 대기분)**
 | 커밋 | 내용 |
 |------|------|
-| `ad65fff` | fix: 브리핑 낭독 제목 중복 제거(RSS 스니펫이 제목과 동일/제목으로 시작 시 제목 1회) |
-| `2666617` | fix: AI 대화 탭에서 '전체 브리핑 시작' FAB 숨김(대화 입력 바 겹침 방지) |
-| `79c5005` | feat: 뉴스 AI 대화창 — 브리핑 멀티턴 대화 + 음성(STT/TTS) + 30일 보관(AiChatSession/AiChatRepository·BriefingViewModel 확장·NewsBriefingScreen.AiChatSection) |
-| `43888db` | docs: 뉴스 AI 대화창 설계서 추가 — 대화 수명·30일 보관 정책 확정 |
-> ⚠️ 이 세션 변경분은 게시본 v1.4 AAB에 미포함 → **다음 배포(vc5/v1.5)로 반영, 버전업은 사용자 요청 시**. 상세 = [doc/FEATURE_AI_NEWS_CHAT.md](FEATURE_AI_NEWS_CHAT.md).
+| `ad0e379` | feat: 빠른 독서 통계 상세(`StatsModule`) + 난이도 자동 추천(`recommendedWpm`→드릴 초기 속도) |
+| `0a422c4` | feat: 이미지 퀴즈 공유 개선 — 그림을 Base64로 `.kquiz`에 내장/복원(다른 기기 표시) |
+| `e9bb0de` | feat: AI 대화 핸즈프리 모드(자동 낭독→다시 듣기) |
+| `371cd1e` | feat: AI 답변 마크다운 서식 렌더링(`MarkdownText`, 낭독 시 기호 제거) |
+| `ad65fff`·`2666617` | fix: 브리핑 낭독 제목 중복 제거 / AI 탭 브리핑 FAB 숨김(입력바 겹침) |
+| `79c5005`·`43888db` | feat/docs: 뉴스 AI 대화창(멀티턴+음성 STT/TTS+30일 보관) + 설계서 |
+> ⚠️ 이 세션 변경분 전부 게시본 v1.4 AAB에 미포함 → **다음 배포(vc5/v1.5)로 반영, 버전업은 사용자 요청 시**. 상세 = [doc/FEATURE_AI_NEWS_CHAT.md](FEATURE_AI_NEWS_CHAT.md).
 
 **2026-07-20 세션 (키워드 순서변경·과거실적 추세 AI·보관함 제목편집·자매앱 상호연결·v1.4 배포준비 — origin/main 푸시 완료)**
 | 커밋 | 내용 |
