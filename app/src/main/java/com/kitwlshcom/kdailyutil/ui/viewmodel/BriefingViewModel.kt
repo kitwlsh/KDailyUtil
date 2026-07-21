@@ -108,6 +108,10 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     private val _chatSttPartial = MutableStateFlow("")
     val chatSttPartial: StateFlow<String> = _chatSttPartial.asStateFlow()
 
+    // 핸즈프리 모드: 답변을 자동 낭독하고 낭독이 끝나면 다시 듣기(운전 중 손 안 대고 대화)
+    private val _handsFree = MutableStateFlow(false)
+    val handsFree: StateFlow<Boolean> = _handsFree.asStateFlow()
+
     // 대화 기록(과거 세션 목록, 읽기 전용 열람용)
     private val _chatSessions = MutableStateFlow<List<AiChatSession>>(emptyList())
     val chatSessions: StateFlow<List<AiChatSession>> = _chatSessions.asStateFlow()
@@ -778,6 +782,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 } else {
                     val answer = gemini.sendChatMessage(chat, text)
                     _chatMessages.value = _chatMessages.value + ChatMessage(ChatRole.AI, answer)
+                    if (_handsFree.value) speakThenListen(answer)
                 }
                 persistCurrentSession()
             } catch (e: Exception) {
@@ -839,6 +844,29 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     fun speakChatMessage(text: String) {
         ttsManager.stop()
         ttsManager.speak(stripMarkdownForSpeech(text), playBgm = false)
+    }
+
+    /** 핸즈프리: 답변을 낭독하고, 끝나면 다시 듣기(SpeechRecognizer는 메인 스레드에서 시작). */
+    private fun speakThenListen(text: String) {
+        ttsManager.stop()
+        ttsManager.speak(stripMarkdownForSpeech(text), playBgm = false) {
+            if (_handsFree.value && !_isChatListening.value && !_isChatResponding.value) {
+                viewModelScope.launch { startChatVoiceInput() }
+            }
+        }
+    }
+
+    /** 핸즈프리 모드 켜기/끄기. 끄면 진행 중인 낭독·듣기를 즉시 중단. */
+    fun setHandsFree(on: Boolean) {
+        _handsFree.value = on
+        if (!on) {
+            ttsManager.stop()
+            if (_isChatListening.value) {
+                _isChatListening.value = false
+                sttManager.stopListening()
+                _chatSttPartial.value = ""
+            }
+        }
     }
 
     /** 낭독 시 마크다운 기호(**, *, `, #, -)가 그대로 읽히지 않도록 제거. */

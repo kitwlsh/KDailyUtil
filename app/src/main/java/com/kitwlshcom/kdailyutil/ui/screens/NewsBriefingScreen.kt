@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
@@ -486,6 +487,7 @@ fun AiChatSection(
     val sttPartial by viewModel.chatSttPartial.collectAsState()
     val sessions by viewModel.chatSessions.collectAsState()
     val viewing by viewModel.viewingSession.collectAsState()
+    val handsFree by viewModel.handsFree.collectAsState()
 
     var input by remember { mutableStateOf("") }
     var showHistory by remember { mutableStateOf(false) }
@@ -502,17 +504,44 @@ fun AiChatSection(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // 헤더: 대화 기록 진입
+        // 헤더: 핸즈프리 토글 + 대화 기록
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { viewModel.setHandsFree(!handsFree) }
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Headset, contentDescription = "핸즈프리",
+                    tint = if (handsFree) Gold24K else Color.White.copy(alpha = 0.4f),
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    if (handsFree) "핸즈프리 켜짐" else "핸즈프리",
+                    color = if (handsFree) Gold24K else Color.White.copy(alpha = 0.5f),
+                    fontSize = 12.sp,
+                    fontWeight = if (handsFree) FontWeight.Bold else FontWeight.Normal
+                )
+            }
             TextButton(onClick = { viewModel.loadChatHistory(); showHistory = true }) {
                 Icon(Icons.Default.History, contentDescription = null, tint = Gold24K, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(4.dp))
                 Text("대화 기록", color = Gold24K, fontSize = 12.sp)
             }
+        }
+        if (handsFree) {
+            Text(
+                "🎧 핸즈프리: 답변을 자동 낭독하고 끝나면 다시 듣습니다(운전 중 권장, 조용하면 자동 종료).",
+                fontSize = 11.sp, color = Gold24K.copy(alpha = 0.7f),
+                modifier = Modifier.padding(bottom = 2.dp)
+            )
         }
 
         // 대화 목록
