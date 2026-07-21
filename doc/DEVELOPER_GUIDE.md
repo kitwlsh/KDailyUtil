@@ -4,15 +4,15 @@
 > 최종 업데이트: 2026-07-20
 
 > ### 🚩 지금 상태 (신규 세션 필독)
-> - **스토어 게시본 = v1.2 (versionCode 3, 2026-07-08 게시)**. (그 이전 v1.1=vc2.) **소스는 v1.4(versionCode 4)로 상향** — 다음 배포본([app/build.gradle.kts](../app/build.gradle.kts)).
+> - **v1.4 (versionCode 4) — 2026-07-21 Google Play 업로드, 현재 '출시 검토중'.** (직전 게시본 v1.2=vc3, 07-08 / 그 이전 v1.1=vc2.) 소스 = v1.4([app/build.gradle.kts](../app/build.gradle.kts)). **다음 배포는 versionCode 5 / versionName 1.5부터.**
 > - **버전 스킴**: versionName **끝자리 = versionCode**(vc4=1.4, 이후 vc5=1.5…, 1.3은 건너뜀). versionCode는 정수만·매 업로드 증가, versionName은 표시용 문자열(점 자유).
-> - **⚠️ v1.4 AAB 준비**: [`app/release/kdailyutil-v1.4.aab`](../app/release/kdailyutil-v1.4.aab)에 게시본 v1.2 이후 변경(아이콘/스플래시 통일·키워드 순서변경·추세 AI·제목편집·자매앱 상호연결) 포함. 코드 수정 시 `./gradlew.bat :app:bundleRelease` → 산출물을 `app/release/kdailyutil-v1.4.aab`로 복사(versionCode는 이미 4).
+> - **v1.4 AAB 업로드 완료**: [`app/release/kdailyutil-v1.4.aab`](../app/release/kdailyutil-v1.4.aab)(게시본 v1.2 이후 변경: 아이콘/스플래시 통일·키워드 순서변경·추세 AI·제목편집·자매앱 상호연결). 스토어 자산도 갱신함 — 앱 아이콘 512=`app/src/main/ic_launcher-playstore.png`(톱니바퀴), 그래픽 이미지 1024×500=[`doc/screenshot/feature_graphic_1024x500.png`](screenshot/feature_graphic_1024x500.png), 설명 문구=[`doc/STORE_LISTING.md`](STORE_LISTING.md). **다음 배포 시 versionCode 5·versionName 1.5로 올리고 `./gradlew.bat :app:bundleRelease` → `kdailyutil-v1.5.aab`로 복사.**
 >   - 출시노트/버전별 내역: [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md) (콘솔 '출시 노트'란 붙여넣기용 문구 포함).
 > - 2026-07-20 세션분은 `origin/main` **푸시 완료**. 최신 상태는 `git status`로 확인.
 > - **v1.1 이후 주요 변경(= v1.2에 담길 분)**: 오디오 SAF 복구·미디어버튼·인터럽트 재개 / 뉴스 저작권 보수화 / 퀴즈 중복방지 3중화·AI 퀴즈 가이드·커스텀 편집·오류신고 게이팅 / 증시 '실적 뉴스·전망' 개편·과거 실적 조회+회사 검색·조회기간 AI캐시 복원·DART 키 도움말 / 탭 ＋빠른추가 / (2026-07-07) 퀴즈 파싱 내구성·상식백과 복구·데이터 검증 CI·퀴즈/독서 뒤로가기·AI 실적공시 헤더통합 스크롤·동일회사 1건 축약·숨김 객체영속·과거실적 회계기준월·증시 키워드 2종 구분 / **(2026-07-15~16) K-시리즈 아이콘·스플래시·워터마크 패밀리 통일** / **(2026-07-20) 키워드 순서변경(Set→List)·과거실적 추세 AI 코멘트·빠른독서 보관함 제목편집·자매앱 상호연결(브랜드&자매앱 갤러리)**.
 > - **아이콘/스플래시 패밀리 통일 (2026-07-15~16)**: 런처 아이콘(mipmap 전 밀도)·플레이스토어 아이콘·스플래시(`ic_app_logo_full` 자체 앱 아이콘으로 교체)·워터마크([BrandComponents.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/components/BrandComponents.kt))·설정 브랜드 갤러리를 형제 앱(KLotto645 등)과 통일. 단일 기준 문서 = [doc/K_SERIES_ICON_RECIPE.md](K_SERIES_ICON_RECIPE.md), 원본/스크립트 = `doc/family_icons/`, `doc/icon_scripts/`. **미사용 `HexagonShape` 제거됨.**
 > - **자매앱 상호연결 (2026-07-20)**: 설정 > 앱정보 > **'브랜드 & 자매앱'** 갤러리에 KLotto645 카드 추가(탭 시 설치/실행, `openAppOrStore` 헬퍼). 아이콘 교환(`ic_klotto645.png` 수신), 표준·신규앱 편입 절차 = [doc/KLOTTO_CONNECT_HANDOFF.md](KLOTTO_CONNECT_HANDOFF.md)(양쪽 저장소 doc/ 동기화). **KLotto645 저장소 쪽 구현/커밋은 그쪽 세션 담당**(RENEWAL_PLAN '다음 착수점 ⑥').
-> - **다음 후보**: **v1.4 AAB Google Play 프로덕션 업로드**(출시노트 = RELEASE_NOTES.md v1.4) + 실기기 최종 점검(자매앱 카드 탭·설치배지 포함), 빠른 독서 개선(통계 상세·난이도 추천), (선택) '시세 및 차트' 관심종목 편집 UI에도 두-목록 안내.
+> - **다음 후보**: **v1.4 출시 검토 통과 확인**(검토중 → 게시 완료 시 이 문서/메모리 '게시본=v1.4'로 갱신), 빠른 독서 개선(통계 상세·난이도 추천), (선택) '시세 및 차트' 관심종목 편집 UI에도 두-목록 안내, (선택) 이미지 퀴즈 공유 Base64 내장·AI 마크다운 렌더링.
 > - **AAB 재빌드 방법**: `./gradlew.bat :app:bundleRelease` (서명은 `local.properties`의 `release.*` 키로 자동 — VCS 제외). 산출물: `app/build/outputs/bundle/release/app-release.aab`.
 
 ---
@@ -23,7 +23,7 @@
 - **패키지**: `com.kitwlshcom.kdailyutil`
 - **언어**: Kotlin (Jetpack Compose)
 - **최소 SDK**: 26 / 타겟 SDK: 36
-- **버전**: 소스 = versionCode 4 / versionName 1.4 (다음 배포본, AAB 준비) · 스토어 게시본 = versionCode 3 / versionName 1.2(2026-07-08 게시). 스킴: versionName 끝자리 = versionCode.
+- **버전**: 소스 = versionCode 4 / versionName 1.4 (**2026-07-21 업로드, 출시 검토중**) · 직전 게시본 = vc3 / v1.2(2026-07-08). 스킴: versionName 끝자리 = versionCode(다음은 vc5=1.5).
 - **빌드 도구**: AGP 8.13.2, Kotlin 2.0.21
 - **GitHub**: `kitwlsh/KDailyUtil`
 - **로컬 경로**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil`
@@ -464,7 +464,7 @@ DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 �
 
 ## 🔄 최근 커밋 이력 (최신순)
 
-> 최신 상태는 항상 `git log --oneline -20` 으로 확인. **v1.2(versionCode 3)가 스토어 게시본**(2026-07-08), 그 이후(아이콘 통일~07-20 세션분)는 미배포 → **다음 배포 = v1.4(versionCode 4)**.
+> 최신 상태는 항상 `git log --oneline -20` 으로 확인. **v1.4(versionCode 4) 2026-07-21 업로드·출시 검토중**(직전 게시본 v1.2=vc3, 07-08). 검토 통과 시 게시본 = v1.4.
 
 **2026-07-20 세션 (키워드 순서변경·과거실적 추세 AI·보관함 제목편집·자매앱 상호연결·v1.4 배포준비 — origin/main 푸시 완료)**
 | 커밋 | 내용 |

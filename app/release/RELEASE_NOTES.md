@@ -1,8 +1,8 @@
 # 📱 KDailyUtil 릴리즈 노트 (Release Notes)
 
 > 업로드용 AAB는 같은 폴더의 `kdailyutil-v{버전}.aab` 파일입니다.
-> 최신: **`kdailyutil-v1.4.aab`** (versionCode 4 / versionName 1.4)
-> 스토어 게시 이력: v1.2(vc3) 게시됨(2026-07-08) · 그 이전 v1.1(vc2).
+> 최신: **`kdailyutil-v1.4.aab`** (versionCode 4 / versionName 1.4) — **2026-07-21 업로드, 출시 검토중**.
+> 스토어 게시 이력: v1.2(vc3) 게시됨(2026-07-08) · 그 이전 v1.1(vc2). (v1.4 검토 통과 시 게시본 갱신)
 > 버전 스킴: **versionName 끝자리 = versionCode** 로 맞춤(vc4=1.4, 이후 vc5=1.5…). versionCode는 정수만·증가만, versionName은 표시용 문자열.
 
 ---
