@@ -1,7 +1,7 @@
 # 🛠 KDailyUtil - 개발자 가이드 (Developer Context Guide)
 
 > **신규 세션 또는 AI 어시스턴트가 이 파일을 먼저 읽으면 프로젝트 전체 맥락을 즉시 파악할 수 있습니다.**
-> 최종 업데이트: 2026-07-21
+> 최종 업데이트: 2026-07-22
 
 > ### 🚩 지금 상태 (신규 세션 필독)
 > - **v1.4 (versionCode 4) — 2026-07-21 Google Play 출시 완료(현재 게시본 = v1.4).** (그 이전 게시본 v1.2=vc3, 07-08 / v1.1=vc2.) 소스 = v1.4([app/build.gradle.kts](../app/build.gradle.kts)). **다음 배포는 versionCode 5 / versionName 1.5부터 — 버전업은 사용자 요청 시 진행.**
@@ -13,7 +13,7 @@
 > - **아이콘/스플래시 패밀리 통일 (2026-07-15~16)**: 런처 아이콘(mipmap 전 밀도)·플레이스토어 아이콘·스플래시(`ic_app_logo_full` 자체 앱 아이콘으로 교체)·워터마크([BrandComponents.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/components/BrandComponents.kt))·설정 브랜드 갤러리를 형제 앱(KLotto645 등)과 통일. 단일 기준 문서 = [doc/K_SERIES_ICON_RECIPE.md](K_SERIES_ICON_RECIPE.md), 원본/스크립트 = `doc/family_icons/`, `doc/icon_scripts/`. **미사용 `HexagonShape` 제거됨.**
 > - **자매앱 상호연결 (2026-07-20)**: 설정 > 앱정보 > **'브랜드 & 자매앱'** 갤러리에 KLotto645 카드 추가(탭 시 설치/실행, `openAppOrStore` 헬퍼). 아이콘 교환(`ic_klotto645.png` 수신), 표준·신규앱 편입 절차 = [doc/KLOTTO_CONNECT_HANDOFF.md](KLOTTO_CONNECT_HANDOFF.md)(양쪽 저장소 doc/ 동기화). **KLotto645 저장소 쪽 구현/커밋은 그쪽 세션 담당**(RENEWAL_PLAN '다음 착수점 ⑥').
 > - **🆕 뉴스 AI 대화창 (2026-07-21, 구현 완료·미배포)**: 뉴스탭 'AI' 탭에서 맞춤 분석을 첫 답으로 **멀티턴 대화**(이어 묻기) + **음성 입력(STT)·답변 낭독(TTS)**. 컨텍스트=제목+RSS 스니펫(제한매체 필터 승계, 본문 비스크랩). **대화 수명=세션(명령어+날짜)**, 로컬 보관 **30일 자동정리 + 사용자 수동 삭제(개별·전체)**, 지난 대화 읽기 전용 열람. 설계·구현서 = [doc/FEATURE_AI_NEWS_CHAT.md](FEATURE_AI_NEWS_CHAT.md). 구현: `GeminiManager.startNewsChat/sendChatMessage`, `AiChatSession`/`AiChatRepository`, `BriefingViewModel`(대화 상태·`sendChat`·`startChatVoiceInput`·세션관리), `NewsBriefingScreen.AiChatSection`. **v1.4 게시 후 vc5/v1.5로 배포**.
-> - **다음 후보**: **① AI 스마트 관심종목 포트폴리오 분석**(가장 큰 과제, 내일 착수 예정 — 아래 "다음 구현 예정 과제" 설계 초안). 그 외 미배포분(뉴스 AI 대화창·마크다운·핸즈프리·이미지 Base64·빠른독서 통계/난이도)은 다음 배포 vc5/v1.5로 반영(버전업은 사용자 요청 시). (완료: AI 마크다운 렌더링·핸즈프리·이미지 퀴즈 Base64·빠른독서 통계/난이도 = 2026-07-21)
+> - **다음 후보**: (① AI 포트폴리오 분석 = ✅ 2026-07-22 완료) 미배포분 전부 다음 배포 vc5/v1.5로 반영(버전업은 사용자 요청 시). 남은 후보: (선택) '시세 및 차트' 관심종목 편집 UI 두-목록 안내, AI 대화 §8 잔여(핸즈프리 자동낭독 심화·히스토리 토큰 상한). 완료분(2026-07-21~22): 뉴스 AI 대화창·마크다운·핸즈프리·이미지 Base64·빠른독서 통계/난이도·**포트폴리오 종합 분석**.
 > - **AAB 재빌드 방법**: `./gradlew.bat :app:bundleRelease` (서명은 `local.properties`의 `release.*` 키로 자동 — VCS 제외). 산출물: `app/build/outputs/bundle/release/app-release.aab`.
 
 ---
@@ -452,11 +452,10 @@ DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 �
 - [ ] **버전 상향 + 스토어 업로드** (v1.1 이후 변경분 배포)
 - [x] ~~(선택) **키워드 순서 변경**: `Set`→`List` 전환~~ ✅ 완료(2026-07-20, 위 "키워드 순서 보존 저장" 참조)
 - [x] ~~(선택) **과거 실적 추세 종합 AI 코멘트** 버튼(다분기 흐름 1회 요약)~~ ✅ 완료(2026-07-20, 위 증시 메모 "추세 종합 AI 코멘트" 참조)
-- [ ] **AI 스마트 관심종목 포트폴리오 분석** (내일 착수 예정, README Phase 3) — **설계 초안**:
-  - **입력**: `watchStockKeywords`(대시보드 관심종목) + 각 종목 최근 실적(`StockRepository` DART 재무/과거실적, 이미 개별 조회 구현됨)을 취합.
-  - **AI 출력**: ① 전반 성장세·수익성 흐름 ② 상대적 우량/우려 종목 ③ 집중도·쏠림 리스크 코멘트 ④ 참고 면책. → `GeminiManager.summarizePortfolio(...)` 1개 추가.
-  - **UI**: 증시 대시보드 상단 **'🤖 포트폴리오 종합 분석'** 버튼 → 결과 카드(마크다운은 `MarkdownText` 재사용), 결과는 파일 캐시(기존 AI 분석 캐싱 패턴 재사용).
-  - **비고**: 수치 데이터 기반이라 저작권 이슈 없음. 작업량 ≈ 반나절(취합 中 + 프롬프트/파싱 小 + UI 小).
+- [x] ~~**AI 스마트 관심종목 포트폴리오 분석** (README Phase 3)~~ ✅ **완료(2026-07-22)**:
+  - `GeminiManager.summarizePortfolio(portfolioText)` — 다종목 실적을 1회 종합(전반 흐름·상대 우열·집중 리스크·면책).
+  - `StockViewModel.generatePortfolioAnalysis(forceRefresh)` — `watchStockKeywords`(≤10) 각각 `searchCorpByName`→corpCode→`fetchFinancialHistory(maxPeriods=4)` 취합→AI 호출. 지수·해외·가상자산 등 DART 미대상 자동 skip.
+  - 캐시: `StockRepository.load/savePortfolioAnalysis`(filesDir/portfolio_analysis.json). UI: `StockDashboardScreen.PortfolioAnalysisCard`(관심 종목 탭 상단, `MarkdownText` 재사용, 재분석 버튼).
 - [x] ~~**빠른 독서**: 보관함 제목 편집(✅ 2026-07-20), 통계 상세 화면, 난이도 자동 추천~~ ✅ 완료(2026-07-21: `StatsModule` 통계 상세 + `ReadingTrainingViewModel.recommendedWpm` 난이도 추천→드릴 초기 속도 반영)
 - [x] ~~**이미지 퀴즈 공유 개선**: 크롭 이미지를 Base64로 `.kquiz`에 내장~~ ✅ 완료(2026-07-21)
 - [ ] **AI 마크다운 렌더링**: 브리핑/요약 결과에 Rich Text 뷰어
@@ -470,6 +469,12 @@ DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 �
 ## 🔄 최근 커밋 이력 (최신순)
 
 > 최신 상태는 항상 `git log --oneline -20` 으로 확인. **v1.4(versionCode 4) 2026-07-21 출시 완료(현재 게시본 = v1.4)**(그 이전 게시본 v1.2=vc3, 07-08). 이후 미배포분은 다음 배포 vc5/v1.5로.
+
+**2026-07-22 세션 (AI 스마트 관심종목 포트폴리오 분석 — 커밋됨·미배포, v1.5 대기분)**
+| 커밋 | 내용 |
+|------|------|
+| (이번) | feat: 관심종목 포트폴리오 종합 AI 분석 — `GeminiManager.summarizePortfolio` + `StockViewModel.generatePortfolioAnalysis`(watchStockKeywords 취합·캐시) + `StockDashboardScreen.PortfolioAnalysisCard`(관심 종목 탭 상단, MarkdownText 재사용) |
+> ⚠️ 게시본 v1.4 AAB에 미포함 → 다음 배포(vc5/v1.5)로 반영, 버전업은 사용자 요청 시.
 
 **2026-07-21 세션 (뉴스 AI 대화창 + 후속 편의기능 4종 — 커밋됨·미배포, v1.5 대기분)**
 | 커밋 | 내용 |

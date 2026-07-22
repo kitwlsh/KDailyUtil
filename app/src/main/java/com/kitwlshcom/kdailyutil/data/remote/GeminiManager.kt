@@ -595,4 +595,41 @@ class GeminiManager(private val apiKey: String?) {
             "추세 코멘트 생성 중 오류가 발생했습니다: ${e.message}"
         }
     }
+
+    /**
+     * 관심종목(다수) 실적을 한데 모아 '포트폴리오 전체'를 1회 종합 분석한다.
+     * @param portfolioText 종목별 최근 실적(매출/영업이익/순이익 + 전년동기%)을 사람이 읽을 수 있게 이어붙인 문자열.
+     */
+    suspend fun summarizePortfolio(portfolioText: String): String = withContext(Dispatchers.IO) {
+        if (generativeModel == null || apiKey.isNullOrBlank()) {
+            return@withContext "설정에서 Gemini API 키를 입력하면 포트폴리오 종합 분석을 받을 수 있습니다."
+        }
+        val prompt = content {
+            text(
+                "당신은 대한민국 주식시장 전문 금융 애널리스트입니다. 아래는 사용자가 관심종목으로 등록한 여러 상장사의 " +
+                "최근 정기보고서(분기·반기·사업) 실적입니다. 분기·반기 수치는 DART 기준 누적(YTD)이며, 괄호 %는 전년 동기 대비입니다.\n\n" +
+                "관심종목 실적:\n$portfolioText\n\n" +
+                "요구 조건:\n" +
+                "1. 데이터에 드러난 사실만 근거로, 과장·매수/매도 권유 없이 담백한 한국어로 작성하세요.\n" +
+                "2. '포트폴리오 전체'의 관점에서 종합하세요(개별 종목 나열이 아니라 전반 흐름 우선).\n" +
+                "3. 상대적으로 실적이 견조한 종목과 우려되는 종목을 각각 짚으세요.\n" +
+                "4. 특정 종목·업종 쏠림 등 집중도/분산 관점의 리스크를 한 가지 이상 언급하세요.\n" +
+                "5. 아래 마크다운 형식을 지키세요:\n\n" +
+                "### 🤖 관심종목 포트폴리오 종합 분석\n" +
+                "* **전반 흐름**: ...\n" +
+                "* **견조한 종목**: ...\n" +
+                "* **주의가 필요한 종목**: ...\n" +
+                "* **집중도·리스크**: ...\n" +
+                "* **한줄 코멘트**: ...\n\n" +
+                "마지막 줄에 '※ 참고용 요약이며 투자 판단과 책임은 본인에게 있습니다.'를 덧붙이세요."
+            )
+        }
+        return@withContext try {
+            val response = generativeModel?.generateContent(prompt)
+            response?.text ?: "분석을 생성할 수 없습니다."
+        } catch (e: Exception) {
+            android.util.Log.e("GeminiManager", "❌ summarizePortfolio error: ${e.message}", e)
+            "포트폴리오 분석 중 오류가 발생했습니다: ${e.message}"
+        }
+    }
 }

@@ -688,6 +688,29 @@ class StockRepository(private val context: Context) {
         } catch (e: Exception) { Log.e(TAG, "history 캐시 저장 실패: ${e.message}") }
     }
 
+    // ===================== 포트폴리오 종합 분석 캐시 =====================
+    private val portfolioAnalysisCacheFile: File
+        get() = File(context.filesDir, "portfolio_analysis.json")
+
+    /** 저장된 포트폴리오 분석 반환 (text, 분석시각). 없으면 null. */
+    fun loadPortfolioAnalysis(): Pair<String, String>? {
+        if (!portfolioAnalysisCacheFile.exists()) return null
+        return try {
+            val o = JSONObject(portfolioAnalysisCacheFile.readText(StandardCharsets.UTF_8))
+            val text = o.optString("text", "")
+            if (text.isBlank()) null else text to o.optString("analyzedAt", "")
+        } catch (e: Exception) { null }
+    }
+
+    fun savePortfolioAnalysis(text: String, analyzedAt: String) {
+        try {
+            portfolioAnalysisCacheFile.writeText(
+                JSONObject().put("text", text).put("analyzedAt", analyzedAt).toString(),
+                StandardCharsets.UTF_8
+            )
+        } catch (e: Exception) { Log.e(TAG, "포트폴리오 분석 캐시 저장 실패: ${e.message}") }
+    }
+
     // ===================== 회사 이름 검색 (C, corpCode.xml) =====================
     private val corpCodeCacheFile: File
         get() = File(context.filesDir, "corp_codes.json")

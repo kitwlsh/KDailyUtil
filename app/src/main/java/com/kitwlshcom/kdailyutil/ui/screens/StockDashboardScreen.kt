@@ -60,6 +60,7 @@ import com.kitwlshcom.kdailyutil.data.model.EarningsDisclosure
 import com.kitwlshcom.kdailyutil.data.model.ExpectedEarnings
 import com.kitwlshcom.kdailyutil.data.model.StockChartData
 import com.kitwlshcom.kdailyutil.data.model.StockPriceItem
+import com.kitwlshcom.kdailyutil.ui.components.MarkdownText
 import com.kitwlshcom.kdailyutil.ui.theme.DeepCharcoal
 import com.kitwlshcom.kdailyutil.ui.theme.Gold24K
 import com.kitwlshcom.kdailyutil.ui.viewmodel.StockViewModel
@@ -209,6 +210,11 @@ fun PricesTab(viewModel: StockViewModel, isLoading: Boolean) {
     val chartData by viewModel.chartData.collectAsState()
     val chartRange by viewModel.chartRange.collectAsState()
     val isChartLoading by viewModel.isChartLoading.collectAsState()
+    val portfolioAnalysis by viewModel.portfolioAnalysis.collectAsState()
+    val portfolioLoading by viewModel.portfolioLoading.collectAsState()
+    val portfolioAnalyzedAt by viewModel.portfolioAnalyzedAt.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.loadCachedPortfolioAnalysis() }
 
     var isEditMode by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -294,6 +300,16 @@ fun PricesTab(viewModel: StockViewModel, isLoading: Boolean) {
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
+                // 🤖 관심종목 포트폴리오 종합 분석
+                item {
+                    PortfolioAnalysisCard(
+                        analysis = portfolioAnalysis,
+                        loading = portfolioLoading,
+                        analyzedAt = portfolioAnalyzedAt,
+                        onAnalyze = { viewModel.generatePortfolioAnalysis(forceRefresh = false) },
+                        onRefresh = { viewModel.generatePortfolioAnalysis(forceRefresh = true) }
+                    )
+                }
                 items(stockPrices) { item ->
                     StockPriceCard(
                         item = item,
@@ -963,6 +979,67 @@ fun StockChartBottomSheet(
 }
 
 
+
+@Composable
+private fun PortfolioAnalysisCard(
+    analysis: String?,
+    loading: Boolean,
+    analyzedAt: String?,
+    onAnalyze: () -> Unit,
+    onRefresh: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Gold24K.copy(alpha = 0.08f)),
+        border = androidx.compose.foundation.BorderStroke(0.6.dp, Gold24K.copy(0.35f)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("🤖 포트폴리오 종합 분석", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+                if (analysis != null && !loading) {
+                    TextButton(onClick = onRefresh, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) {
+                        Icon(Icons.Default.Refresh, null, tint = Gold24K, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("다시 분석", color = Gold24K, fontSize = 12.sp)
+                    }
+                }
+            }
+            when {
+                loading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Gold24K)
+                    Spacer(Modifier.width(8.dp))
+                    Text("관심종목 실적을 모아 분석 중입니다…", fontSize = 12.sp, color = Color.White.copy(0.7f))
+                }
+                analysis == null -> {
+                    Text(
+                        "관심종목들의 최근 실적을 모아 전체 흐름·상대 우열·집중 리스크를 AI가 한 번에 정리해 드려요. (국내 상장사 실적 기준)",
+                        fontSize = 12.sp, color = Color.White.copy(0.65f), lineHeight = 17.sp
+                    )
+                    Button(
+                        onClick = onAnalyze,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Gold24K.copy(alpha = 0.18f))
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, null, tint = Gold24K, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("종합 분석 실행", color = Gold24K)
+                    }
+                }
+                else -> {
+                    MarkdownText(analysis, color = Color.White.copy(0.9f), fontSize = 13.sp)
+                    if (!analyzedAt.isNullOrBlank()) {
+                        Text("분석 시각: $analyzedAt · 참고용", fontSize = 10.sp, color = Color.White.copy(0.4f))
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {

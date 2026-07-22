@@ -57,6 +57,14 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
     private val _financialTrendLoading = MutableStateFlow(false)
     val financialTrendLoading: StateFlow<Boolean> = _financialTrendLoading.asStateFlow()
 
+    // 🤖 관심종목 포트폴리오 종합 AI 분석 (여러 종목 실적을 1회 종합)
+    private val _portfolioAnalysis = MutableStateFlow<String?>(null)
+    val portfolioAnalysis: StateFlow<String?> = _portfolioAnalysis.asStateFlow()
+    private val _portfolioLoading = MutableStateFlow(false)
+    val portfolioLoading: StateFlow<Boolean> = _portfolioLoading.asStateFlow()
+    private val _portfolioAnalyzedAt = MutableStateFlow<String?>(null)
+    val portfolioAnalyzedAt: StateFlow<String?> = _portfolioAnalyzedAt.asStateFlow()
+
     private val _corpSearchResults = MutableStateFlow<List<com.kitwlshcom.kdailyutil.data.model.CorpEntry>>(emptyList())
     val corpSearchResults: StateFlow<List<com.kitwlshcom.kdailyutil.data.model.CorpEntry>> = _corpSearchResults.asStateFlow()
     private val _corpSearchLoading = MutableStateFlow(false)
@@ -459,6 +467,94 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 _financialTrendComment.value = "추세 코멘트 생성 중 오류가 발생했습니다: ${e.message}"
             } finally {
                 _financialTrendLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * 관심종목(watchStockKeywords) 전체의 최근 실적을 취합해 Gemini로 1회 종합 분석한다.
+     * 결과는 파일 캐시로 영속(앱 재시작 후 유지), forceRefresh=true면 재분석.
+     * 수치(재무) 데이터 기반이라 저작권 이슈 없음. 지수·해외·가상자산 등 DART 미대상은 자동 제외.
+     */
+    fun generatePortfolioAnalysis(forceRefresh: Boolean = false) {
+        if (_portfolioLoading.value) return
+        viewModelScope.launch {
+            if (!forceRefresh) {
+                val cached = withContext(Dispatchers.IO) { stockRepository.loadPortfolioAnalysis() }
+                if (cached != null) {
+                    _portfolioAnalysis.value = cached.first
+                    _portfolioAnalyzedAt.value = cached.second
+                    return@launch
+                }
+            }
+            _portfolioLoading.value = true
+            _portfolioAnalysis.value = null
+            try {
+                val geminiKey = settingsRepository.geminiApiKeyFlow.first()
+                if (geminiKey.isNullOrBlank()) {
+                    _portfolioAnalysis.value = "설정 > AI·키 에서 Gemini API Key를 먼저 입력해 주세요."
+                    return@launch
+                }
+                val dartKey = settingsRepository.dartApiKeyFlow.first()
+                val keywords = settingsRepository.watchStockKeywordsFlow.first().take(10)
+                if (keywords.isEmpty()) {
+                    _portfolioAnalysis.value = "관심종목이 없습니다. 증시 설정에서 관심종목을 추가해 주세요."
+                    return@launch
+                }
+
+                fun won(v: Long): String = "%,d원".format(v)
+                fun yoy(cur: Long, prev: Long): String =
+                    if (prev == 0L) "전년동기 -" else "전년동기 %+.1f%%".format((cur - prev) * 100.0 / kotlin.math.abs(prev))
+
+                val sb = StringBuilder()
+                var analyzedCount = 0
+                val skipped = mutableListOf<String>()
+                withContext(Dispatchers.IO) {
+                    for (kw in keywords) {
+                        val corp = stockRepository.searchCorpByName(kw, dartKey, limit = 1).firstOrNull()
+                        if (corp == null) { skipped.add(kw); continue }
+                        val periods = stockRepository.fetchFinancialHistory(corp.corpCode, dartKey, maxPeriods = 4)
+                        if (periods.isEmpty()) { skipped.add(kw); continue }
+                        analyzedCount++
+                        sb.append("\n【${corp.corpName}】\n")
+                        periods.take(3).forEach { p ->
+                            sb.append(
+                                "- ${p.reportLabel} [${p.fsDiv}] 매출 ${won(p.revenue)}(${yoy(p.revenue, p.revenuePrev)}), " +
+                                    "영업이익 ${won(p.operatingProfit)}(${yoy(p.operatingProfit, p.operatingProfitPrev)}), " +
+                                    "순이익 ${won(p.netIncome)}(${yoy(p.netIncome, p.netIncomePrev)})\n"
+                            )
+                        }
+                    }
+                }
+
+                if (analyzedCount == 0) {
+                    _portfolioAnalysis.value = "관심종목 중 실적을 조회할 수 있는 국내 상장사가 없습니다. (지수·해외·가상자산 등은 DART 실적 대상이 아닙니다.)"
+                    return@launch
+                }
+                if (skipped.isNotEmpty()) sb.append("\n(실적 조회 제외: ${skipped.joinToString(", ")})")
+
+                val result = GeminiManager(geminiKey).summarizePortfolio(sb.toString().trim())
+                val timeStr = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                _portfolioAnalysis.value = result
+                _portfolioAnalyzedAt.value = timeStr
+                withContext(Dispatchers.IO) { stockRepository.savePortfolioAnalysis(result, timeStr) }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ 포트폴리오 분석 실패: ${e.message}", e)
+                _portfolioAnalysis.value = "포트폴리오 분석 중 오류가 발생했습니다: ${e.message}"
+            } finally {
+                _portfolioLoading.value = false
+            }
+        }
+    }
+
+    /** 저장된 포트폴리오 분석 캐시를 화면에 올린다(대시보드 진입 시 1회). */
+    fun loadCachedPortfolioAnalysis() {
+        if (_portfolioAnalysis.value != null || _portfolioLoading.value) return
+        viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) { stockRepository.loadPortfolioAnalysis() }
+            if (cached != null) {
+                _portfolioAnalysis.value = cached.first
+                _portfolioAnalyzedAt.value = cached.second
             }
         }
     }
