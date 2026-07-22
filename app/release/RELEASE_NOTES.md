@@ -1,13 +1,51 @@
 # 📱 KDailyUtil 릴리즈 노트 (Release Notes)
 
 > 업로드용 AAB는 같은 폴더의 `kdailyutil-v{버전}.aab` 파일입니다.
-> 최신: **`kdailyutil-v1.4.aab`** (versionCode 4 / versionName 1.4) — **2026-07-21 업로드, 출시 검토중**.
-> 스토어 게시 이력: v1.2(vc3) 게시됨(2026-07-08) · 그 이전 v1.1(vc2). (v1.4 검토 통과 시 게시본 갱신)
-> 버전 스킴: **versionName 끝자리 = versionCode** 로 맞춤(vc4=1.4, 이후 vc5=1.5…). versionCode는 정수만·증가만, versionName은 표시용 문자열.
+> 최신: **`kdailyutil-v1.5.aab`** (versionCode 5 / versionName 1.5) — **업로드 준비**.
+> 스토어 게시 이력: **v1.4(vc4) 게시됨(2026-07-21)** · v1.2(vc3) 2026-07-08 · v1.1(vc2). 
+> 버전 스킴: **versionName 끝자리 = versionCode** 로 맞춤(vc5=1.5, 이후 vc6=1.6…). versionCode는 정수만·증가만, versionName은 표시용 문자열.
 
 ---
 
-## 📌 Google Play '출시 노트' 붙여넣기용 문구 — v1.4
+## 📌 Google Play '출시 노트' 붙여넣기용 문구 — v1.5
+
+> Google Play Console > 프로덕션 > 새 버전 > **출시 노트(ko-KR)** 란에 아래 내용을 붙여넣으세요. (언어별 500자 제한)
+
+### ✅ 권장 (붙여넣기용)
+
+```
+이번 업데이트로 AI 기능을 크게 확장했습니다.
+
+• 뉴스 'AI' 탭에서 이제 AI와 이어서 대화할 수 있어요(음성으로 묻고 답변을 읽어주는 핸즈프리 모드 포함).
+• AI 답변을 굵게·목록 등 보기 좋은 서식으로 표시해요.
+• 증시: 관심종목들의 실적을 모아 'AI 포트폴리오 종합 분석'을 받아볼 수 있어요.
+• 배움터 빠른 독서: 통계 상세 화면과 실력에 맞춘 난이도(목표 속도) 자동 추천을 추가했어요.
+• 그림 퀴즈를 공유할 때 이미지가 함께 담겨 상대방 기기에서도 보여요.
+
+이용해 주셔서 감사합니다!
+```
+
+### ✂️ 짧은 버전 (한 줄 요약형)
+
+```
+뉴스 AI와 대화(음성·핸즈프리) 및 답변 서식 표시, 증시 'AI 포트폴리오 종합 분석', 빠른 독서 통계·난이도 자동 추천, 그림 퀴즈 이미지 포함 공유 등 AI 기능을 크게 확장했습니다.
+```
+
+### 🇺🇸 English (en-US, 선택)
+
+```
+This update greatly expands our AI features.
+• News "AI" tab: chat back-and-forth with AI, including a hands-free voice mode.
+• AI replies now render with rich formatting (bold, lists).
+• Stocks: get an "AI portfolio summary" across your watchlist's earnings.
+• Speed Reading: added a detailed stats screen and auto difficulty (target speed).
+• Sharing image quizzes now embeds the pictures so they show on other devices.
+Thank you for using KDailyUtil!
+```
+
+---
+
+## 📌 Google Play '출시 노트' 붙여넣기용 문구 — v1.4 (이전, 게시됨 2026-07-21)
 
 > Google Play Console > 프로덕션 > 새 버전 > **출시 노트(ko-KR)** 란에 아래 내용을 붙여넣으세요. (언어별 500자 제한)
 
@@ -83,7 +121,27 @@ Thank you for using KDailyUtil!
 
 ## 🗂 버전별 수정 내역 (Changelog)
 
-### v1.4 (versionCode 4) — 2026-07-20
+### v1.5 (versionCode 5) — 2026-07-22
+> 게시본 v1.4(vc4, 07-21) 이후 AI 기능 확장을 모아 배포하는 버전.
+
+**뉴스 / AI 대화**
+- 뉴스 'AI' 탭에 **멀티턴 대화**(맞춤 분석에 이어 묻기) 추가. **음성 입력(STT)·답변 낭독(TTS)**, 답변 자동 낭독 후 다시 듣는 **핸즈프리 모드** 지원.
+- 대화는 (명령어+날짜) 세션 단위로 **로컬 30일 보관**(읽기 전용 열람·개별/전체 삭제). 컨텍스트는 제목+RSS 스니펫만 사용(본문 비스크랩·'AI 이용 금지' 매체 제외). 부적절 응답 신고·면책 고지 포함.
+- **AI 답변 마크다운 서식 렌더링**(굵게·목록·제목), 낭독 시 기호 제거.
+- 브리핑 낭독에서 제목이 두 번 읽히던 문제 수정.
+
+**증시**
+- **AI 스마트 관심종목 포트폴리오 종합 분석**: 관심종목(국내 상장사)들의 최근 실적을 모아 전반 흐름·상대 우열·집중 리스크를 AI가 1회 종합(참고용, 파일 캐시·재분석).
+
+**배움터(빠른 독서)**
+- **통계 상세 화면**(속도 최고/평균/최근·범위·향상률, WPM 추이, 훈련 기록) + **난이도 자동 추천**(최근 실력 기반 목표 속도 → 드릴 초기값 반영).
+
+**퀴즈**
+- **그림 퀴즈 공유 개선**: `.kquiz`에 이미지를 내장(Base64)해 다른 기기에서도 그림이 보이도록 함.
+
+---
+
+### v1.4 (versionCode 4) — 2026-07-20  *(스토어 게시됨 2026-07-21)*
 > 스토어 게시본 v1.2(vc3, 07-08) 이후의 변경을 모아 배포하는 버전. (versionName 끝자리를 versionCode(4)와 맞추며 1.3은 건너뜀)
 
 **브랜드/아이콘**

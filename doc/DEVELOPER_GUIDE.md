@@ -4,9 +4,9 @@
 > 최종 업데이트: 2026-07-22
 
 > ### 🚩 지금 상태 (신규 세션 필독)
-> - **v1.4 (versionCode 4) — 2026-07-21 Google Play 출시 완료(현재 게시본 = v1.4).** (그 이전 게시본 v1.2=vc3, 07-08 / v1.1=vc2.) 소스 = v1.4([app/build.gradle.kts](../app/build.gradle.kts)). **다음 배포는 versionCode 5 / versionName 1.5부터 — 버전업은 사용자 요청 시 진행.**
-> - **버전 스킴**: versionName **끝자리 = versionCode**(vc4=1.4, 이후 vc5=1.5…, 1.3은 건너뜀). versionCode는 정수만·매 업로드 증가, versionName은 표시용 문자열(점 자유).
-> - **v1.4 AAB 업로드 완료**: [`app/release/kdailyutil-v1.4.aab`](../app/release/kdailyutil-v1.4.aab)(게시본 v1.2 이후 변경: 아이콘/스플래시 통일·키워드 순서변경·추세 AI·제목편집·자매앱 상호연결). 스토어 자산도 갱신함 — 앱 아이콘 512=`app/src/main/ic_launcher-playstore.png`(톱니바퀴), 그래픽 이미지 1024×500=[`doc/screenshot/feature_graphic_1024x500.png`](screenshot/feature_graphic_1024x500.png), 설명 문구=[`doc/STORE_LISTING.md`](STORE_LISTING.md). **다음 배포 시 versionCode 5·versionName 1.5로 올리고 `./gradlew.bat :app:bundleRelease` → `kdailyutil-v1.5.aab`로 복사.**
+> - **v1.5 (versionCode 5) — 2026-07-22 빌드 완료, Google Play 업로드 준비.** 소스 = v1.5([app/build.gradle.kts](../app/build.gradle.kts)). **현재 게시본 = v1.4(vc4, 07-21 게시)** — v1.5 업로드·게시되면 이 문서/메모리 '게시본=v1.5'로 갱신. (그 이전 게시본 v1.2=vc3, 07-08 / v1.1=vc2.)
+> - **버전 스킴**: versionName **끝자리 = versionCode**(vc5=1.5, 이후 vc6=1.6…). versionCode는 정수만·매 업로드 증가, versionName은 표시용 문자열(점 자유).
+> - **v1.5 AAB 빌드 완료(업로드 대기)**: [`app/release/kdailyutil-v1.5.aab`](../app/release/kdailyutil-v1.5.aab)(게시본 v1.4 이후 변경: 뉴스 AI 대화창+음성·마크다운·핸즈프리 / 증시 AI 포트폴리오 종합 분석 / 빠른독서 통계·난이도 / 이미지 퀴즈 Base64). 스토어 자산 그대로 사용 가능 — 앱 아이콘 512=`app/src/main/ic_launcher-playstore.png`, 그래픽 1024×500=[`doc/screenshot/feature_graphic_1024x500.png`](screenshot/feature_graphic_1024x500.png), 설명=[`doc/STORE_LISTING.md`](STORE_LISTING.md). **업로드 절차**: Play Console > 프로덕션 > 새 버전 > 이 AAB 업로드 + 출시노트(아래) 붙여넣기. ※ 새 기능 대비 STORE_LISTING 설명 갱신은 선택.
 >   - 출시노트/버전별 내역: [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md) (콘솔 '출시 노트'란 붙여넣기용 문구 포함).
 > - 2026-07-20 세션분은 `origin/main` **푸시 완료**. 최신 상태는 `git status`로 확인.
 > - **v1.1 이후 주요 변경(= v1.2에 담길 분)**: 오디오 SAF 복구·미디어버튼·인터럽트 재개 / 뉴스 저작권 보수화 / 퀴즈 중복방지 3중화·AI 퀴즈 가이드·커스텀 편집·오류신고 게이팅 / 증시 '실적 뉴스·전망' 개편·과거 실적 조회+회사 검색·조회기간 AI캐시 복원·DART 키 도움말 / 탭 ＋빠른추가 / (2026-07-07) 퀴즈 파싱 내구성·상식백과 복구·데이터 검증 CI·퀴즈/독서 뒤로가기·AI 실적공시 헤더통합 스크롤·동일회사 1건 축약·숨김 객체영속·과거실적 회계기준월·증시 키워드 2종 구분 / **(2026-07-15~16) K-시리즈 아이콘·스플래시·워터마크 패밀리 통일** / **(2026-07-20) 키워드 순서변경(Set→List)·과거실적 추세 AI 코멘트·빠른독서 보관함 제목편집·자매앱 상호연결(브랜드&자매앱 갤러리)**.
@@ -24,7 +24,7 @@
 - **패키지**: `com.kitwlshcom.kdailyutil`
 - **언어**: Kotlin (Jetpack Compose)
 - **최소 SDK**: 26 / 타겟 SDK: 36
-- **버전**: 소스 = 게시본 = versionCode 4 / versionName 1.4 (**2026-07-21 출시 완료**) · 그 이전 게시본 = vc3 / v1.2(2026-07-08). 스킴: versionName 끝자리 = versionCode(다음은 vc5=1.5, 버전업은 요청 시).
+- **버전**: 소스 = versionCode 5 / versionName 1.5 (**2026-07-22 빌드·업로드 준비**) · 현재 게시본 = vc4 / v1.4(2026-07-21 게시). 스킴: versionName 끝자리 = versionCode(다음은 vc6=1.6).
 - **빌드 도구**: AGP 8.13.2, Kotlin 2.0.21
 - **GitHub**: `kitwlsh/KDailyUtil`
 - **로컬 경로**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil`
@@ -470,11 +470,12 @@ DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 �
 
 > 최신 상태는 항상 `git log --oneline -20` 으로 확인. **v1.4(versionCode 4) 2026-07-21 출시 완료(현재 게시본 = v1.4)**(그 이전 게시본 v1.2=vc3, 07-08). 이후 미배포분은 다음 배포 vc5/v1.5로.
 
-**2026-07-22 세션 (AI 스마트 관심종목 포트폴리오 분석 — 커밋됨·미배포, v1.5 대기분)**
+**2026-07-22 세션 (AI 포트폴리오 분석 + v1.5 배포 빌드 — v1.5 AAB 빌드 완료·업로드 대기)**
 | 커밋 | 내용 |
 |------|------|
-| (이번) | feat: 관심종목 포트폴리오 종합 AI 분석 — `GeminiManager.summarizePortfolio` + `StockViewModel.generatePortfolioAnalysis`(watchStockKeywords 취합·캐시) + `StockDashboardScreen.PortfolioAnalysisCard`(관심 종목 탭 상단, MarkdownText 재사용) |
-> ⚠️ 게시본 v1.4 AAB에 미포함 → 다음 배포(vc5/v1.5)로 반영, 버전업은 사용자 요청 시.
+| (이번) | release: versionCode 5 / versionName 1.5 상향 + `kdailyutil-v1.5.aab` 빌드 + RELEASE_NOTES v1.5 |
+| `a0f9318` | feat: 관심종목 포트폴리오 종합 AI 분석 — `GeminiManager.summarizePortfolio` + `StockViewModel.generatePortfolioAnalysis`(watchStockKeywords 취합·캐시) + `StockDashboardScreen.PortfolioAnalysisCard`(MarkdownText 재사용) |
+> v1.5 = 게시본 v1.4 이후 누적분(뉴스 AI 대화창·음성·마크다운·핸즈프리 / 포트폴리오 분석 / 빠른독서 통계·난이도 / 이미지 퀴즈 Base64). **업로드·게시 후 '게시본=v1.5' 갱신.**
 
 **2026-07-21 세션 (뉴스 AI 대화창 + 후속 편의기능 4종 — 커밋됨·미배포, v1.5 대기분)**
 | 커밋 | 내용 |
