@@ -139,6 +139,9 @@ Thank you for using KDailyUtil!
 **퀴즈**
 - **그림 퀴즈 공유 개선**: `.kquiz`에 이미지를 내장(Base64)해 다른 기기에서도 그림이 보이도록 함.
 
+**표시/호환**
+- Android 15(SDK 35+) Edge-to-Edge 대응 정리: deprecated 상태바 색상 설정을 제거하고 순수 edge-to-edge 방식으로 통일(다크 배경 유지).
+
 ---
 
 ### v1.4 (versionCode 4) — 2026-07-20  *(스토어 게시됨 2026-07-21)*

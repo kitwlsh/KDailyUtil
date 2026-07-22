@@ -7,7 +7,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
@@ -34,7 +33,8 @@ fun KDailyUtilTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = DeepCharcoal.toArgb()
+            // Edge-to-Edge(SDK 35+): 상태바/내비바 색상 API는 deprecated·무시됨 → 색을 칠하지 않고
+            // 아이콘 대비만 지정(다크 배경이므로 밝은 아이콘). 배경은 전체화면 DeepCharcoal Surface가 채운다.
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }
