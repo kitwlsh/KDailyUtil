@@ -1,8 +1,8 @@
 # 📱 KDailyUtil 릴리즈 노트 (Release Notes)
 
 > 업로드용 AAB는 같은 폴더의 `kdailyutil-v{버전}.aab` 파일입니다.
-> 최신: **`kdailyutil-v1.5.aab`** (versionCode 5 / versionName 1.5) — **업로드 준비**.
-> 스토어 게시 이력: **v1.4(vc4) 게시됨(2026-07-21)** · v1.2(vc3) 2026-07-08 · v1.1(vc2). 
+> 최신: **`kdailyutil-v1.5.aab`** (versionCode 5 / versionName 1.5) — **✅ 게시됨(2026-07-23)**.
+> 스토어 게시 이력: **v1.5(vc5) 게시됨(2026-07-23)** · v1.4(vc4) 2026-07-21 · v1.2(vc3) 2026-07-08 · v1.1(vc2). 
 > 버전 스킴: **versionName 끝자리 = versionCode** 로 맞춤(vc5=1.5, 이후 vc6=1.6…). versionCode는 정수만·증가만, versionName은 표시용 문자열.
 
 ---
@@ -121,8 +121,8 @@ Thank you for using KDailyUtil!
 
 ## 🗂 버전별 수정 내역 (Changelog)
 
-### v1.5 (versionCode 5) — 2026-07-22
-> 게시본 v1.4(vc4, 07-21) 이후 AI 기능 확장을 모아 배포하는 버전.
+### v1.5 (versionCode 5) — 2026-07-22 빌드 · ✅ 2026-07-23 스토어 게시됨
+> 게시본 v1.4(vc4, 07-21) 이후 AI 기능 확장을 모아 배포한 버전. **2026-07-23 검토완료·출시.**
 
 **뉴스 / AI 대화**
 - 뉴스 'AI' 탭에 **멀티턴 대화**(맞춤 분석에 이어 묻기) 추가. **음성 입력(STT)·답변 낭독(TTS)**, 답변 자동 낭독 후 다시 듣는 **핸즈프리 모드** 지원.

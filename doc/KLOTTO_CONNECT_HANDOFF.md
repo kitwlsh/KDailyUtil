@@ -148,8 +148,9 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 
 | 앱 | applicationId | 브랜드 아이콘 파일 | 한줄 소개 | Play 스토어(id=) | 출시상태 |
 |---|---|---|---|---|---|
-| KDailyUtil | `com.kitwlshcom.kdailyutil` | `ic_k_app_icon.png` | 데일리 라이프 유틸(뉴스/증시/오디오/퀴즈/배움터) | `com.kitwlshcom.kdailyutil` | **v1.4(vc4) 업로드·출시 검토중(2026-07-21)** (직전 게시 v1.2/vc3) |
+| KDailyUtil | `com.kitwlshcom.kdailyutil` | `ic_k_app_icon.png` | 데일리 라이프 유틸(뉴스/증시/오디오/퀴즈/배움터) | `com.kitwlshcom.kdailyutil` | **출시 v1.5(vc5, 2026-07-23)** (이전 v1.4/vc4 07-21) |
 | KLotto645 | `com.kitwlshCom.klotto645` | `ic_k_emblem_balls.png` | 로또 6/45 분석·생성 | `com.kitwlshCom.klotto645` | **출시 v0.0.9(vc9, 2026-07-21)** |
+| K장부 | `com.kitwlshcom.kjangbu`(예정) | `ic_kjangbu.png` | AI 생활 기록·관리 장부(가계부·차계부·케어) | `com.kitwlshcom.kjangbu` | **기획·아이콘 준비**(미출시 → 타 앱 카드 '출시예정' 비활성). KDaily에 `ic_kjangbu.png` 스테이징 완료 |
 | _(신규앱)_ | _(applicationId)_ | _(아이콘.png)_ | _(소개)_ | _(id 값)_ | _(예정/출시)_ |
 
 > ⚠️ applicationId는 **대소문자 그대로** 사용(KLotto=`kitwlshCom` 대문자 C, KDailyUtil=`kitwlshcom` 소문자 c).
@@ -171,4 +172,60 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 
 ---
 
-*이 문서는 KLotto645 세션이 작성, KDailyUtil 세션(2026-07-20)이 검토·회신(§6) + 신규앱 확장 표준(§7) 추가. 이후 신규 자매앱은 §7 절차로 편입한다.*
+## 8. 동적 레지스트리 (원격 구성) — 정적→동적 진화 설계 (2026-07-23)
+
+> ⚠️ **설계 문서(미구현).** §7은 **현재의 정적(하드코딩)** 방식이고, §8은 그 한계를 없애는 **진화 방향**이다. 실제 전환은 각 앱의 **일회성 수정+배포**가 필요.
+
+### 8-1. 왜 (현재 §7 정적 방식의 한계)
+§7-1 레지스트리(패키지명·아이콘·소개·카드)가 **각 앱에 하드코딩** → 신규 자매앱 하나 추가에 **기존 모든 앱을 수정 + versionCode 상향 + 스토어 재심사**. 출시앱엔 매번 부담·지연.
+
+### 8-2. 해결 — GitHub raw `family.json`을 런타임 로드
+`korean_quiz_data`를 raw로 받는 **기존 패턴과 동일**. 자매앱 목록을 원격 JSON에 두고 각 앱이 실행 시 받아 카드를 **동적 렌더** → **새 앱 = JSON 한 줄 편집 → 전 앱 즉시 반영(재빌드 X).**
+- 호스팅(권장): `https://raw.githubusercontent.com/kitwlsh/k-series-config/main/family.json` (전용 소형 레포). 무료·서버 0원.
+- 아이콘도 URL로 두고 Coil(KDaily 사용 중)/Glide로 로드 → **형제 PNG를 각 앱에 번들할 필요 없음**.
+- 샘플: [`doc/family_config/family.sample.json`](family_config/family.sample.json)
+
+### 8-3. 스키마 (`family.json`)
+| 필드 | 뜻 |
+|---|---|
+| `version` / `updatedAt` | 스키마·갱신 관리 |
+| `apps[].id` | applicationId (openAppOrStore 인자·자기제외 판정) |
+| `apps[].name` / `tagline` | 카드 제목 / 한줄 소개 |
+| `apps[].iconUrl` | 아이콘 이미지 URL (raw) |
+| `apps[].storeUrl` | Play 스토어 URL (도메인 화이트리스트만) |
+| `apps[].active` | 노출 여부(미출시=false로 숨김/‘출시예정’) |
+| `apps[].order` | 정렬 순서 |
+
+### 8-4. 클라이언트 동작
+`fetch` → 실패 시 **last-good 캐시** → 그래도 없으면 **번들 기본 family.json** → `active` 필터 → `order` 정렬 → **자기 자신(`id`==자기 applicationId) 제외** → 카드 렌더. 아이콘=`iconUrl` 로드(캐시). 카드 탭 = `openAppOrStore(id)`(§2). (오프라인·첫 실행 대비 캐시/폴백은 KDaily 퀴즈 캐시 패턴과 동일.)
+
+### 8-5. ⚠️ 유일한 컴파일타임 제약 — `<queries>`
+Android 11+는 **설치감지(`getLaunchIntentForPackage`)/직접 실행**에 대상 패키지를 `<queries>`에 선언해야 함 → **원격으로 못 바꿈.**
+
+| 항목 | 원격구성 동적? |
+|---|:--:|
+| 카드 노출/추가/삭제·이름·소개·순서·아이콘 | ✅ |
+| 스토어로 이동(설치 유도) | ✅ (URL 열기는 `<queries>` 불필요) |
+| **설치됨 배지 / 앱 직접 실행** | ❌ 신규 미등록 패키지는 `<queries>` 필요 |
+
+**완화책**
+1. **예약 패키지 사전 등록** ⭐: 각 앱 `<queries>`에 예정 패키지 + **여유분**을 미리 선언 → 그 ID로 출시하는 미래 앱은 **재빌드 없이 설치감지·실행까지** 지원.
+   - 권장 초기 예약: `com.kitwlshcom.kjangbu`, `com.kitwlshcom.kunbok`, (여유) `com.kitwlshcom.k…` ×수 개.
+2. **우아한 폴백**: 미등록 패키지는 설치감지 없이 **스토어 이동만**(기능적으로 충분).
+3. `QUERY_ALL_PACKAGES` **금지**(Google Play 강한 제한·반려 위험).
+
+### 8-6. 마이그레이션 (일회성)
+각 앱을 **"정적 카드 → 원격 렌더"로 1회 전환**(이 전환은 재빌드+배포 필요) + **번들 기본 family.json** 포함. 이후 이 목적의 **강제 배포는 없음**(새 앱은 JSON만 수정).
+
+### 8-7. 보안/신뢰
+- **자기 소유 레포만** 사용. JSON은 **표시용 데이터(패키지 id·URL·라벨)만** — 임의 인텐트/딥링크 주입 금지.
+- `storeUrl`은 `play.google.com`/`market://` **도메인 화이트리스트**만 허용해 파싱.
+- `id`는 `openAppOrStore`(런처 인텐트/마켓 URL)에만 사용. 그 외 실행 금지.
+
+### 8-8. 언제 전환?
+- 지금(앱 2~3개): §7 정적으로도 감당 가능.
+- **앱이 계속 늘 계획이면 §8 전환 이득이 큼.** K장부·K운복 편입을 계기로 전환 검토 권장.
+
+---
+
+*이 문서는 KLotto645 세션이 작성, KDailyUtil 세션(2026-07-20)이 검토·회신(§6) + 신규앱 확장 표준(§7) 추가. 2026-07-23 KDailyUtil 세션이 **동적 레지스트리(원격 구성) 설계 §8** 추가. 이후 신규 자매앱은 §7 절차로 편입(또는 §8 전환 후 JSON 편입)한다. 이 문서는 KDailyUtil/doc 와 KLotto645/doc 에 동일 사본으로 유지한다.*

@@ -19,7 +19,7 @@
 | **콘솔 기입 정보 엑셀** | [google_play_release_info.xlsx](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/google_play_release_info.xlsx) | 구글 플레이에 제출한 27개 질문과 상세 텍스트 기록 보관함 |
 | **디자인 & 브랜딩** | [BRANDING_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/BRANDING_GUIDE.md) | 로고 아이콘 규격, 색상 파레트 및 다크 테마 가이드라인 |
 | **K-시리즈 아이콘 표준** | [K_SERIES_ICON_RECIPE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/K_SERIES_ICON_RECIPE.md) | 형제 앱(KDailyUtil·KLotto645 등) 아이콘·스플래시·워터마크 패밀리 통일 규격 및 신규 앱 제작 절차(단일 기준 문서) |
-| **자매앱 상호연결 표준** | [KLOTTO_CONNECT_HANDOFF.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KLOTTO_CONNECT_HANDOFF.md) | K-시리즈 자매앱 '앱정보 > 브랜드 아이콘 갤러리'의 상호 설치링크 표준 + 신규앱 편입 절차(§7) + KLotto645↔KDailyUtil 핸드오프 |
+| **자매앱 상호연결 표준** | [KLOTTO_CONNECT_HANDOFF.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KLOTTO_CONNECT_HANDOFF.md) | K-시리즈 자매앱 상호 설치링크 표준 + 신규앱 편입 절차(§7 정적) + **동적 레지스트리(원격 구성) 설계(§8)** + KLotto645↔KDailyUtil 핸드오프. 동적 스키마 샘플 = [doc/family_config/family.sample.json](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/family_config/family.sample.json) |
 | **개인정보처리방침** | [privacy-kdailyutil.html](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/privacy-kdailyutil.html) | 구글 스토어 마이크 및 오디오 권한 대응 개인정보방침 HTML |
 | **뉴스 우회 보고서** | [Google_News_Redirect_Issue_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/Google_News_Redirect_Issue_Report.md) | 구글 뉴스 수집 시 발생하는 리디렉션 이슈 분석 및 해결책 |
 | **오디오 개선 보고서** | [20260422_Audio_System_Enhancement_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/20260422_Audio_System_Enhancement_Report.md) | 미니 플레이어 및 오디오 수집 성능 최적화 개선 보고서 |
@@ -29,6 +29,8 @@
 | **브랜드 가이드라인(KITWLSH)** | [KITWLSH_Brand_Guidelines.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KITWLSH_Brand_Guidelines.md) | KITWLSH 제작사 브랜드 아이덴티티/가이드라인 |
 | **퀴즈 시스템 워크스루** | [walkthrough_quiz_system.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/walkthrough_quiz_system.md) | KuizGenius 퀴즈 시스템 동작 흐름 워크스루(개발 참고) |
 | **전체 구현 계획 / 작업 현황** | [implementation_plan.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/implementation_plan.md) · [task.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/task.md) | 초기 설계 계획서 및 단계별 작업 체크리스트 |
+| **신규 자매앱 기획 — K운복** | [SISTER_APP_KUNBOK_PLAN.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/SISTER_APP_KUNBOK_PLAN.md) | K-시리즈 3번째 자매앱(AI 운세 'K운복') 기획 초안 — 네이밍/기능/재사용/법적·정책/§7 편입(기획 단계, 코드 미착수) |
+| **신규 자매앱 아이디어 백로그** | [SISTER_APP_IDEAS_BACKLOG.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/SISTER_APP_IDEAS_BACKLOG.md) | 향후 자매앱 후보·타당성 검토 모음 — 교통 브리핑 앱(API), 단톡 캡쳐 OCR 보조입력, 실시간 위치 소셜앱(헤비·기록만) + 우선순위 |
 | _(개인 메모)_ | 동전주전략_claude/gpt/jemini.md | 앱과 무관한 개인 투자 전략 메모 — 참고용, 앱 문서 아님 |
 
 ---
@@ -108,14 +110,14 @@
 
 ---
 
-## 🛠 최근 업데이트 및 작업 현황 (2026-07-22)
+## 🛠 최근 업데이트 및 작업 현황 (2026-07-22 · ✅ v1.5 2026-07-23 스토어 출시)
 
-### 📊 AI 스마트 관심종목 포트폴리오 분석 (2026.07.22, 미배포·v1.5 예정)
+### 📊 AI 스마트 관심종목 포트폴리오 분석 (2026.07.22 · ✅ v1.5로 2026-07-23 출시)
 - **한 번에 종합**: 증시 '관심 종목' 탭 상단 **'🤖 포트폴리오 종합 분석'** → 관심종목(국내 상장사)들의 최근 정기보고서 실적(매출·영업이익·순이익 + 전년동기%)을 모아, AI가 **전반 흐름·상대 우열·집중 리스크·한줄 코멘트**를 마크다운 리포트로 정리.
 - **재사용·효율**: 기존 DART 재무 조회(`fetchFinancialHistory`)·회사 검색(`searchCorpByName`)·`MarkdownText`를 재사용, 결과는 파일 캐시로 영속(재분석 버튼 제공). 지수·해외·가상자산 등 DART 미대상은 자동 제외.
 - **저작권**: 공개 재무 수치 기반이라 본문 스크랩 이슈 없음. 결과에 투자 책임 면책 고지 포함(참고용).
 
-### 💬 뉴스 AI 대화창 — 브리핑에서 이어 대화 + 음성 (2026.07.21, 미배포·v1.5 예정)
+### 💬 뉴스 AI 대화창 — 브리핑에서 이어 대화 + 음성 (2026.07.21 · ✅ v1.5로 2026-07-23 출시)
 - **멀티턴 대화**: 뉴스탭 'AI' 탭의 맞춤 분석 결과를 첫 답으로, 이어서 자유롭게 질문(이어 묻기). Gemini `ChatSession` 기반, 명령어(서브탭)별 독립 대화.
 - **음성 지원**: 🎤 음성으로 질문(STT, 기존 마이크 권한 재사용) → 답변 🔊 낭독(TTS).
 - **대화 수명·보관**: 세션 = (명령어 + 날짜) — 날짜가 바뀌거나 재분석하면 새 세션. 지난 대화는 **읽기 전용으로 보관**하고 **30일 자동정리 + 사용자 수동 삭제(개별·전체)**.
@@ -323,7 +325,7 @@
     - [x] **🗓️ 실적 발표 예정 캘린더 크롤링 및 AI 사전 전망 리포트** 완료.
     - [x] **🛡️ 저작권 및 스토어 정책 준수를 위한 오리지널 outlink WebView 렌더링** 완료.
 - **다음 과제 (Phase 3)**: 
-    - [x] ~~**AI 스마트 관심종목 포트폴리오 분석**: 보유 중인 다수 종목의 실적 트렌드를 모아 전반적인 자산 리스크와 성장세를 종합 보고서로 받아보는 기능.~~ ✅ 완료(2026-07-22, 미배포·v1.5 예정)
+    - [x] ~~**AI 스마트 관심종목 포트폴리오 분석**: 보유 중인 다수 종목의 실적 트렌드를 모아 전반적인 자산 리스크와 성장세를 종합 보고서로 받아보는 기능.~~ ✅ 완료(2026-07-22) · v1.5로 2026-07-23 출시
 
 ---
 
