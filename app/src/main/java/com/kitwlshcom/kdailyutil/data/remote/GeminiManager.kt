@@ -7,6 +7,9 @@ import com.kitwlshcom.kdailyutil.data.model.NewsItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** 뉴스 AI 대화 재구성 시 유지할 최근 히스토리 메시지 수 상한(장기 대화 토큰 폭증·429 방지). */
+private const val MAX_CHAT_HISTORY_MESSAGES = 16
+
 class GeminiManager(private val apiKey: String?) {
 
     private val generativeModel by lazy {
@@ -150,7 +153,9 @@ class GeminiManager(private val apiKey: String?) {
             content(role = "user") { text(contextText) },
             content(role = "model") { text("네, 위 뉴스 목록을 바탕으로 답변하겠습니다.") }
         )
-        priorMessages.forEach { (isUser, text) ->
+        // 히스토리 토큰 상한: 대화가 길어져도 최근 메시지만 이어붙여 토큰 폭증(429)을 방지.
+        // (세션은 명령어+날짜 단위라 하루 범위지만, 재시작 시 누적 히스토리가 커질 수 있어 상한을 둔다.)
+        priorMessages.takeLast(MAX_CHAT_HISTORY_MESSAGES).forEach { (isUser, text) ->
             history.add(content(role = if (isUser) "user" else "model") { text(text) })
         }
         return model.startChat(history = history)

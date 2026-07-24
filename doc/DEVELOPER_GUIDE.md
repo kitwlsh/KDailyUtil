@@ -13,7 +13,7 @@
 > - **아이콘/스플래시 패밀리 통일 (2026-07-15~16)**: 런처 아이콘(mipmap 전 밀도)·플레이스토어 아이콘·스플래시(`ic_app_logo_full` 자체 앱 아이콘으로 교체)·워터마크([BrandComponents.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/components/BrandComponents.kt))·설정 브랜드 갤러리를 형제 앱(KLotto645 등)과 통일. 단일 기준 문서 = [doc/K_SERIES_ICON_RECIPE.md](K_SERIES_ICON_RECIPE.md), 원본/스크립트 = `doc/family_icons/`, `doc/icon_scripts/`. **미사용 `HexagonShape` 제거됨.**
 > - **자매앱 상호연결 (2026-07-20)**: 설정 > 앱정보 > **'브랜드 & 자매앱'** 갤러리에 KLotto645 카드 추가(탭 시 설치/실행, `openAppOrStore` 헬퍼). 아이콘 교환(`ic_klotto645.png` 수신), 표준·신규앱 편입 절차 = [doc/KLOTTO_CONNECT_HANDOFF.md](KLOTTO_CONNECT_HANDOFF.md)(양쪽 저장소 doc/ 동기화). **KLotto645 저장소 쪽 구현/커밋은 그쪽 세션 담당**(RENEWAL_PLAN '다음 착수점 ⑥').
 > - **🆕 뉴스 AI 대화창 (2026-07-21, 구현 완료·미배포)**: 뉴스탭 'AI' 탭에서 맞춤 분석을 첫 답으로 **멀티턴 대화**(이어 묻기) + **음성 입력(STT)·답변 낭독(TTS)**. 컨텍스트=제목+RSS 스니펫(제한매체 필터 승계, 본문 비스크랩). **대화 수명=세션(명령어+날짜)**, 로컬 보관 **30일 자동정리 + 사용자 수동 삭제(개별·전체)**, 지난 대화 읽기 전용 열람. 설계·구현서 = [doc/FEATURE_AI_NEWS_CHAT.md](FEATURE_AI_NEWS_CHAT.md). 구현: `GeminiManager.startNewsChat/sendChatMessage`, `AiChatSession`/`AiChatRepository`, `BriefingViewModel`(대화 상태·`sendChat`·`startChatVoiceInput`·세션관리), `NewsBriefingScreen.AiChatSection`. **v1.4 게시 후 vc5/v1.5로 배포**.
-> - **다음 후보**: (① AI 포트폴리오 분석 = ✅ 2026-07-22 완료) 미배포분 전부 v1.5로 출시 완료(2026-07-23 게시). 남은 후보: (선택) '시세 및 차트' 관심종목 편집 UI 두-목록 안내, AI 대화 §8 잔여(핸즈프리 자동낭독 심화·히스토리 토큰 상한). 완료분(2026-07-21~22): 뉴스 AI 대화창·마크다운·핸즈프리·이미지 Base64·빠른독서 통계/난이도·**포트폴리오 종합 분석**.
+> - **다음 후보**: (① AI 포트폴리오 분석 = ✅ 2026-07-22 완료) 미배포분 전부 v1.5로 출시 완료(2026-07-23 게시). 남은 후보: (선택) '시세 및 차트' 관심종목 편집 UI 두-목록 안내. **✅ 2026-07-24 완료: AI 추세 코멘트 마크다운 렌더링 + AI 대화 히스토리 토큰 상한(§8-5).** 완료분(2026-07-21~22): 뉴스 AI 대화창·마크다운·핸즈프리·이미지 Base64·빠른독서 통계/난이도·**포트폴리오 종합 분석**.
 > - **AAB 재빌드 방법**: `./gradlew.bat :app:bundleRelease` (서명은 `local.properties`의 `release.*` 키로 자동 — VCS 제외). 산출물: `app/build/outputs/bundle/release/app-release.aab`.
 
 ---
@@ -458,7 +458,8 @@ DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 �
   - 캐시: `StockRepository.load/savePortfolioAnalysis`(filesDir/portfolio_analysis.json). UI: `StockDashboardScreen.PortfolioAnalysisCard`(관심 종목 탭 상단, `MarkdownText` 재사용, 재분석 버튼).
 - [x] ~~**빠른 독서**: 보관함 제목 편집(✅ 2026-07-20), 통계 상세 화면, 난이도 자동 추천~~ ✅ 완료(2026-07-21: `StatsModule` 통계 상세 + `ReadingTrainingViewModel.recommendedWpm` 난이도 추천→드릴 초기 속도 반영)
 - [x] ~~**이미지 퀴즈 공유 개선**: 크롭 이미지를 Base64로 `.kquiz`에 내장~~ ✅ 완료(2026-07-21)
-- [ ] **AI 마크다운 렌더링**: 브리핑/요약 결과에 Rich Text 뷰어
+- [x] ~~**AI 마크다운 렌더링**: 브리핑/요약 결과에 Rich Text 뷰어~~ ✅ 완료(2026-07-24): AI 대화·맞춤분석·포트폴리오에 이어 증시 과거실적 **'추세 종합 코멘트'** 도 `MarkdownText` 적용(마지막 raw 텍스트 노출 제거, `StockDashboardScreen`).
+- [x] ~~**AI 대화 히스토리 토큰 상한(§8-5)**~~ ✅ 완료(2026-07-24): `GeminiManager.startNewsChat`이 재구성 히스토리를 **최근 16메시지로 제한**(`MAX_CHAT_HISTORY_MESSAGES`)해 장기 대화 토큰 폭증·429 방지.
 
 > ✅ **완료(2026-07-07)**: `QuizViewModel.startQuiz` 중복 제거를 정답 기준 → **질문 기준**으로 변경. 정답이 빈 문항(그림 매칭 퀴즈 등)이 조용히 사라지던 잠재 취약 해소(정답 중복 제거는 `QuizRepository.dedupeQuizzes`가 이미 담당).
 

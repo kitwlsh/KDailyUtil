@@ -1118,7 +1118,7 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
                                     border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.35f))
                                 ) {
                                     Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-                                        Text(trendComment ?: "", color = Color.White.copy(0.92f), fontSize = 13.sp, lineHeight = 19.sp)
+                                        MarkdownText(trendComment ?: "", color = Color.White.copy(0.92f), fontSize = 13.sp)
                                         Spacer(Modifier.height(6.dp))
                                         TextButton(
                                             onClick = { viewModel.generateFinancialTrendComment(forceRefresh = true) },
