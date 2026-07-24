@@ -200,7 +200,7 @@ python doc/icon_scripts/build_kdaily_icon.py \
 1. **앱 정보**: 앱 아이콘 + 앱명 + 시리즈 서브타이틀 + `BuildConfig.VERSION_NAME` + 개발자(KitwLSH) + 이메일(mailto) + (AI 앱은) AI 활용 고지.
 2. **브랜드 갤러리**: 카드 ① 공유 엠블럼(`ic_k_logo_3d`) ② 해당 앱 아이콘 → 탭 시 투명 다크 전체화면 뷰어.
 - **KDailyUtil 레퍼런스(Compose)**: [`MorningBriefingSettingsScreen.kt`](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/screens/MorningBriefingSettingsScreen.kt) — `showAppInfoDialog`/`showIconGalleryDialog`/`showFullScreenIcon`.
-- **KLotto645(View/XML, 미구현)**: `MenuActivity` 헤더에 진입점 추가 → `AlertDialog`로 앱정보/갤러리. 버전은 `BuildConfig.VERSION_NAME`(현 `strings.xml version_label` 하드코딩은 갱신누락 위험). 순수 엠블럼 카드용으로 `ic_k_logo_3d.png` 복사 필요.
+- **KLotto645(View/XML, ✅ 구현 완료)**: 메뉴 '앱 정보' → 전용 [`AboutActivity`](../app/src/main/java/com/kitwlshCom/klotto645/AboutActivity.kt)(AlertDialog가 아닌 별도 액티비티). 앱 소개/버전/법적 고지 + '브랜드 & 자매앱' 갤러리(패밀리 메인로고 `ic_k_logo_3d` 카드 + 앱 아이콘 카드 → 구분선 → 세로 자매앱 카드, 레지스트리 기반 유동 확장). 버전은 이미 `BuildConfig.VERSION_NAME` 사용([AboutActivity.kt:64](../app/src/main/java/com/kitwlshCom/klotto645/AboutActivity.kt#L64), `strings.xml version_label` 하드코딩 미의존). `ic_k_logo_3d.webp`·`ic_k_emblem_balls.webp` 자산 배선 완료.
 
 ---
 
@@ -243,5 +243,6 @@ python doc/icon_scripts/build_kdaily_icon.py \
 | 2026-07-09 | KLotto645 스플래시를 자체 아이콘(엠블럼+645볼)으로 통일 |
 | 2026-07-15 | KDailyUtil 스플래시를 자체 앱아이콘으로 교체 |
 | **2026-07-16** | **패밀리 전면 통일**: ①"7시 존" 배치규칙 확정(§3) ②스플래시/런처 크기공식 확정(§2, 엠블럼 스플래시100%·런처0.80, 부주제 0.393) ③KDailyUtil 아이콘을 [엠블럼+톱니 분리합성] 파이프라인으로 재구성(스플래시·런처·워터마크·갤러리 전부) ④두 앱 런처를 KLotto 레퍼런스(§2-3)에 픽셀 일치 ⑤워터마크를 스플래시 크기(폭0.80 상대비율)로 통일 ⑥KLotto JDK21 빌드설정·워터마크 코드사이징 추가 ⑦본 문서 단일기준으로 재정리 |
+| **2026-07-24** | §8-2 KLotto645 항목 사실 정정: '미구현'→**구현 완료**(전용 `AboutActivity`+브랜드/자매앱 갤러리, `BuildConfig.VERSION_NAME` 사용, `ic_k_logo_3d`·`ic_k_emblem_balls` 배선). 정본을 실제 코드와 일치시킴. ⚠️ **KDailyUtil/doc 사본에도 동일 정정 반영 필요**(동기화 유지). |
 
 > 실기기(R3CX307AQVK)에서 두 앱 스플래시·런처·워터마크 확인 완료. (배포는 versionCode 상향 후)
