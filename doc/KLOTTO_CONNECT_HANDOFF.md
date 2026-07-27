@@ -151,7 +151,7 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 | 앱 | applicationId | 브랜드 아이콘 파일 | 한줄 소개 | Play 스토어(id=) | 출시상태 |
 |---|---|---|---|---|---|
 | KDailyUtil | `com.kitwlshcom.kdailyutil` | `ic_k_app_icon.png` | 데일리 라이프 유틸(뉴스/증시/오디오/퀴즈/배움터) | `com.kitwlshcom.kdailyutil` | **출시 v1.5(vc5, 2026-07-23)** (이전 v1.4/vc4 07-21) |
-| KLotto645 | `com.kitwlshCom.klotto645` | `ic_k_emblem_balls.png` | 로또 6/45 분석·생성 | `com.kitwlshCom.klotto645` | **라이브 v1.0.0(vc10, 2026-07-23)** · v1.0.1(vc11) 심사 중(2026-07-24 업로드) |
+| KLotto645 | `com.kitwlshCom.klotto645` | `ic_k_emblem_balls.png` | 로또 6/45 분석·생성 | `com.kitwlshCom.klotto645` | **라이브 v1.0.1(vc11, 2026-07-27 확인)** (v1.0.0/vc10 → 패치 릴리스) |
 | K장부 | `com.kitwlshcom.kjangbu`(예정) | `ic_kjangbu.png` | AI 생활 기록·관리 장부(가계부·차계부·케어) | `com.kitwlshcom.kjangbu` | **기획·아이콘 준비**(미출시 → 타 앱 카드 '출시예정' 비활성). KDaily에 `ic_kjangbu.png` 스테이징 완료 |
 | _(신규앱)_ | _(applicationId)_ | _(아이콘.png)_ | _(소개)_ | _(id 값)_ | _(예정/출시)_ |
 
