@@ -5,6 +5,8 @@
 >
 > 🔁 **양쪽 저장소 동기화 문서**: 이 파일은 **`KDailyUtil/doc/`와 `KLotto645/doc/`에 동일 사본**으로 유지한다.
 > 한쪽에서 §5~§7(교환 현황·회신·표준)을 갱신하면 **반대쪽 사본도 같은 내용으로 맞춘다.** (각 앱 세션은 자기 폴더의 사본을 진입점으로 삼음)
+> ⚠️ 그러므로 **파일 참조는 상대경로 마크다운 링크가 아니라 저장소 접두 평문 경로**(`` `KLotto645/app/src/...` ``)로 쓴다.
+> 두 저장소의 깊이가 달라(`80_Git_HUB/KDailyUtil/KDailyUtil/doc` vs `80_Git_HUB/KLotto645/doc`) 어떤 상대경로도 한쪽 사본에서는 깨진다.
 
 ---
 
@@ -149,7 +151,7 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 | 앱 | applicationId | 브랜드 아이콘 파일 | 한줄 소개 | Play 스토어(id=) | 출시상태 |
 |---|---|---|---|---|---|
 | KDailyUtil | `com.kitwlshcom.kdailyutil` | `ic_k_app_icon.png` | 데일리 라이프 유틸(뉴스/증시/오디오/퀴즈/배움터) | `com.kitwlshcom.kdailyutil` | **출시 v1.5(vc5, 2026-07-23)** (이전 v1.4/vc4 07-21) |
-| KLotto645 | `com.kitwlshCom.klotto645` | `ic_k_emblem_balls.png` | 로또 6/45 분석·생성 | `com.kitwlshCom.klotto645` | **v1.0.0(vc10) 업로드 준비(2026-07-22, 라이브 v0.0.9/vc9)** |
+| KLotto645 | `com.kitwlshCom.klotto645` | `ic_k_emblem_balls.png` | 로또 6/45 분석·생성 | `com.kitwlshCom.klotto645` | **라이브 v1.0.0(vc10, 2026-07-23)** · v1.0.1(vc11) 심사 중(2026-07-24 업로드) |
 | K장부 | `com.kitwlshcom.kjangbu`(예정) | `ic_kjangbu.png` | AI 생활 기록·관리 장부(가계부·차계부·케어) | `com.kitwlshcom.kjangbu` | **기획·아이콘 준비**(미출시 → 타 앱 카드 '출시예정' 비활성). KDaily에 `ic_kjangbu.png` 스테이징 완료 |
 | _(신규앱)_ | _(applicationId)_ | _(아이콘.png)_ | _(소개)_ | _(id 값)_ | _(예정/출시)_ |
 
@@ -183,7 +185,7 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 `korean_quiz_data`를 raw로 받는 **기존 패턴과 동일**. 자매앱 목록을 원격 JSON에 두고 각 앱이 실행 시 받아 카드를 **동적 렌더** → **새 앱 = JSON 한 줄 편집 → 전 앱 즉시 반영(재빌드 X).**
 - 호스팅(권장): `https://raw.githubusercontent.com/kitwlsh/k-series-config/main/family.json` (전용 소형 레포). 무료·서버 0원.
 - 아이콘도 URL로 두고 Coil(KDaily 사용 중)/Glide로 로드 → **형제 PNG를 각 앱에 번들할 필요 없음**.
-- 샘플: [`doc/family_config/family.sample.json`](family_config/family.sample.json)
+- 샘플: `KDailyUtil/doc/family_config/family.sample.json`
 
 ### 8-3. 스키마 (`family.json`)
 | 필드 | 뜻 |

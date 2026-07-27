@@ -4,8 +4,12 @@ K로 시작하는 형제 앱(**KDailyUtil · KLotto645** · 향후 K-DiviTrack, 
 아이콘·스플래시·워터마크를 **하나의 패밀리 룩**으로 만들기 위한 **단일 기준 문서(Single Source of Truth)** 입니다.
 
 > **새 K앱을 만들 때는 이 문서 §6 절차만 그대로 따라 하면** 기존 앱과 동일한 품질·크기·정렬이 재현됩니다.
-> 브랜드 철학은 [`BRANDING_GUIDE.md`](BRANDING_GUIDE.md), 이 문서는 그 철학의 **실무 구현 규격**입니다.
+> 브랜드 철학은 `KDailyUtil/doc/BRANDING_GUIDE.md`, 이 문서는 그 철학의 **실무 구현 규격**입니다.
 > (2026-07-16 재정리 — 그 이전 판의 산발적 수치는 아래 §2 표준 규격으로 통합됨)
+>
+> 🔁 **양쪽 저장소 동기화 문서**: 이 파일은 **`KDailyUtil/doc/`와 `KLotto645/doc/`에 동일 사본**으로 유지한다.
+> ⚠️ 그러므로 **파일 참조는 상대경로 마크다운 링크가 아니라 저장소 접두 평문 경로**(`` `KLotto645/app/src/...` ``)로 쓴다.
+> 두 저장소의 깊이가 달라(`80_Git_HUB/KDailyUtil/KDailyUtil/doc` vs `80_Git_HUB/KLotto645/doc`) 어떤 상대경로도 한쪽 사본에서는 깨진다.
 
 ---
 
@@ -37,8 +41,8 @@ K로 시작하는 형제 앱(**KDailyUtil · KLotto645** · 향후 K-DiviTrack, 
 
 | 모드 | 용도 | 엠블럼 | 배경 | 생성 스크립트 |
 | :--- | :--- | :--- | :--- | :--- |
-| **A. 풀블리드(투명)** | **스플래시 · 배경 워터마크 · 설정 갤러리** | **높이 100%** 채움, 중앙(폭 ~0.88, 상/하 꼭짓점이 끝에 닿음) | 투명(RGBA) | [`build_kdaily_icon.py`](icon_scripts/build_kdaily_icon.py) |
-| **B. 런처/스토어** | **mipmap · adaptive · playstore** | **폭 0.80**(=411/512), 중앙 `(256,256)` | 다크 라디얼 | [`build_kdaily_launcher.py`](icon_scripts/build_kdaily_launcher.py) |
+| **A. 풀블리드(투명)** | **스플래시 · 배경 워터마크 · 설정 갤러리** | **높이 100%** 채움, 중앙(폭 ~0.88, 상/하 꼭짓점이 끝에 닿음) | 투명(RGBA) | `KDailyUtil/doc/icon_scripts/build_kdaily_icon.py` |
+| **B. 런처/스토어** | **mipmap · adaptive · playstore** | **폭 0.80**(=411/512), 중앙 `(256,256)` | 다크 라디얼 | `KDailyUtil/doc/icon_scripts/build_kdaily_launcher.py` |
 
 > 모드 B(런처)는 **모드 A(스플래시)를 그대로 축소한 비율**이 되도록 부주제를 §2-1 비율로 배치한다 → "아이콘 = 스플래시 축소판".
 > 런처가 엠블럼 0.80(여백)인 이유: 원형/적응형(Adaptive) 마스크가 모서리를 깎으므로 여백이 필요. 스플래시는 화면 위에 얹혀 마스크가 없어 100% 가능.
@@ -178,7 +182,7 @@ python doc/icon_scripts/build_kdaily_icon.py \
 모든 K앱은 프리미엄 다크 스플래시를 공유, **각 앱은 자기 아이콘**을 표시. 규격은 §2-4.
 
 - **"덮어쓰기 = 즉시 적용"**: 스플래시 로고는 **1024² 투명 정사각** 한 파일. 이 파일만 같은 규격으로 교체하면 코드 수정 없이 반영.
-- **Compose(KDailyUtil)**: [`ui/screens/SplashScreen.kt`](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/screens/SplashScreen.kt) — `Image(ic_k_app_icon)` on `fillMaxWidth(0.8f).aspectRatio(1f)`, shimmer를 `BlendMode.SrcAtop`(offscreen)로 아이콘 형태에만 + meteor Canvas. 진입 `scaleAnim` rest=1.0. `installSplashScreen()`.
+- **Compose(KDailyUtil)**: `KDailyUtil/app/src/main/java/com/kitwlshcom/kdailyutil/ui/screens/SplashScreen.kt` — `Image(ic_k_app_icon)` on `fillMaxWidth(0.8f).aspectRatio(1f)`, shimmer를 `BlendMode.SrcAtop`(offscreen)로 아이콘 형태에만 + meteor Canvas. 진입 `scaleAnim` rest=1.0. `installSplashScreen()`.
 - **View/XML(KLotto645)**: `SplashActivity` + `activity_splash.xml` + 커스텀 `ShimmerLogoView`(`PorterDuff.SRC_ATOP`). 로고 크기 코드에서 `화면폭×0.80`, 컨테이너 `clipChildren=false`.
 - 공통: shimmer는 **아이콘 형태 안에서만**(SrcAtop 마스킹).
 
@@ -193,14 +197,14 @@ python doc/icon_scripts/build_kdaily_icon.py \
 
 ### 8-1. 배경 워터마크
 주요 화면 중앙에 **자기 앱 아이콘**을 은은히(§2-4: 화면폭×0.80, alpha 0.28, Fit).
-- KDailyUtil: [`ui/components/BrandComponents.kt`](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/components/BrandComponents.kt) `BrandWatermark` — `Modifier.fillMaxWidth(0.8f).aspectRatio(1f)`.
-- KLotto645: [`res/layout/bg_watermark.xml`](../../KLotto645/app/src/main/res/layout/bg_watermark.xml)(id `iv_watermark`) + `Activity.sizeBrandWatermark()`([util/InsetsUtil.kt](../../KLotto645/app/src/main/java/com/kitwlshCom/klotto645/util/InsetsUtil.kt))를 각 액티비티 `onCreate`에서 호출(폭×0.80 코드 사이징).
+- KDailyUtil: `KDailyUtil/app/src/main/java/com/kitwlshcom/kdailyutil/ui/components/BrandComponents.kt` `BrandWatermark` — `Modifier.fillMaxWidth(0.8f).aspectRatio(1f)`.
+- KLotto645: `KLotto645/app/src/main/res/layout/bg_watermark.xml`(id `iv_watermark`) + `Activity.sizeBrandWatermark()`(`KLotto645/app/src/main/java/com/kitwlshCom/klotto645/util/InsetsUtil.kt`)를 각 액티비티 `onCreate`에서 호출(폭×0.80 코드 사이징).
 
 ### 8-2. 앱 정보 + 브랜드 아이콘 갤러리 (설정/메뉴)
 1. **앱 정보**: 앱 아이콘 + 앱명 + 시리즈 서브타이틀 + `BuildConfig.VERSION_NAME` + 개발자(KitwLSH) + 이메일(mailto) + (AI 앱은) AI 활용 고지.
 2. **브랜드 갤러리**: 카드 ① 공유 엠블럼(`ic_k_logo_3d`) ② 해당 앱 아이콘 → 탭 시 투명 다크 전체화면 뷰어.
-- **KDailyUtil 레퍼런스(Compose)**: [`MorningBriefingSettingsScreen.kt`](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/screens/MorningBriefingSettingsScreen.kt) — `showAppInfoDialog`/`showIconGalleryDialog`/`showFullScreenIcon`.
-- **KLotto645(View/XML, ✅ 구현 완료)**: 메뉴 '앱 정보' → 전용 [`AboutActivity`](../app/src/main/java/com/kitwlshCom/klotto645/AboutActivity.kt)(AlertDialog가 아닌 별도 액티비티). 앱 소개/버전/법적 고지 + '브랜드 & 자매앱' 갤러리(패밀리 메인로고 `ic_k_logo_3d` 카드 + 앱 아이콘 카드 → 구분선 → 세로 자매앱 카드, 레지스트리 기반 유동 확장). 버전은 이미 `BuildConfig.VERSION_NAME` 사용([AboutActivity.kt:64](../app/src/main/java/com/kitwlshCom/klotto645/AboutActivity.kt#L64), `strings.xml version_label` 하드코딩 미의존). `ic_k_logo_3d.webp`·`ic_k_emblem_balls.webp` 자산 배선 완료.
+- **KDailyUtil 레퍼런스(Compose)**: `KDailyUtil/app/src/main/java/com/kitwlshcom/kdailyutil/ui/screens/MorningBriefingSettingsScreen.kt` — `showAppInfoDialog`/`showIconGalleryDialog`/`showFullScreenIcon`.
+- **KLotto645(View/XML, ✅ 구현 완료)**: 메뉴 '앱 정보' → 전용 `AboutActivity`(`KLotto645/app/src/main/java/com/kitwlshCom/klotto645/AboutActivity.kt`, AlertDialog가 아닌 별도 액티비티). 앱 소개/버전/법적 고지 + '브랜드 & 자매앱' 갤러리(패밀리 메인로고 `ic_k_logo_3d` 카드 + 앱 아이콘 카드 → 구분선 → 세로 자매앱 카드, 레지스트리 기반 유동 확장). 버전은 이미 `BuildConfig.VERSION_NAME` 사용(`AboutActivity.kt:64`, `strings.xml version_label` 하드코딩 미의존). `ic_k_logo_3d.webp`·`ic_k_emblem_balls.webp` 자산 배선 완료.
 
 ---
 
@@ -243,6 +247,7 @@ python doc/icon_scripts/build_kdaily_icon.py \
 | 2026-07-09 | KLotto645 스플래시를 자체 아이콘(엠블럼+645볼)으로 통일 |
 | 2026-07-15 | KDailyUtil 스플래시를 자체 앱아이콘으로 교체 |
 | **2026-07-16** | **패밀리 전면 통일**: ①"7시 존" 배치규칙 확정(§3) ②스플래시/런처 크기공식 확정(§2, 엠블럼 스플래시100%·런처0.80, 부주제 0.393) ③KDailyUtil 아이콘을 [엠블럼+톱니 분리합성] 파이프라인으로 재구성(스플래시·런처·워터마크·갤러리 전부) ④두 앱 런처를 KLotto 레퍼런스(§2-3)에 픽셀 일치 ⑤워터마크를 스플래시 크기(폭0.80 상대비율)로 통일 ⑥KLotto JDK21 빌드설정·워터마크 코드사이징 추가 ⑦본 문서 단일기준으로 재정리 |
-| **2026-07-24** | §8-2 KLotto645 항목 사실 정정: '미구현'→**구현 완료**(전용 `AboutActivity`+브랜드/자매앱 갤러리, `BuildConfig.VERSION_NAME` 사용, `ic_k_logo_3d`·`ic_k_emblem_balls` 배선). 정본을 실제 코드와 일치시킴. ⚠️ **KDailyUtil/doc 사본에도 동일 정정 반영 필요**(동기화 유지). |
+| **2026-07-24** | §8-2 KLotto645 항목 사실 정정: '미구현'→**구현 완료**(전용 `AboutActivity`+브랜드/자매앱 갤러리, `BuildConfig.VERSION_NAME` 사용, `ic_k_logo_3d`·`ic_k_emblem_balls` 배선). 정본을 실제 코드와 일치시킴. (KDailyUtil/doc 사본 동기화 완료 — KDaily `2dddd23`) |
+| **2026-07-27** | **양쪽 사본 링크 정합**: 상대경로 마크다운 링크 5개가 저장소 깊이 차이로 반대편 사본에서 깨지던 문제 해소 → 모든 파일 참조를 **저장소 접두 평문 경로**로 통일(§7·§8-1·§8-2 + 헤더 BRANDING_GUIDE·§2-2 스크립트 2건). 헤더에 동기화·경로 표기 규약 명시. |
 
 > 실기기(R3CX307AQVK)에서 두 앱 스플래시·런처·워터마크 확인 완료. (배포는 versionCode 상향 후)
