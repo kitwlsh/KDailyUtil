@@ -176,10 +176,10 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 
 ---
 
-## 8. 동적 레지스트리 (원격 구성) — ✅ KDailyUtil 구현 완료 (설계 2026-07-23 / 구현 2026-07-29)
+## 8. 동적 레지스트리 (원격 구성) — ✅ 전 앱 구현 완료 (설계 2026-07-23 / 구현 2026-07-29)
 
-> ✅ **KDailyUtil 구현 완료(2026-07-29)** — 이제 KDailyUtil의 자매앱 카드는 **하드코딩이 아니라 원격 `family.json`으로 동적 렌더**된다. 남은 작업은 **KLotto645·K장부에 같은 방식 이식**(§8-10)과 **호스팅 레포 생성·업로드**(§8-11).
-> ⚠️ 단, 이 전환 자체는 **각 앱의 일회성 수정+배포**가 필요하다(KDailyUtil은 vc6/v1.6에 포함 예정). 전환 후에는 **신규 자매앱 추가에 어떤 앱도 재배포하지 않는다**(§8-9).
+> ✅ **3개 앱 전부 구현 완료(2026-07-29)** — KDailyUtil·KLotto645·K장부의 자매앱 카드가 모두 **하드코딩이 아니라 원격 `family.json`으로 동적 렌더**된다. 호스팅 레포(`kitwlsh/k-series-config`)도 생성·업로드 완료(§8-11).
+> ⚠️ 단, 이 전환은 **각 앱이 한 번 배포돼야 효력이 생긴다**(KDailyUtil vc6/v1.6, KLotto645 vc12+, K장부는 첫 출시본부터). 그 이후로는 **신규 자매앱 추가에 어떤 앱도 재배포하지 않는다**(§8-9).
 
 ### 8-1. 왜 (현재 §7 정적 방식의 한계)
 §7-1 레지스트리(패키지명·아이콘·소개·카드)가 **각 앱에 하드코딩** → 신규 자매앱 하나 추가에 **기존 모든 앱을 수정 + versionCode 상향 + 스토어 재심사**. 출시앱엔 매번 부담·지연.
@@ -232,11 +232,14 @@ Android 11+는 **설치감지(`getLaunchIntentForPackage`)/직접 실행**에 �
 ### 8-6. 마이그레이션 (일회성) — 진행 현황
 각 앱을 **"정적 카드 → 원격 렌더"로 1회 전환**(이 전환은 재빌드+배포 필요) + **번들 기본 family.json** 포함. 이후 이 목적의 **강제 배포는 없음**(새 앱은 JSON만 수정).
 
-| 앱 | 전환 상태 |
-|---|---|
-| **KDailyUtil** | ✅ **코드 구현 완료(2026-07-29)** — vc6/v1.6 배포 시 실사용 시작 |
-| KLotto645 | ⬜ 미착수 → §8-10 체크리스트로 이식(그쪽 세션 담당) |
-| K장부 | ⬜ 미착수 → **첫 출시 전에 넣는 게 최선**(출시 후 전환하면 재배포 1회 추가) |
+| 앱 | 전환 상태 | 다음 배포 |
+|---|---|---|
+| **KDailyUtil** | ✅ **구현 완료(2026-07-29)** — Compose + Coil | vc6 / v1.6 |
+| **KLotto645** | ✅ **구현 완료(2026-07-29)** — XML/View. 이미지 라이브러리가 없어 `RemoteIconCache`(디스크 캐시 + `BitmapFactory`)를 직접 구현, **의존성 추가 없음** | vc12 / v1.0.2 이상 |
+| **K장부** | ✅ **구현 완료(2026-07-29)** — Compose + Coil. **첫 출시본(vc1)부터 동적** → 전환용 추가 배포가 애초에 없음 | 첫 출시(vc1) |
+
+> ⚠️ **전환은 배포돼야 효력이 생긴다.** 이미 게시된 KDailyUtil v1.5 / KLotto645 v1.0.1 사용자에게는 **각자 다음 업데이트가 깔릴 때까지** 예전 하드코딩 카드가 보인다(K장부 카드 없음). 그 이후로는 영구히 JSON만으로 관리된다.
+> ✅ **호스팅 레포는 생성·업로드 완료(2026-07-29)** — `kitwlsh/k-series-config` (§8-11).
 
 ### 8-7. 보안/신뢰
 - **자기 소유 레포만** 사용. JSON은 **표시용 데이터(패키지 id·URL·라벨)만** — 임의 인텐트/딥링크 주입 금지.
@@ -260,36 +263,39 @@ Android 11+는 **설치감지(`getLaunchIntentForPackage`)/직접 실행**에 �
 
 > ⚠️ **재배포가 필요한 예외는 딱 두 가지**: ① 예약에 없는 새 패키지명의 **설치감지/직접실행**을 원할 때(`<queries>` 추가) ② 호스팅 URL 자체를 바꿀 때. 그 외(카드 추가·삭제·이름·소개·순서·아이콘·출시상태)는 전부 JSON만으로 끝난다.
 
-### 8-10. 자매앱 이식 체크리스트 (KLotto645 / K장부 세션용)
-KDailyUtil 구현(참조 구현)을 각자 스택으로 옮긴다. **파일 3개 + 매니페스트 1줄** 수준이다.
+### 8-10. 자매앱 이식 체크리스트 — ✅ 3개 앱 모두 완료(2026-07-29)
+아래 8개 항목이 이식 규격이다. **동작 규격(§8-4)과 보안 규칙(§8-7)만 같으면 UI 구현 방식은 스택에 맞춰 자유**.
 
-| # | 할 일 | KDailyUtil 참조 구현 |
-|---|---|---|
-| 1 | 모델: id·name·tagline·iconUrl·storeUrl·comingSoon·order | `data/model/FamilyApp.kt` |
-| 2 | 로더: 6h 캐시 → 원격 → last-good → 번들, 검증·화이트리스트·자기제외·order정렬 | `data/repository/FamilyRepository.kt` |
-| 3 | 번들 기본값: 정본 `family.json` 사본을 앱 리소스에 포함 | `app/src/main/res/raw/family.json` |
-| 4 | `<queries>`에 **§8-5 예약 목록 전체** 선언 | `app/src/main/AndroidManifest.xml` |
-| 5 | UI: '브랜드 & 자매앱' 자매앱 구획을 **목록 동적 렌더**로 교체(로딩/빈목록/출시예정 상태 + 🔄 새로고침) | `MorningBriefingSettingsScreen.kt`(`SisterAppCard`) |
-| 6 | 아이콘: 원격 URL 로드(Coil/Glide) + **번들 폴백**(아는 앱은 로컬 PNG, 모르는 앱은 공통 엠블럼) | `bundledSisterIcon()` |
-| 7 | 스토어 이동: `storeUrl`(화이트리스트) 우선 → `market://` → `https://` 폴백 | `openAppOrStore(ctx, pkg, storeUrl)` |
-| 8 | 자기 자신 제외는 **`id` == 자기 applicationId** 비교로(하드코딩 금지) | `BuildConfig.APPLICATION_ID` |
+| # | 할 일 | KDailyUtil (Compose) | K장부 (Compose) | KLotto645 (XML/View) |
+|---|---|---|---|---|
+| 1 | 모델: id·name·tagline·iconUrl·storeUrl·comingSoon·order | `data/model/FamilyApp.kt` | `data/remote/FamilyRegistry.kt` | `util/FamilyRegistry.kt` |
+| 2 | 로더: 6h 캐시 → 원격 → last-good → 번들, 검증·화이트리스트·자기제외·order정렬 | `data/repository/FamilyRepository.kt` | 〃 (`FamilyRegistry`) | 〃 (`FamilyRegistry`) |
+| 3 | 번들 기본값: 정본 `family.json` 사본을 앱 리소스에 포함 | `res/raw/family.json` | `res/raw/family.json` | `res/raw/family.json` |
+| 4 | `<queries>`에 **§8-5 예약 목록 전체** 선언 | ✅ | ✅ | ✅ |
+| 5 | UI: 자매앱 구획을 **목록 동적 렌더**로(로딩/빈목록/출시예정 + 🔄 새로고침) | `SisterAppCard` | `SiblingCard` | `AboutActivity.loadSiblingCards` + `item_sibling_app.xml` |
+| 6 | 아이콘: 원격 URL 로드 + **번들 폴백**(아는 앱은 로컬 이미지, 모르는 앱은 공통 엠블럼) | Coil `AsyncImage` | Coil `AsyncImage` | **`util/RemoteIconCache`**(자체 디스크 캐시) |
+| 7 | 스토어 이동: `storeUrl`(화이트리스트) 우선 → `market://` → `https://` 폴백 | `openAppOrStore(ctx,pkg,storeUrl)` | 〃 | `AppLinkUtil.openAppOrStore(ctx,pkg,storeUrl)` |
+| 8 | 자기 자신 제외는 **`id` == 자기 applicationId** 비교로(하드코딩 금지) | `BuildConfig.APPLICATION_ID` | 〃 | 〃 |
 
-- **K장부는 첫 출시 전에 넣는 것이 최선** — 출시 후 전환하면 재배포가 1회 더 필요하다.
-- XML/View 스택(KLotto645)은 `RecyclerView`/동적 `LinearLayout` 어느 쪽이든 무방. **동작 규격(§8-4)과 보안 규칙(§8-7)만 동일하게** 지키면 된다.
+- **KLotto645는 이미지 라이브러리(Coil/Glide)가 없다** → 새 의존성을 넣지 않고 `RemoteIconCache`(cacheDir 저장 + `BitmapFactory` 디코드, 7일 TTL, 3MB 상한)로 처리했다. 실패 시 번들 아이콘을 그대로 둔다.
+- **K장부는 첫 출시본(vc1)부터 동적** — 전환용 추가 배포가 애초에 발생하지 않는다.
+- 자매앱 이름·소개 문구는 이제 레지스트리에서 오므로 **각 앱의 문자열 리소스에서 제거**했다(KLotto `about_sibling_*_name/desc`).
 
-### 8-11. 호스팅 레포 준비 (수동 1회)
-`kitwlsh/k-series-config` **공개** 레포를 만들고 정본을 올린다(gh CLI 없는 환경이라 GitHub 웹에서 수행).
+### 8-11. 호스팅 레포 — ✅ 생성·업로드 완료 (2026-07-29)
+`kitwlsh/k-series-config` (**Public**, 브랜치 **`main`**) — 라이브 확인 완료(family.json + 아이콘 3종 모두 HTTP 200).
 ```
 k-series-config/
-├── family.json          ← KDailyUtil/doc/family_config/family.json 그대로
+├── README.md            # 레포 자체 편집 규칙(고정 URL 경고·상태전환 3단계)
+├── family.json          ← 정본 = KDailyUtil/doc/family_config/family.json
 └── icons/
-    ├── kdailyutil.png   ← KDailyUtil/doc/family_config/icons/ 3개 그대로
+    ├── kdailyutil.png   ← 정본 = KDailyUtil/doc/family_config/icons/ (384², PNG)
     ├── klotto645.png
     └── kjangbu.png
 ```
-- 브랜치는 **`main`**(URL에 박혀 있음), 레포는 **Public**(raw 접근 필요).
-- 검증: 브라우저에서 `https://raw.githubusercontent.com/kitwlsh/k-series-config/main/family.json` 이 그대로 보이면 성공.
-- ⚠️ 레포가 아직 없어도 앱은 **번들 기본값으로 정상 동작**한다(카드가 사라지지 않음). 레포가 생기는 순간부터 원격 갱신이 살아난다.
+- 레포명·브랜치·경로는 **각 앱에 컴파일타임 상수로 박혀 있어 변경 금지**(변경 시 전 앱 재배포).
+- 검증 URL: `https://raw.githubusercontent.com/kitwlsh/k-series-config/main/family.json`
+- 이후 이 레포를 고치는 것만으로 전 앱의 자매앱 카드가 바뀐다. 편집 규칙 = `doc/family_config/README.md`.
+- 참고: raw는 CDN 캐시가 최대 5분 정도라 수정 직후 반영이 조금 늦을 수 있다(앱 캐시 6h는 🔄로 즉시 무시).
 
 ---
 
