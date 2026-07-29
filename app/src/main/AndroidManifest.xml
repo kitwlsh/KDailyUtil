@@ -28,9 +28,25 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
-    <!-- Android 11+ 패키지 가시성: 자매앱 설치 감지/실행(브랜드 & 자매앱 갤러리)용 -->
+    <!--
+      Android 11+ 패키지 가시성: 자매앱 설치 감지/실행('브랜드 & 자매앱' 갤러리)용.
+      자매앱 목록 자체는 원격 레지스트리(family.json)로 동적 렌더되지만, 설치 감지
+      (getLaunchIntentForPackage)와 앱 직접 실행만은 원격으로 못 바꾸는 컴파일타임 선언이다.
+      → 미래 자매앱 패키지를 **예약분까지 미리 선언**해 두면 그 id로 출시되는 앱은 재빌드 없이
+        설치배지·직접실행까지 지원된다(표준 = doc/KLOTTO_CONNECT_HANDOFF.md §8-5).
+      ⚠️ QUERY_ALL_PACKAGES는 Google Play 정책 제한이 강해 사용 금지. 예약에 없는 패키지는
+        설치 감지 없이 '스토어 이동'으로 우아하게 폴백한다.
+    -->
     <queries>
         <package android:name="com.kitwlshCom.klotto645" />
+        <package android:name="com.kitwlshcom.kjangbu" />
+        <package android:name="com.kitwlshcom.kunbok" />
+        <!-- 여유 예약분: 신규 자매앱은 이 id를 우선 사용할 것 -->
+        <package android:name="com.kitwlshcom.kfamily1" />
+        <package android:name="com.kitwlshcom.kfamily2" />
+        <package android:name="com.kitwlshcom.kfamily3" />
+        <package android:name="com.kitwlshcom.kfamily4" />
+        <package android:name="com.kitwlshcom.kfamily5" />
     </queries>
 
     <application

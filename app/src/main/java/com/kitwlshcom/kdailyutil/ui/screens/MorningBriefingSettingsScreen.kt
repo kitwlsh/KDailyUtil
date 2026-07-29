@@ -18,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -27,7 +28,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.ContentScale
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.kitwlshcom.kdailyutil.R
+import com.kitwlshcom.kdailyutil.data.model.FamilyApp
+import com.kitwlshcom.kdailyutil.data.repository.FamilyRepository
 import com.kitwlshcom.kdailyutil.ui.viewmodel.BriefingViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1125,61 +1129,60 @@ fun MorningBriefingSettingsScreen(
 
                     // ── 구획: 자기 로고(위) / 자매앱(아래) 시각 분리 ──
                     HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("🧩 K-시리즈 자매앱", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
-                        Text(
-                            "같은 제작사(KITWLSH)의 다른 앱입니다. 카드를 누르면 스토어로 이동하거나 설치된 앱을 실행합니다.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
-                        )
-                    }
 
-                    // 3. 자매앱 — KLotto645 (누르면 설치/실행)
-                    val klottoPkg = "com.kitwlshCom.klotto645"
-                    val klottoInstalled = remember {
-                        context.packageManager.getLaunchIntentForPackage(klottoPkg) != null
+                    // 3. 자매앱 — 원격 레지스트리(family.json)로 동적 렌더 (2026-07-29, §8)
+                    //    목록이 앱에 하드코딩돼 있지 않으므로 새 자매앱이 생겨도 이 앱을 재배포할 필요가 없다.
+                    var familyReloadKey by remember { mutableStateOf(0) }
+                    val sisterApps by produceState<List<FamilyApp>?>(null, familyReloadKey) {
+                        value = FamilyRepository.loadSisterApps(context, forceRefresh = familyReloadKey > 0)
                     }
-                    Card(
-                        onClick = { openAppOrStore(context, klottoPkg) },
-                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
-                        border = androidx.compose.foundation.BorderStroke(0.5.dp, com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.25f)),
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.ic_klotto645),
-                                contentDescription = "KLotto645",
-                                modifier = Modifier.size(80.dp),
-                                contentScale = ContentScale.Fit
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("KLotto645 — 로또 6/45 분석·생성", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("🧩 K-시리즈 자매앱", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K)
                             Text(
-                                "같은 제작사의 자매앱입니다. 로또 6/45 데이터를 과학적으로 분석하고 조합을 생성해요.",
-                                fontSize = 12.sp,
-                                color = Color.White.copy(alpha = 0.7f),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                "같은 제작사(KITWLSH)의 다른 앱입니다. 카드를 누르면 스토어로 이동하거나 설치된 앱을 실행합니다. 목록은 온라인에서 자동 갱신됩니다.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            // 설치됨=열기 / 미설치=설치하기 배지
-                            Surface(
-                                color = if (klottoInstalled) Color.White.copy(alpha = 0.10f)
-                                        else com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
-                                shape = RoundedCornerShape(50)
-                            ) {
-                                Text(
-                                    if (klottoInstalled) "▶ 열기" else "⬇ 설치하기",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (klottoInstalled) Color.White else Color.Black,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-                                )
-                            }
                         }
+                        IconButton(onClick = { familyReloadKey++ }) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "자매앱 목록 새로고침",
+                                tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+                            )
+                        }
+                    }
+
+                    val apps = sisterApps
+                    when {
+                        apps == null -> Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+                            )
+                            Text(
+                                "자매앱 목록을 불러오는 중…",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                        }
+                        apps.isEmpty() -> Text(
+                            "표시할 자매앱이 없습니다.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                        else -> apps.forEach { app -> SisterAppCard(app) }
                     }
                 }
             },
@@ -1391,20 +1394,141 @@ private fun <T> List<T>.movedItem(from: Int, to: Int): List<T> {
 }
 
 /**
+ * 자매앱 카드 1건 — 원격 레지스트리(`family.json`) 항목을 그대로 렌더한다. (2026-07-29, §8-4)
+ *
+ * - 아이콘: `iconUrl`(Coil) → 실패/부재 시 번들 폴백([bundledSisterIcon]).
+ * - `comingSoon`: 미출시 앱은 '출시 예정' 비활성 카드(누르면 아무 일도 안 함).
+ * - 설치 배지: `<queries>` 미등록 패키지는 항상 미설치로 보이며 스토어 이동만 된다(§8-5 폴백).
+ */
+@Composable
+private fun SisterAppCard(app: FamilyApp) {
+    val context = LocalContext.current
+    val installed = remember(app.id) {
+        context.packageManager.getLaunchIntentForPackage(app.id) != null
+    }
+    val fallbackIcon = remember(app.id) { bundledSisterIcon(app.id) }
+    val gold = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
+
+    Card(
+        onClick = { openAppOrStore(context, app.id, app.storeUrl) },
+        enabled = !app.comingSoon,
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White.copy(alpha = 0.03f),
+            // 출시예정(enabled=false)에도 다크 테마 톤을 유지 — 기본 disabled 색은 밝게 튄다
+            disabledContainerColor = Color.White.copy(alpha = 0.02f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            0.5.dp,
+            if (app.comingSoon) Color.White.copy(alpha = 0.1f) else gold.copy(alpha = 0.25f)
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            val iconAlpha = if (app.comingSoon) 0.45f else 1f
+            if (app.iconUrl != null) {
+                AsyncImage(
+                    model = app.iconUrl,
+                    contentDescription = app.name,
+                    placeholder = painterResource(id = fallbackIcon),
+                    error = painterResource(id = fallbackIcon),
+                    modifier = Modifier.size(80.dp).alpha(iconAlpha),
+                    contentScale = ContentScale.Fit
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = fallbackIcon),
+                    contentDescription = app.name,
+                    modifier = Modifier.size(80.dp).alpha(iconAlpha),
+                    contentScale = ContentScale.Fit
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                app.name,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = if (app.comingSoon) Color.White.copy(alpha = 0.6f) else gold
+            )
+            if (app.tagline.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    app.tagline,
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = if (app.comingSoon) 0.45f else 0.7f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            // 출시예정 / 설치됨=열기 / 미설치=설치하기 배지
+            Surface(
+                color = when {
+                    app.comingSoon -> Color.White.copy(alpha = 0.06f)
+                    installed -> Color.White.copy(alpha = 0.10f)
+                    else -> gold
+                },
+                shape = RoundedCornerShape(50)
+            ) {
+                Text(
+                    when {
+                        app.comingSoon -> "🔜 출시 예정"
+                        installed -> "▶ 열기"
+                        else -> "⬇ 설치하기"
+                    },
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = when {
+                        app.comingSoon -> Color.White.copy(alpha = 0.55f)
+                        installed -> Color.White
+                        else -> Color.Black
+                    },
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 오프라인·첫 실행·아이콘 로드 실패 대비 **번들 아이콘 폴백**.
+ * 레지스트리에만 있고 번들 리소스가 없는 신규 앱은 패밀리 공통 엠블럼으로 표시한다(재배포 불필요).
+ */
+private fun bundledSisterIcon(pkg: String): Int = when (pkg) {
+    "com.kitwlshCom.klotto645" -> R.drawable.ic_klotto645
+    "com.kitwlshcom.kjangbu" -> R.drawable.ic_kjangbu
+    else -> R.drawable.ic_k_logo_3d
+}
+
+/**
  * 자매앱 유도: 설치돼 있으면 앱 실행, 없으면 Play 스토어(마켓→브라우저 폴백)로 이동. (2026-07-20)
  * K-시리즈 자매앱 상호연결 표준(doc/KLOTTO_CONNECT_HANDOFF.md §2)의 Compose 구현.
+ *
+ * @param storeUrl 레지스트리가 준 스토어 URL(화이트리스트 통과분). 있으면 먼저 시도하고,
+ *                 없거나 열리지 않으면 패키지명으로 만든 `market://` → `https://` 순으로 폴백한다.
  */
-private fun openAppOrStore(context: android.content.Context, pkg: String) {
+private fun openAppOrStore(
+    context: android.content.Context,
+    pkg: String,
+    storeUrl: String? = null
+) {
     val launch = context.packageManager.getLaunchIntentForPackage(pkg)
     if (launch != null) {
         context.startActivity(launch)
         return
     }
-    try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pkg")))
-    } catch (e: ActivityNotFoundException) {
-        context.startActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$pkg"))
-        )
+    val candidates = listOfNotNull(
+        storeUrl,
+        "market://details?id=$pkg",
+        "https://play.google.com/store/apps/details?id=$pkg"
+    )
+    for (url in candidates) {
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            return
+        } catch (e: ActivityNotFoundException) {
+            // 다음 후보로 폴백
+        }
     }
 }

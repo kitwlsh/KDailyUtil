@@ -19,7 +19,8 @@
 | **콘솔 기입 정보 엑셀** | [google_play_release_info.xlsx](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/google_play_release_info.xlsx) | 구글 플레이에 제출한 27개 질문과 상세 텍스트 기록 보관함 |
 | **디자인 & 브랜딩** | [BRANDING_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/BRANDING_GUIDE.md) | 로고 아이콘 규격, 색상 파레트 및 다크 테마 가이드라인 |
 | **K-시리즈 아이콘 표준** | [K_SERIES_ICON_RECIPE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/K_SERIES_ICON_RECIPE.md) | 형제 앱(KDailyUtil·KLotto645 등) 아이콘·스플래시·워터마크 패밀리 통일 규격 및 신규 앱 제작 절차(단일 기준 문서) |
-| **자매앱 상호연결 표준** | [KLOTTO_CONNECT_HANDOFF.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KLOTTO_CONNECT_HANDOFF.md) | K-시리즈 자매앱 상호 설치링크 표준 + 신규앱 편입 절차(§7 정적) + **동적 레지스트리(원격 구성) 설계(§8)** + KLotto645↔KDailyUtil 핸드오프. 동적 스키마 샘플 = [doc/family_config/family.sample.json](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/family_config/family.sample.json) |
+| **자매앱 상호연결 표준** | [KLOTTO_CONNECT_HANDOFF.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KLOTTO_CONNECT_HANDOFF.md) | K-시리즈 자매앱 상호 설치링크 표준 + 신규앱 편입 절차(§7 정적) + **동적 레지스트리(원격 구성) §8 — ✅ KDailyUtil 구현 완료(2026-07-29)**, 신규앱 JSON 편입(§8-9)·자매앱 이식 체크리스트(§8-10)·호스팅 절차(§8-11) + KLotto645↔KDailyUtil 핸드오프 |
+| **자매앱 레지스트리 정본** | [family_config/README.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/family_config/README.md) | 원격 `family.json` 정본 + 아이콘(384²) + `k-series-config` 레포 업로드·편집 가이드(앱 재배포 없이 자매앱 추가하는 절차) |
 | **개인정보처리방침** | [privacy-kdailyutil.html](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/privacy-kdailyutil.html) | 구글 스토어 마이크 및 오디오 권한 대응 개인정보방침 HTML |
 | **뉴스 우회 보고서** | [Google_News_Redirect_Issue_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/Google_News_Redirect_Issue_Report.md) | 구글 뉴스 수집 시 발생하는 리디렉션 이슈 분석 및 해결책 |
 | **오디오 개선 보고서** | [20260422_Audio_System_Enhancement_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/20260422_Audio_System_Enhancement_Report.md) | 미니 플레이어 및 오디오 수집 성능 최적화 개선 보고서 |
@@ -110,7 +111,15 @@
 
 ---
 
-## 🛠 최근 업데이트 및 작업 현황 (2026-07-22 · ✅ v1.5 2026-07-23 스토어 출시)
+## 🛠 최근 업데이트 및 작업 현황 (2026-07-29 · 현재 게시본 v1.5, 2026-07-23 출시)
+
+### 🧩 자매앱 동적 레지스트리 — 앱 재배포 없이 자매앱 추가 (2026.07.29 · 미배포, v1.6 예정)
+- **문제**: 자매앱 카드가 각 앱에 하드코딩돼 있어, 새 앱(K장부 등) 하나 추가에 **기존 모든 앱을 수정 + 버전 상향 + 스토어 재심사**가 필요했음.
+- **해결**: 자매앱 목록을 원격 `family.json`(GitHub raw)에서 받아 **동적 렌더**. 이제 **새 자매앱 = JSON 한 줄 편집 → 전 앱 즉시 반영(재빌드·재배포 없음)**. 카드 추가·삭제·이름·소개·순서·아이콘·출시상태 전부 원격 제어.
+- **끊기지 않는 폴백**: 신선한 캐시(6h) → 원격 → last-good 캐시 → **앱에 번들된 기본 목록**. 오프라인·첫 실행·레포 부재에도 카드가 사라지지 않음. 설정 화면 🔄로 즉시 재조회.
+- **출시 전 앱 표기**: `active`/`comingSoon` 조합으로 **숨김 → '🔜 출시 예정' 비활성 카드 → 정상 카드** 3단계를 JSON만으로 전환(K장부는 출시 시 한 글자 수정).
+- **안전장치**: 스토어 URL·아이콘 URL 도메인 화이트리스트, 패키지명 형식 검증, 항목 상한, 항목별 파싱 내구성, 자기 자신 자동 제외. `<queries>`는 원격으로 못 바꾸는 유일한 제약이라 **미래 자매앱 패키지를 예약분까지 미리 선언**(미등록 패키지는 스토어 이동으로 우아하게 폴백).
+- 표준·이식 절차 = [KLOTTO_CONNECT_HANDOFF.md §8](doc/KLOTTO_CONNECT_HANDOFF.md), 레지스트리 정본·업로드 가이드 = [doc/family_config/README.md](doc/family_config/README.md).
 
 ### 📊 AI 스마트 관심종목 포트폴리오 분석 (2026.07.22 · ✅ v1.5로 2026-07-23 출시)
 - **한 번에 종합**: 증시 '관심 종목' 탭 상단 **'🤖 포트폴리오 종합 분석'** → 관심종목(국내 상장사)들의 최근 정기보고서 실적(매출·영업이익·순이익 + 전년동기%)을 모아, AI가 **전반 흐름·상대 우열·집중 리스크·한줄 코멘트**를 마크다운 리포트로 정리.
