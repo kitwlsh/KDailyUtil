@@ -69,13 +69,31 @@ https://raw.githubusercontent.com/kitwlsh/k-series-config/main/icons/kjangbu.png
   python -c "import json;d=json.load(open('family.json',encoding='utf-8'));print('ok', len(d['apps']))"
   ```
 
-## 5. 아이콘 리사이즈 (필요 시)
+## 5. 아이콘 만들기 — ⚠️ 반드시 배경이 투명한 원본에서
 
-원본 1024² 아이콘은 `doc/family_icons/` 에 있다. 384² 변환:
+카드 배경이 어두우므로 **알파 채널이 살아 있는 원본**을 써야 한다. 배경이 박힌 마스터로 만들면
+다크 카드 위에 **검은 사각형**으로 표시된다(2026-07-29 실제 사고 — 번들 폴백보다 더 나빠졌다).
+
+- ✅ 좋은 원본: 각 앱 리소스의 `drawable-nodpi/ic_<앱>.png` (§5 교환분, 투명)
+- ❌ 나쁜 원본: `doc/family_icons/KLotto645_icon_1024.png` 같은 **배경 박힌 마스터**
+
+384² 변환 + 투명도 검증까지 한 번에:
 
 ```python
 from PIL import Image
-Image.open("doc/family_icons/kjangbu_icon_1024.png").convert("RGBA") \
-     .resize((384, 384), Image.LANCZOS) \
-     .save("doc/family_config/icons/kjangbu.png", "PNG", optimize=True)
+src = "app/src/main/res/drawable-nodpi/ic_klotto645.png"   # 투명 원본
+im = Image.open(src).convert("RGBA").resize((384, 384), Image.LANCZOS)
+im.save("doc/family_config/icons/klotto645.png", "PNG", optimize=True)
+# 검증: 최소 알파가 0이어야 투명(255만 나오면 배경이 박힌 것)
+print("alpha:", im.split()[3].getextrema(), "corner:", im.getpixel((0, 0)))
 ```
+
+업로드 후 라이브에서도 확인:
+
+```bash
+curl -s -o live.png "https://raw.githubusercontent.com/kitwlsh/k-series-config/main/icons/klotto645.png"
+python -c "from PIL import Image; im=Image.open('live.png').convert('RGBA'); print(im.size, im.split()[3].getextrema())"
+```
+
+> 아이콘을 교체하면 KDailyUtil·K장부는 약 5분 내(raw `max-age=300`) 새 아이콘을 받는다.
+> **KLotto645는 자체 아이콘 캐시 TTL이 길어 반영이 늦다** — 급할 때는 그 앱 캐시를 지워야 한다.

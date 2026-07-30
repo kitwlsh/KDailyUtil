@@ -1,7 +1,7 @@
 # 🛠 KDailyUtil - 개발자 가이드 (Developer Context Guide)
 
 > **신규 세션 또는 AI 어시스턴트가 이 파일을 먼저 읽으면 프로젝트 전체 맥락을 즉시 파악할 수 있습니다.**
-> 최종 업데이트: 2026-07-22
+> 최종 업데이트: 2026-07-29
 
 > ### 🚩 지금 상태 (신규 세션 필독)
 > - **v1.5 (versionCode 5) — ✅ 2026-07-23 Google Play 검토완료·출시(게시)됨. 현재 게시본 = v1.5.** 소스 = v1.5([app/build.gradle.kts](../app/build.gradle.kts)). (이전 게시본 v1.4=vc4 07-21 / v1.2=vc3 07-08 / v1.1=vc2.) **다음 업로드는 vc6=1.6.**
@@ -13,7 +13,7 @@
 > - **아이콘/스플래시 패밀리 통일 (2026-07-15~16)**: 런처 아이콘(mipmap 전 밀도)·플레이스토어 아이콘·스플래시(`ic_app_logo_full` 자체 앱 아이콘으로 교체)·워터마크([BrandComponents.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/components/BrandComponents.kt))·설정 브랜드 갤러리를 형제 앱(KLotto645 등)과 통일. 단일 기준 문서 = [doc/K_SERIES_ICON_RECIPE.md](K_SERIES_ICON_RECIPE.md), 원본/스크립트 = `doc/family_icons/`, `doc/icon_scripts/`. **미사용 `HexagonShape` 제거됨.**
 > - **자매앱 상호연결 (2026-07-20 정적 → 2026-07-29 동적)**: 설정 > 앱정보 > **'브랜드 & 자매앱'** 갤러리의 자매앱 카드. 탭 시 설치/실행(`openAppOrStore(pkg, storeUrl)`). 2026-07-29부터 **카드 목록이 원격 레지스트리에서 오므로 앱 수정 없이 자매앱을 추가**한다(위 '자매앱 동적 레지스트리' 항목). 표준 = [doc/KLOTTO_CONNECT_HANDOFF.md](KLOTTO_CONNECT_HANDOFF.md)(**KDailyUtil·KLotto645·KJangbu 세 저장소 doc/ 동일 사본 유지**). **KLotto645·K장부 저장소 쪽 이식/커밋은 각 세션 담당**(§8-10 체크리스트).
 > - **🆕 뉴스 AI 대화창 (2026-07-21, 구현 완료·미배포)**: 뉴스탭 'AI' 탭에서 맞춤 분석을 첫 답으로 **멀티턴 대화**(이어 묻기) + **음성 입력(STT)·답변 낭독(TTS)**. 컨텍스트=제목+RSS 스니펫(제한매체 필터 승계, 본문 비스크랩). **대화 수명=세션(명령어+날짜)**, 로컬 보관 **30일 자동정리 + 사용자 수동 삭제(개별·전체)**, 지난 대화 읽기 전용 열람. 설계·구현서 = [doc/FEATURE_AI_NEWS_CHAT.md](FEATURE_AI_NEWS_CHAT.md). 구현: `GeminiManager.startNewsChat/sendChatMessage`, `AiChatSession`/`AiChatRepository`, `BriefingViewModel`(대화 상태·`sendChat`·`startChatVoiceInput`·세션관리), `NewsBriefingScreen.AiChatSection`. **v1.4 게시 후 vc5/v1.5로 배포**.
-> - **🆕 자매앱 동적 레지스트리 (2026-07-29, 구현 완료·미배포)**: 자매앱 카드를 하드코딩에서 **원격 `family.json` 동적 렌더**로 전환 → **신규 자매앱 추가에 앱 재배포 불필요**. 구현: [`FamilyRepository`](../app/src/main/java/com/kitwlshcom/kdailyutil/data/repository/FamilyRepository.kt)(6h캐시→원격→last-good→번들 폴백, 화이트리스트 검증) · [`FamilyApp`](../app/src/main/java/com/kitwlshcom/kdailyutil/data/model/FamilyApp.kt) · `res/raw/family.json`(번들 기본값) · `AndroidManifest <queries>` 예약 패키지 8개 · `MorningBriefingSettingsScreen.SisterAppCard`(로딩/출시예정/설치배지 + 🔄 새로고침). 표준 = [doc/KLOTTO_CONNECT_HANDOFF.md](KLOTTO_CONNECT_HANDOFF.md) **§8**, 정본·업로드 = [doc/family_config/README.md](family_config/README.md). **진행**: ✅ 호스팅 레포 `kitwlsh/k-series-config` 생성·업로드 완료 ✅ **KLotto645·K장부 이식 완료(3개 앱 전부 동적)** → **⚠️ 남은 일은 vc6/v1.6 배포뿐**(배포돼야 효력 발생).
+> - **🆕 자매앱 동적 레지스트리 (2026-07-29, 구현 완료·미배포)**: 자매앱 카드를 하드코딩에서 **원격 `family.json` 동적 렌더**로 전환 → **신규 자매앱 추가에 앱 재배포 불필요**. 구현: [`FamilyRepository`](../app/src/main/java/com/kitwlshcom/kdailyutil/data/repository/FamilyRepository.kt)(6h캐시→원격→last-good→번들 폴백, 화이트리스트 검증) · [`FamilyApp`](../app/src/main/java/com/kitwlshcom/kdailyutil/data/model/FamilyApp.kt) · `res/raw/family.json`(번들 기본값) · `AndroidManifest <queries>` 예약 패키지 8개 · `MorningBriefingSettingsScreen.SisterAppCard`(로딩/출시예정/설치배지 + 🔄 새로고침). 표준 = [doc/KLOTTO_CONNECT_HANDOFF.md](KLOTTO_CONNECT_HANDOFF.md) **§8**, 정본·업로드 = [doc/family_config/README.md](family_config/README.md). **진행**: ✅ 호스팅 레포 `kitwlsh/k-series-config` 생성·업로드 완료 ✅ **KLotto645·K장부 이식 완료(3개 앱 전부 동적)** ✅ **실기기 검증 10/10 통과(§8-12)** → **⚠️ 남은 일은 vc6/v1.6 배포뿐**(배포돼야 효력 발생). 미푸시 커밋 있음 — `git status` 확인.
 > - **다음 후보**: (① AI 포트폴리오 분석 = ✅ 2026-07-22 완료) 미배포분 전부 v1.5로 출시 완료(2026-07-23 게시). 남은 후보: (선택) '시세 및 차트' 관심종목 편집 UI 두-목록 안내. **✅ 2026-07-24 완료: AI 추세 코멘트 마크다운 렌더링 + AI 대화 히스토리 토큰 상한(§8-5).** **✅ 2026-07-29 완료: 자매앱 동적 레지스트리(위 항목).** 완료분(2026-07-21~22): 뉴스 AI 대화창·마크다운·핸즈프리·이미지 Base64·빠른독서 통계/난이도·**포트폴리오 종합 분석**.
 > - **AAB 재빌드 방법**: `./gradlew.bat :app:bundleRelease` (서명은 `local.properties`의 `release.*` 키로 자동 — VCS 제외). 산출물: `app/build/outputs/bundle/release/app-release.aab`.
 
@@ -384,6 +384,19 @@ DataStore Preferences에는 List 네이티브 타입이 없어, 순서 있는 �
 - **아이콘**: `iconUrl`을 Coil `AsyncImage`로 로드, placeholder/error = **번들 폴백**(`bundledSisterIcon()`: 아는 앱은 로컬 PNG, 모르는 앱은 공통 엠블럼 `ic_k_logo_3d`). 그래서 **번들 리소스가 없는 새 앱도 카드가 정상 표시**된다.
 - **검증(신뢰 경계)**: `id`는 패키지명 정규식 통과분만, `storeUrl`은 `play.google.com`/`market://`만, `iconUrl`은 https + `githubusercontent.com`/`github.io`만 허용. 항목별 try/catch로 **1건이 깨져도 나머지는 살린다**. JSON은 표시용 데이터만 담고 **임의 인텐트/딥링크는 스키마에 없다**.
 - **UI**: 설정 > 앱정보 > **'브랜드 & 자매앱'** 다이얼로그의 자매앱 구획(`SisterAppCard`). 로딩 스피너 / 빈 목록 안내 / **🔄 강제 새로고침**(`forceRefresh=true`, JSON 수정 즉시 확인용).
+- **조회 시점**: 앱 시작 시가 아니라 **다이얼로그를 열 때만**(`produceState`). 6h 이내면 네트워크를 아예 타지 않으므로 배터리·트래픽 영향 없음(하루 최대 4회 × 3.5KB ≈ 14KB).
+- **조건부 요청(ETag) 미도입**: raw가 `ETag`/`304`를 지원하지만(확인됨) 절약분이 3.5KB뿐이고, TTL을 줄이면 오히려 TLS 핸드셰이크 비용이 커져 **현행 유지**로 결론(검토 기록은 §8 논의).
+
+### 실기기 진단 (문제 생겼을 때 여기부터)
+```bash
+adb logcat -s FamilyRepository:V          # 어느 폴백 단계를 탔는지 한 줄로 나온다
+adb shell run-as com.kitwlshcom.kdailyutil ls -l files/family_config.json   # last-good 캐시(정상 3509B)
+adb shell run-as com.kitwlshcom.kdailyutil ls -l cache/image_cache/         # Coil 아이콘 캐시
+```
+로그 문구는 **K-시리즈 3개 앱 동일**하게 유지한다(§8-12): `🗄 신선한 캐시 사용(재조회 안 함)` / `✅ 원격 레지스트리 로드` / `⚠️ 원격 실패 — last-good 캐시 사용` / `⚠️ 원격·캐시 모두 불가 — 번들 기본값`.
+검증 체크리스트(10항목)·주입 테스트 방법·안전 규칙(⛔ `pm clear` 금지 등)은 [doc/KLOTTO_CONNECT_HANDOFF.md §8-12](KLOTTO_CONNECT_HANDOFF.md).
+
+> ✅ **2026-07-29 실기기 검증 10/10 통과**: 캐시 없는 오프라인 첫 실행에도 카드 유지(번들 폴백), 캐시 손상 시 번들 폴백, 악성 레지스트리(부적격 id·외부 URL·상한 초과·상위 스키마) 전부 차단, 6h 이내 네트워크 미사용·6h 후 재조회, 스토어 이동, 원격 아이콘 바이트 일치, 자매앱 0개 시 안내 문구. 이 과정에서 **원격 아이콘 검은 배경 결함 1건을 발견해 앱 재배포 없이 수정**(§8-12 사례).
 
 ### ⚠️ `<queries>` — 원격으로 못 바꾸는 유일한 제약
 Android 11+는 `getLaunchIntentForPackage`(설치 감지)·직접 실행에 **매니페스트 `<queries>` 선언**이 필요하다. 그래서 미래 자매앱 패키지를 **예약분까지 미리 선언**해 뒀다(`AndroidManifest.xml`):
@@ -512,7 +525,19 @@ com.kitwlshcom.kfamily1 ~ kfamily5   (여유 5개)
 
 ## 🔄 최근 커밋 이력 (최신순)
 
-> 최신 상태는 항상 `git log --oneline -20` 으로 확인. **v1.5(versionCode 5) 2026-07-23 출시 완료(현재 게시본 = v1.5)**(이전 게시본 v1.4=vc4 07-21, v1.2=vc3 07-08). 다음 배포는 새 기능 생길 때 vc6/v1.6.
+> 최신 상태는 항상 `git log --oneline -20` 으로 확인. **v1.5(versionCode 5) 2026-07-23 출시 완료(현재 게시본 = v1.5)**(이전 게시본 v1.4=vc4 07-21, v1.2=vc3 07-08). **다음 배포 = vc6/v1.6** — 자매앱 동적 레지스트리(2026-07-29)가 배포돼야 실사용된다.
+
+**2026-07-29 세션 (자매앱 동적 레지스트리 §8 구현·3개 앱 이식·실기기 검증 — 커밋됨·미푸시)**
+| 커밋 | 내용 |
+|------|------|
+| (이번) | docs: 검증 결과·진단 방법(§8-12) 반영 + 로그 문구 3앱 통일 |
+| `86329ad` | docs: 자매앱 동적 레지스트리 이식 완료 반영(3개 앱 + 호스팅 레포) |
+| `1eb925b` | feat: 자매앱 동적 레지스트리 — 재배포 없이 자매앱 추가(§8 구현) |
+| `8598f6c`·`da57a1e` | docs: 핸드오프 §7-1 KLotto645 라이브 v1.0.1 반영 / 양쪽 사본 링크 정합 |
+| `KLotto645 de42102` | feat: 동적 레지스트리 이식(XML/View, `RemoteIconCache` 자체 구현 — 의존성 추가 없음) |
+| `KJangbu f019c4b` | feat: 동적 레지스트리 이식(첫 출시본부터 동적 → 전환용 추가 배포 없음) |
+| `k-series-config 2745669`·`7e7a7fd` | init: 레지스트리 정본 업로드 / fix: KLotto 아이콘 투명 배경 교체 |
+> **⚠️ 배포돼야 효력 발생**: 게시본 v1.5 사용자에겐 여전히 KLotto 하드코딩 카드가 보인다(K장부 카드 없음). 다음 업로드 = vc6/v1.6.
 
 **2026-07-22 세션 (AI 포트폴리오 분석 + v1.5 배포 빌드 — v1.5 AAB 빌드 완료·업로드 대기)**
 | 커밋 | 내용 |

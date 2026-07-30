@@ -234,7 +234,7 @@ Android 11+는 **설치감지(`getLaunchIntentForPackage`)/직접 실행**에 �
 
 | 앱 | 전환 상태 | 다음 배포 |
 |---|---|---|
-| **KDailyUtil** | ✅ **구현 완료(2026-07-29)** — Compose + Coil | vc6 / v1.6 |
+| **KDailyUtil** | ✅ **구현 완료(2026-07-29)** — Compose + Coil. **실기기 검증 10/10 통과(§8-12)** | vc6 / v1.6 |
 | **KLotto645** | ✅ **구현 완료(2026-07-29)** — XML/View. 이미지 라이브러리가 없어 `RemoteIconCache`(디스크 캐시 + `BitmapFactory`)를 직접 구현, **의존성 추가 없음** | vc12 / v1.0.2 이상 |
 | **K장부** | ✅ **구현 완료(2026-07-29)** — Compose + Coil. **첫 출시본(vc1)부터 동적** → 전환용 추가 배포가 애초에 없음 | 첫 출시(vc1) |
 
@@ -295,7 +295,50 @@ k-series-config/
 - 레포명·브랜치·경로는 **각 앱에 컴파일타임 상수로 박혀 있어 변경 금지**(변경 시 전 앱 재배포).
 - 검증 URL: `https://raw.githubusercontent.com/kitwlsh/k-series-config/main/family.json`
 - 이후 이 레포를 고치는 것만으로 전 앱의 자매앱 카드가 바뀐다. 편집 규칙 = `doc/family_config/README.md`.
-- 참고: raw는 CDN 캐시가 최대 5분 정도라 수정 직후 반영이 조금 늦을 수 있다(앱 캐시 6h는 🔄로 즉시 무시).
+- 참고: raw 응답 헤더는 `Cache-Control: max-age=300` + `ETag`(내용 해시)다. CDN 캐시가 최대 5분이라 수정 직후 반영이 조금 늦을 수 있다(앱 캐시 6h는 🔄로 즉시 무시).
+- ⚠️ **아이콘은 반드시 배경이 투명한 원본에서 만들 것.** 실제로 배경 박힌 마스터로 만들어 다크 카드에 검은 사각형이 뜬 사고가 있었다(2026-07-29, §8-12 참조).
+
+### 8-12. 실기기 검증 체크리스트 & 진단 방법 (2026-07-29 KDailyUtil 10/10 통과)
+
+신규 앱을 이식했거나 로더를 손댔으면 **아래 10항목**을 실기기(권장: `emulator -wipe-data` 클린 부팅)로 확인한다.
+"캐시가 한 번도 없던 첫 실행"을 만들려면 **설치 직후 실행 전에** 네트워크를 끊어야 한다.
+
+| # | 조건 | 기대 결과 |
+|---|---|---|
+| T1 | **캐시 없음 + 네트워크 없음**(최악) | `⚠️ 원격·캐시 모두 불가 — 번들 기본값: N개` · **카드 유지** |
+| T2 | 온라인 첫 조회 | `✅ 원격 레지스트리 로드: N개` · 캐시 파일 생성(현재 3,509 bytes) |
+| T3 | 6h 이내 재진입 | `🗄 신선한 캐시 사용(재조회 안 함): N개` · **캐시 mtime 불변**(네트워크 미사용) |
+| T4 | 캐시를 6h 이전으로 되돌림(`touch -t`) | 원격 재조회 + 캐시 mtime 갱신 |
+| T5 | 오프라인 + 정상 캐시 | `⚠️ 원격 실패 — last-good 캐시 사용: N개` · 카드 유지 |
+| T6 | 오프라인 + **캐시 손상**(쓰레기 주입) | `레지스트리 파싱 실패` → `번들 기본값` · 카드 유지 |
+| T7 | **악성·불량 레지스트리 주입** | 아래 필터링 로그 전부 + 최종 카드 수 = 상한 20 |
+| T8 | 미설치 자매앱 카드 탭 | `com.android.vending`(Play) 실행 · 크래시 없음 |
+| T9 | 원격 아이콘 수신 | 아이콘 캐시 파일 크기가 라이브 PNG와 **바이트 일치** · 배경 투명 |
+| T10 | 자매앱 0개인 레지스트리 | 빈 화면이 아니라 **'표시할 자매앱이 없습니다'** 안내 |
+
+**T7 주입 fixture에 넣을 것** — 각각 대응 로그가 떠야 한다:
+`자기 자신 id`(조용히 제외) · `"not a package!!"`→`부적격 id skip` · `id 없는 항목`→`부적격 id skip: ''` ·
+`active:false`(조용히 제외) · `storeUrl: https://evil.example.com/...`→`허용되지 않은 storeUrl 무시` ·
+`iconUrl: http://...`→`허용되지 않은 iconUrl 무시` · `version:99`→`스키마 v99 > 지원 v1 — 아는 필드만 읽음` ·
+유효 항목 21개 이상 → **20개로 잘림**.
+
+**앱별 진단 정보** — 로그 태그와 문구는 **3개 앱 동일하게 유지**한다(한 번에 훑기 위함):
+
+| 앱 | 로그 태그 | 레지스트리 캐시 | 아이콘 캐시 |
+|---|---|---|---|
+| KDailyUtil | `FamilyRepository` | `files/family_config.json` | `cache/image_cache/`(Coil) |
+| K장부 | `FamilyRegistry` | `files/family_config.json` | `cache/image_cache/`(Coil) |
+| KLotto645 | `FamilyRegistry` | `files/family_config.json` | `cache/family_icons/`(자체) |
+
+**검증 시 안전 규칙**
+- ⛔ `pm clear` 금지(사용자 데이터 전멸). 캐시만 지울 것: `adb shell run-as <pkg> rm files/family_config.json`
+- ⛔ 스토어(Play) 설치본 위에 디버그 APK를 강제 설치하지 말 것(서명 불일치 → 삭제 필요 → 데이터 손실). `dumpsys package <pkg> | grep installerPackageName`이 `null`이면 사이드로드본이라 안전.
+- fixture 주입: `adb push x //data/local/tmp/inj.json` → `chmod 644` → `run-as <pkg> cp //data/local/tmp/inj.json files/family_config.json` (주입 직후 mtime이 새것이라 원격을 타지 않고 캐시를 읽는다)
+- 오프라인: `svc wifi disable` + `svc data disable` (**끝나고 반드시 원복**)
+- Git Bash에서는 기기 경로를 `//data/local/tmp/...`(슬래시 2개)로 써야 MSYS 경로 변환을 피한다. 스크린샷은 `adb exec-out screencap -p > s.png`.
+- Compose 다이얼로그 내부는 `uiautomator dump`에 안 잡힌다 → 스크린샷 좌표로 탭.
+
+**검증에서 실제로 잡힌 결함(참고 사례)**: 원격 `icons/klotto645.png`를 **배경 박힌 마스터**에서 만들어, 번들 폴백(투명)보다 오히려 나쁜 **검은 사각형**이 표시됐다. 투명 원본에서 재생성해 레포에 푸시하는 것만으로 **앱 재배포 없이** 해결 — §8 설계의 첫 실전 증명이 됐다.
 
 ---
 

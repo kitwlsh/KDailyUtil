@@ -59,9 +59,10 @@ object FamilyRepository {
                 System.currentTimeMillis() - cache.lastModified() < REFRESH_INTERVAL_MS
 
             // 1) 신선한 캐시가 있으면 네트워크 없이 즉시 사용
+            //    ⚠️ 로그 문구는 K-시리즈 3개 앱이 동일하게 유지한다(한 번에 진단하기 위함, §8-12).
             if (!forceRefresh && cacheFresh) {
                 parseRegistry(readOrNull(cache))?.let {
-                    Log.d(TAG, "캐시 사용(신선): ${it.size}개")
+                    Log.d(TAG, "🗄 신선한 캐시 사용(재조회 안 함): ${it.size}개")
                     return@withContext it
                 }
             }
