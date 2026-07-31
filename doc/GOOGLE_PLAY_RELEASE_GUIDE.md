@@ -8,22 +8,66 @@ KDailyUtil 안드로이드 앱을 구글 플레이 스토어에 업로드하고 
 
 구글 플레이에는 기존의 APK 파일 대신 **AAB(Android App Bundle)** 형식으로 업로드해야 합니다.
 
-### ① 서명 키(Keystore) 생성 (Android Studio 기준)
-앱의 정품 여부를 증명할 보안 키 파일(`.jks`)을 생성합니다. (절대 분실하거나 비밀번호를 잊어버리면 안 됩니다.)
-1. Android Studio 상단 메뉴: **Build > Generate Signed Bundle / APK...** 선택.
-2. **Android App Bundle**을 선택하고 **Next** 클릭.
-3. Key store path 아래 **Create new...** 클릭.
-   - **Key store path**: 컴퓨터 내 보관할 경로 및 파일명 입력 (예: `kdailyutil-key.jks`)
-   - **Password**: 키 저장소 비밀번호 입력
-   - **Alias**: 키의 별명 입력 (기본값: `key0` 등)
-   - **Validity (years)**: 유효기간 (최소 25년 이상 추천, 기본 25년 유지)
-   - **Certificate**: 이름, 부서, 조직, 국가 코드(82) 등 기본 정보 입력 후 **OK**.
+### ① 서명 키(Keystore) — 현재 구성 (2026-07-29 정리)
 
-### ② 릴리즈 빌드 실행
-1. Generate Signed Bundle 창에서 방금 만든 Keystore 정보와 비밀번호를 입력하고 **Next**.
-2. Build Variant를 **release**로 선택.
-3. Signature Versions 및 기타 기본 설정 유지 후 **Create** 또는 **Finish** 클릭.
-4. 빌드가 완료되면 프로젝트 폴더 내 `app/release/` 하위에 **`app-release.aab`** 파일이 생성됩니다. 이 파일을 구글 콘솔에 업로드하게 됩니다.
+> 🔐 **KDailyUtil은 이미 서명 키가 있고 Play 앱 서명에 등록돼 있습니다.** 새로 만들 필요 없습니다.
+> 아래 ①은 "새 앱을 만들 때" 절차이고, 지금 KDailyUtil 빌드는 **②**만 보면 됩니다.
+
+**Play 앱 서명 구조** — 두 키가 다른 역할을 합니다(둘을 혼동하면 사고가 납니다).
+
+| 키 | 역할 | 보관 | 분실/유출 시 |
+|---|---|---|---|
+| **앱 서명 키** | 사용자 기기에 설치되는 최종 서명 | **Google 서버**(개발자 접근 불가) | 해당 없음 |
+| **업로드 키** (`.jks`) | 내가 AAB에 서명해 Play에 올릴 때만 사용 | 로컬(`_secrets/`) | **Console에서 재설정 가능** |
+
+**현재 인증서 지문**(공개 정보 — Console `앱 서명` 페이지와 대조용):
+
+| 앱 | 앱 서명 키 SHA-256 | 업로드 키 SHA-256 |
+|---|---|---|
+| KDailyUtil | `5E:41:1F:80:2B:CF:...:B7:B7:85` | `61:12:DE:02:AD:DF:...:A5:12:99` |
+| KLotto645 | `91:AA:D9:E2:4E:BD:...:32:A5:EB:31` | 〃 (**두 앱이 업로드 키를 공유**) |
+
+**⛔ 키 관리 정책 (필수)**
+- 키스토어(`.jks`/`.keystore`)와 비밀번호는 **절대 git에 커밋하지 않는다.** `.gitignore`에 `*.jks`·`*.keystore`·`keystore.properties` 규칙이 있다.
+- 키스토어 실물은 **저장소 밖** `d:/DATA/20_Source/_secrets/` 에 두고, 경로·비밀번호는 `local.properties`(VCS 제외)로만 주입한다.
+- ⚠️ **과거 사고**: `user.keystore`가 이 저장소(공개)에 커밋돼 있었다. **업로드 키였고 두 앱 모두 Play 앱 서명에 등록**돼 있어 기기 서명은 Google 키이므로 사칭 설치·무단 배포 경로는 없었다(비밀번호는 공개되지 않음). 2026-07-29에 추적 해제 + `_secrets` 이전 + `.gitignore` 보강으로 정리했다.
+- 📌 **남은 권장 조치**: Console > 앱 서명 > **업로드 키 재설정 요청**으로 노출된 업로드 키를 교체(사용자 영향 0). 이때 **앱별로 다른 키**를 쓰면 한 앱의 문제가 다른 앱에 번지지 않는다.
+
+**신규 앱용 — 키스토어 새로 만들기**(CLI가 재현 가능해 권장. 저장 위치는 반드시 저장소 밖):
+```bash
+keytool -genkeypair -v \
+  -keystore d:/DATA/20_Source/_secrets/<앱>-upload.jks \
+  -alias <앱> -keyalg RSA -keysize 4096 -validity 10000 \
+  -dname "CN=KITWLSH, OU=Dev, O=KITWLSH, L=Seoul, C=KR"
+```
+- `validity 10000`(약 27년) — Google은 2033년 이후까지 유효할 것을 요구.
+- **이 파일과 비밀번호는 별도 백업**(클라우드·USB). Play 앱 서명에 등록해두면 업로드 키는 재설정할 수 있지만, 백업은 기본이다.
+
+### ② 릴리즈 빌드 실행 (현재 방식 — Gradle CLI)
+
+Android Studio GUI로 비밀번호를 매번 입력하는 대신, `local.properties`에서 서명 정보를 주입합니다.
+
+**`local.properties`에 필요한 4개 키** (이 파일은 `.gitignore` 처리됨):
+```properties
+release.store.file=d:/DATA/20_Source/_secrets/kitwlsh-upload.jks
+release.store.password=<스토어 비밀번호>
+release.key.alias=<별칭>
+release.key.password=<키 비밀번호>
+```
+> ⚠️ `.properties`에서 백슬래시(`\`)는 이스케이프 문자다. 경로는 **슬래시(`/`)** 또는 `\\`로 쓸 것.
+> 4개 중 하나라도 비면 `app/build.gradle.kts`의 `hasReleaseSigning` 가드가 `false`가 되어 **서명 없이 빌드**된다(다른 PC에서 클론해도 빌드가 깨지지 않게 한 장치).
+
+**빌드**:
+```bash
+./gradlew.bat :app:bundleRelease
+# 산출물: app/build/outputs/bundle/release/app-release.aab
+```
+
+**⚠️ 업로드 전 서명 검증**(서명 없는 AAB를 올리는 사고 방지):
+```bash
+keytool -printcert -jarfile app/build/outputs/bundle/release/app-release.aab
+```
+→ SHA-256이 위 표의 **업로드 키 지문**과 같아야 정상. `Not a signed jar file`이 나오면 `local.properties`의 4개 키를 확인한다.
 
 ---
 

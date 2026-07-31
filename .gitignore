@@ -8,3 +8,12 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# 서명 키 관련 — 절대 커밋 금지 (2026-07-29 추가)
+# 과거 user.keystore가 이 저장소(공개)에 커밋돼 있었다. 업로드 키였고 Play 앱 서명에
+# 등록돼 있어 사용자 피해 경로는 없었지만, 재발 방지를 위해 규칙을 명시한다.
+# 키스토어 실물은 저장소 밖(_secrets)에 두고 local.properties의 release.store.file로 참조한다.
+# 자세한 배경·정책 = doc/GOOGLE_PLAY_RELEASE_GUIDE.md
+*.jks
+*.keystore
+keystore.properties
