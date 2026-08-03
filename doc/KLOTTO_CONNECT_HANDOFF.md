@@ -151,7 +151,7 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 | 앱 | applicationId | 브랜드 아이콘 파일 | 한줄 소개 | Play 스토어(id=) | 출시상태 |
 |---|---|---|---|---|---|
 | KDailyUtil | `com.kitwlshcom.kdailyutil` | `ic_k_app_icon.png` | 데일리 라이프 유틸(뉴스/증시/오디오/퀴즈/배움터) | `com.kitwlshcom.kdailyutil` | **출시 v1.5(vc5, 2026-07-23)** (이전 v1.4/vc4 07-21) |
-| KLotto645 | `com.kitwlshCom.klotto645` | `ic_k_emblem_balls.png` | 로또 6/45 분석·생성 | `com.kitwlshCom.klotto645` | **라이브 v1.0.1(vc11, 2026-07-27 확인)** (v1.0.0/vc10 → 패치 릴리스) |
+| KLotto645 | `com.kitwlshCom.klotto645` | `ic_k_emblem_balls.png` | 로또 6/45 분석·생성 | `com.kitwlshCom.klotto645` | **라이브 v1.0.2(vc12, 2026-08-03 출시)** — §8 동적 레지스트리 **적용본** |
 | K장부 | `com.kitwlshcom.kjangbu` (확정, 소스 반영됨) | `ic_kjangbu.png` | AI 생활 기록·관리 장부(가계부·차계부·케어) | `com.kitwlshcom.kjangbu` | **출시 준비 중**(소스 v0.1.0/vc1) → 레지스트리 `active:true, comingSoon:true`(출시예정 카드). 출시되면 `comingSoon:false`만 수정 |
 | _(신규앱)_ | _(applicationId)_ | _(아이콘.png)_ | _(소개)_ | _(id 값)_ | _(예정/출시)_ |
 
@@ -179,7 +179,7 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 ## 8. 동적 레지스트리 (원격 구성) — ✅ 전 앱 구현 완료 (설계 2026-07-23 / 구현 2026-07-29)
 
 > ✅ **3개 앱 전부 구현 완료(2026-07-29)** — KDailyUtil·KLotto645·K장부의 자매앱 카드가 모두 **하드코딩이 아니라 원격 `family.json`으로 동적 렌더**된다. 호스팅 레포(`kitwlsh/k-series-config`)도 생성·업로드 완료(§8-11).
-> ⚠️ 단, 이 전환은 **각 앱이 한 번 배포돼야 효력이 생긴다**(KDailyUtil vc6/v1.6, KLotto645 vc12+, K장부는 첫 출시본부터). 그 이후로는 **신규 자매앱 추가에 어떤 앱도 재배포하지 않는다**(§8-9).
+> ⚠️ 단, 이 전환은 **각 앱이 한 번 배포돼야 효력이 생긴다**(KDailyUtil vc6/v1.6, **KLotto645 vc12/v1.0.2 — ✅ 2026-08-03 배포 완료**, K장부는 첫 출시본부터). 그 이후로는 **신규 자매앱 추가에 어떤 앱도 재배포하지 않는다**(§8-9).
 
 ### 8-1. 왜 (현재 §7 정적 방식의 한계)
 §7-1 레지스트리(패키지명·아이콘·소개·카드)가 **각 앱에 하드코딩** → 신규 자매앱 하나 추가에 **기존 모든 앱을 수정 + versionCode 상향 + 스토어 재심사**. 출시앱엔 매번 부담·지연.
@@ -235,10 +235,10 @@ Android 11+는 **설치감지(`getLaunchIntentForPackage`)/직접 실행**에 �
 | 앱 | 전환 상태 | 다음 배포 |
 |---|---|---|
 | **KDailyUtil** | ✅ **구현 완료(2026-07-29)** — Compose + Coil. **실기기 검증 10/10 통과(§8-12)** | vc6 / v1.6 |
-| **KLotto645** | ✅ **구현 완료(2026-07-29)** — XML/View. 이미지 라이브러리가 없어 `RemoteIconCache`(디스크 캐시 + `BitmapFactory`)를 직접 구현, **의존성 추가 없음** | vc12 / v1.0.2 이상 |
+| **KLotto645** | ✅ **구현 + 🚀 배포 완료(2026-08-03)** — XML/View. 이미지 라이브러리가 없어 `RemoteIconCache`(디스크 캐시 + `BitmapFactory`)를 직접 구현, **의존성 추가 없음**. 실기기/에뮬레이터 **T1~T10 전 항목 검증 통과** | **vc12 / v1.0.2 (라이브)** |
 | **K장부** | ✅ **구현 완료(2026-07-29)** — Compose + Coil. **첫 출시본(vc1)부터 동적** → 전환용 추가 배포가 애초에 없음 | 첫 출시(vc1) |
 
-> ⚠️ **전환은 배포돼야 효력이 생긴다.** 이미 게시된 KDailyUtil v1.5 / KLotto645 v1.0.1 사용자에게는 **각자 다음 업데이트가 깔릴 때까지** 예전 하드코딩 카드가 보인다(K장부 카드 없음). 그 이후로는 영구히 JSON만으로 관리된다.
+> ⚠️ **전환은 배포돼야 효력이 생긴다.** **KLotto645는 v1.0.2(2026-08-03)로 배포 완료** — 업데이트를 받은 사용자부터 동적 카드가 보인다. KDailyUtil v1.5 사용자에게는 다음 업데이트가 깔릴 때까지 예전 하드코딩 카드가 보인다(K장부 카드 없음). 그 이후로는 영구히 JSON만으로 관리된다.
 > ✅ **호스팅 레포는 생성·업로드 완료(2026-07-29)** — `kitwlsh/k-series-config` (§8-11).
 
 ### 8-7. 보안/신뢰
@@ -277,7 +277,7 @@ Android 11+는 **설치감지(`getLaunchIntentForPackage`)/직접 실행**에 �
 | 7 | 스토어 이동: `storeUrl`(화이트리스트) 우선 → `market://` → `https://` 폴백 | `openAppOrStore(ctx,pkg,storeUrl)` | 〃 | `AppLinkUtil.openAppOrStore(ctx,pkg,storeUrl)` |
 | 8 | 자기 자신 제외는 **`id` == 자기 applicationId** 비교로(하드코딩 금지) | `BuildConfig.APPLICATION_ID` | 〃 | 〃 |
 
-- **KLotto645는 이미지 라이브러리(Coil/Glide)가 없다** → 새 의존성을 넣지 않고 `RemoteIconCache`(cacheDir 저장 + `BitmapFactory` 디코드, 7일 TTL, 3MB 상한)로 처리했다. 실패 시 번들 아이콘을 그대로 둔다.
+- **KLotto645는 이미지 라이브러리(Coil/Glide)가 없다** → 새 의존성을 넣지 않고 `RemoteIconCache`(cacheDir 저장 + `BitmapFactory` 디코드, **1일 TTL**, 3MB 상한, `inSampleSize`로 256px 축소 디코드)로 처리했다. 실패 시 번들 아이콘을 그대로 둔다.
 - **K장부는 첫 출시본(vc1)부터 동적** — 전환용 추가 배포가 애초에 발생하지 않는다.
 - 자매앱 이름·소개 문구는 이제 레지스트리에서 오므로 **각 앱의 문자열 리소스에서 제거**했다(KLotto `about_sibling_*_name/desc`).
 
