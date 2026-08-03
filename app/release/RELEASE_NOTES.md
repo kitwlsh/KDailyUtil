@@ -1,7 +1,7 @@
 # 📱 KDailyUtil 릴리즈 노트 (Release Notes)
 
 > 업로드용 AAB는 같은 폴더의 `kdailyutil-v{버전}.aab` 파일입니다.
-> 최신: **`kdailyutil-v1.6.aab`** (versionCode 6 / versionName 1.6) — **⏳ 업로드 대기(2026-08-03 빌드)**.
+> 최신: **`kdailyutil-v1.6.aab`** (versionCode 6 / versionName 1.6) — **⏳ 2026-08-03 업로드 완료·Google Play 검토 중**.
 > 스토어 게시 이력: v1.5(vc5) 2026-07-23 · v1.4(vc4) 2026-07-21 · v1.2(vc3) 2026-07-08 · v1.1(vc2).
 > 버전 스킴: **versionName 끝자리 = versionCode** 로 맞춤(vc6=1.6, 이후 vc7=1.7…). versionCode는 정수만·증가만, versionName은 표시용 문자열.
 > 서명 검증 완료: 업로드 키 SHA-256 `61:12:DE:02:AD:DF:…:A5:12:99` (`keytool -printcert -jarfile`).

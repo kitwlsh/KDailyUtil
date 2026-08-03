@@ -170,7 +170,10 @@ keytool -printcert -jarfile app/build/outputs/bundle/release/app-release.aab
 3. **홍보 문구 (최대 140자 필수)**: 
    - *"Gemini AI를 활용해 일상을 더욱 스마트하고 윤택하게 만들어주는 K-시리즈 유틸리티와 프리미엄 라이프스타일 스마트 도구들을 개발합니다."*
 4. **대표 웹사이트**:
-   - 첫 메인 페이지가 비어 있는 경우 에러 페이지 노출로 심사 거절을 방지하기 위해, 실제 작동하는 개인정보처리방침 웹주소인 **`https://kitwlsh.netlify.app/privacy-kdailyutil`**를 대표 웹사이트 주소로 기입하시는 것이 안전합니다. (동일 주소 적용 통과 관례 적용)
+   - 첫 메인 페이지가 비어 있는 경우 에러 페이지 노출로 심사 거절을 방지하기 위해, 실제 작동하는 개인정보처리방침 웹주소를 대표 웹사이트 주소로 기입하는 것이 안전합니다.
+   - ⚠️ **현행 주소(2026-08-03 이전 완료)**: `https://kitwlsh.github.io/k-series-config/privacy-kdailyutil.html`
+     (모음 페이지 `https://kitwlsh.github.io/k-series-config/`)
+     예전 Netlify 주소(`kitwlsh.netlify.app/privacy-kdailyutil`)는 **404였다** — 문서에만 남아 있던 잘못된 값이라 폐기. 방침 관리 표준은 [KLOTTO_CONNECT_HANDOFF.md §9](KLOTTO_CONNECT_HANDOFF.md) 참조.
 
 ### ② 대한민국 개발자 추가 정보 필요란 (세부 법적 준수)
 * **대상 항목**: 사업자 등록 번호 / 전자상거래 라이선스 번호 / 전자상거래 라이선스 대행사

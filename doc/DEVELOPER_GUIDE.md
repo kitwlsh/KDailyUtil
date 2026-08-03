@@ -4,8 +4,9 @@
 > 최종 업데이트: 2026-07-29
 
 > ### 🚩 지금 상태 (신규 세션 필독)
-> - **v1.6 (versionCode 6) — ⏳ 2026-08-03 AAB 빌드 완료·업로드 대기.** 산출물 = [`app/release/kdailyutil-v1.6.aab`](../app/release/kdailyutil-v1.6.aab) (11,211,476 bytes, 업로드 키 서명 검증 완료). 소스 = v1.6([app/build.gradle.kts](../app/build.gradle.kts)). **현재 게시본 = v1.5(vc5, 07-23).** (이전 v1.4=vc4 07-21 / v1.2=vc3 07-08 / v1.1=vc2.)
+> - **v1.6 (versionCode 6) — ⏳ 2026-08-03 업로드 완료·Google Play 검토 중.** 산출물 = [`app/release/kdailyutil-v1.6.aab`](../app/release/kdailyutil-v1.6.aab) (11,211,476 bytes, 업로드 키 서명 검증 완료). 소스 = v1.6([app/build.gradle.kts](../app/build.gradle.kts)). **검토 통과 전까지 게시본 = v1.5(vc5, 07-23).** (이전 v1.4=vc4 07-21 / v1.2=vc3 07-08 / v1.1=vc2.) **다음 업로드는 vc7=1.7.**
 > - **v1.6 내용**: 자매앱 동적 레지스트리(§8) — 이 배포부터 실사용 시작. 출시 노트 문구 = [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md).
+> - **개인정보처리방침 URL 변경(2026-08-03)**: Netlify → **`https://kitwlsh.github.io/k-series-config/privacy-kdailyutil.html`** (Play Console 등록 완료). 원본 = [doc/privacy-kdailyutil.html](privacy-kdailyutil.html), 표준 = [KLOTTO_CONNECT_HANDOFF.md §9](KLOTTO_CONNECT_HANDOFF.md). ⚠️ **권한을 추가·제거하면 방침도 같은 커밋에서 고칠 것.**
 > - **버전 스킴**: versionName **끝자리 = versionCode**(vc5=1.5, 이후 vc6=1.6…). versionCode는 정수만·매 업로드 증가, versionName은 표시용 문자열(점 자유).
 > - **v1.5 AAB 빌드·업로드·출시 완료(2026-07-23 게시)**: [`app/release/kdailyutil-v1.5.aab`](../app/release/kdailyutil-v1.5.aab)(게시본 v1.4 이후 변경: 뉴스 AI 대화창+음성·마크다운·핸즈프리 / 증시 AI 포트폴리오 종합 분석 / 빠른독서 통계·난이도 / 이미지 퀴즈 Base64). 스토어 자산 그대로 사용 가능 — 앱 아이콘 512=`app/src/main/ic_launcher-playstore.png`, 그래픽 1024×500=[`doc/screenshot/feature_graphic_1024x500.png`](screenshot/feature_graphic_1024x500.png), 설명=[`doc/STORE_LISTING.md`](STORE_LISTING.md). **업로드 절차**: Play Console > 프로덕션 > 새 버전 > 이 AAB 업로드 + 출시노트(아래) 붙여넣기. ※ 새 기능 대비 STORE_LISTING 설명 갱신은 선택.
 >   - 출시노트/버전별 내역: [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md) (콘솔 '출시 노트'란 붙여넣기용 문구 포함).
@@ -529,7 +530,20 @@ com.kitwlshcom.kfamily1 ~ kfamily5   (여유 5개)
 
 > 최신 상태는 항상 `git log --oneline -20` 으로 확인. **v1.5(versionCode 5) 2026-07-23 출시 완료(현재 게시본 = v1.5)**(이전 게시본 v1.4=vc4 07-21, v1.2=vc3 07-08). **다음 배포 = vc6/v1.6** — 자매앱 동적 레지스트리(2026-07-29)가 배포돼야 실사용된다.
 
-**2026-07-29 세션 (자매앱 동적 레지스트리 §8 구현·3개 앱 이식·실기기 검증 — 커밋됨·미푸시)**
+**2026-08-03 세션 (v1.6 릴리즈·서명 키 정리·방침 3건 정비 — 전부 푸시됨)**
+| 커밋 | 내용 |
+|------|------|
+| (이번) | docs: v1.6 업로드·검토중 반영 + 낡은 Netlify 방침 URL 폐기 |
+| `17b0e6a` | docs(privacy): 음성 입력(STT)·자매앱 조회 조항 추가 + 방침 호스팅 표준(§9) |
+| `2ef8303` | release: v1.6(vc6) AAB + 출시 노트 + 원격 응답 본문 상한 256KB 보강 |
+| `f679b1e`·`96b8f9c` | chore(security): 키스토어를 저장소 밖(`_secrets`)으로 이전·추적 해제·`.gitignore` 보강 + 키 유지 결정 기록 |
+| `KLotto645 a45ae9c` | docs(privacy): 방침 신규 작성(기존은 웹사이트용 템플릿이라 카메라·앱이름 누락) |
+| `KJangbu bde79b6` | docs(privacy): 카메라 권한 문구를 실제 구현과 일치시킴 |
+| `k-series-config 2591ea5` | feat: 방침 3건 + 모음 index GitHub Pages 호스팅 |
+> **오늘 출시**: K장부 v1.0.0(vc1) 첫 출시·검토중 / KDailyUtil v1.6·검토중 / KLotto645 대기.
+> **K장부 게시 확인 후** `family.json`의 `comingSoon: true → false` 필요(§8-9).
+
+**2026-07-29 세션 (자매앱 동적 레지스트리 §8 구현·3개 앱 이식·실기기 검증 — 커밋·푸시 완료)**
 | 커밋 | 내용 |
 |------|------|
 | (이번) | docs: 검증 결과·진단 방법(§8-12) 반영 + 로그 문구 3앱 통일 |
