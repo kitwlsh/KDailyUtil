@@ -342,4 +342,40 @@ k-series-config/
 
 ---
 
-*이 문서는 KLotto645 세션이 작성, KDailyUtil 세션(2026-07-20)이 검토·회신(§6) + 신규앱 확장 표준(§7) 추가. 2026-07-23 KDailyUtil 세션이 **동적 레지스트리(원격 구성) 설계 §8** 추가. **2026-07-29 KDailyUtil 세션이 §8을 실제 구현**하고 이식 체크리스트(§8-10)·호스팅 절차(§8-11)를 확정했다. 이후 신규 자매앱은 §8-9(JSON 편집)로 편입하고, 아직 전환 안 한 앱은 §8-10으로 이식한다. 이 문서는 KDailyUtil/doc · KLotto645/doc · KJangbu/doc 에 동일 사본으로 유지한다.*
+## 9. 개인정보 처리방침 — 앱별 작성 + 공용 호스팅 (2026-08-03 정리)
+
+Play Console은 앱마다 **접근 가능한 방침 URL**을 요구한다. 자매앱이 늘어날수록 흩어지기 쉬워 여기에 표준을 고정한다.
+
+### 9-1. 원칙
+- **방침은 앱마다 따로 쓴다.** 앱이 요구하는 권한과 외부 전송 대상이 서로 달라, 한 문서를 돌려쓰면 사실과 어긋난다(= 정책 위반 소지).
+- **문구는 매니페스트의 실제 권한과 일치해야 한다.** 권한을 추가·제거하면 방침도 같은 커밋에서 고친다.
+- **원본은 각 앱 저장소 `doc/privacy-<앱>.html`**, 배포 사본은 `k-series-config` 레포. 둘을 함께 갱신한다.
+
+### 9-2. 호스팅 (GitHub Pages)
+`k-series-config` 레포 → Settings → Pages → Deploy from a branch → **`main` / root**.
+
+| 앱 | Play Console 등록 URL |
+|---|---|
+| KDailyUtil | `https://kitwlsh.github.io/k-series-config/privacy-kdailyutil.html` |
+| KLotto645 | `https://kitwlsh.github.io/k-series-config/privacy-klotto645.html` |
+| K장부 | `https://kitwlsh.github.io/k-series-config/privacy-kjangbu.html` |
+| 모음 페이지 | `https://kitwlsh.github.io/k-series-config/` |
+
+> **왜 Netlify에서 옮겼나**: 기존에는 앱마다 다른 Netlify 사이트에 손으로 올려 두어(`kdailyutil-privacy.netlify.app`, `kitwlsh.netlify.app/privacy`) **저장소 원본과 배포본이 어긋났고**, 문서에 적힌 URL(`kitwlsh.netlify.app/privacy-kdailyutil`)은 404였다. git을 단일 원본으로 두면 이 어긋남이 구조적으로 사라지고, `family.json`과 동일한 흐름(push = 반영)으로 관리된다.
+
+### 9-3. 각 앱 현황 (2026-08-03 전수 점검)
+| 앱 | 실제 권한 | 방침 상태 |
+|---|---|---|
+| KDailyUtil | INTERNET · CAMERA · RECORD_AUDIO · 알림 등 | ✅ **음성 입력(STT)·음성 출력(TTS) 조항 추가** — 마이크는 있었으나 v1.4~v1.5에 들어간 음성 질문 처리 설명이 빠져 있었다 |
+| KLotto645 | INTERNET · ACCESS_NETWORK_STATE · **CAMERA** · 알림 | ✅ **전면 재작성** — 기존 방침은 앱이 아니라 웹사이트 대상 자동생성 템플릿이라 앱 이름도 없고 카메라(QR 스캔) 설명이 없었으며 "계좌정보·게임제공" 같은 무관한 잔재가 남아 있었다 |
+| K장부 | INTERNET · 알림 **뿐** | ✅ **카메라 권한 문구 수정** — 권한을 요구한다고 적혀 있었으나 실제로는 시스템 카메라 앱 호출(`TakePicture`) 방식이라 권한이 없다 |
+
+### 9-4. 신규 자매앱 추가 시
+1. 해당 앱 저장소에 `doc/privacy-<앱>.html` 작성(다른 앱 문서를 복사하되 **권한·전송 대상을 실제에 맞게 전부 다시 확인**).
+2. `k-series-config`에 같은 파일을 올리고 `index.html` 목록에 한 줄 추가.
+3. Play Console > 앱 콘텐츠 > 개인정보처리방침에 위 URL 등록.
+4. **데이터 보안(Data safety) 양식은 방침과 내용이 일치**해야 한다(전송 대상·목적·삭제 가능 여부).
+
+---
+
+*이 문서는 KLotto645 세션이 작성, KDailyUtil 세션(2026-07-20)이 검토·회신(§6) + 신규앱 확장 표준(§7) 추가. 2026-07-23 KDailyUtil 세션이 **동적 레지스트리(원격 구성) 설계 §8** 추가. **2026-07-29 KDailyUtil 세션이 §8을 실제 구현**하고 이식 체크리스트(§8-10)·호스팅 절차(§8-11)를 확정했다. **2026-08-03 개인정보 처리방침 표준 §9 추가**(3개 앱 방침 정비 + 공용 호스팅 이전). 이후 신규 자매앱은 §8-9(JSON 편집)로 편입하고, 아직 전환 안 한 앱은 §8-10으로 이식한다. 이 문서는 KDailyUtil/doc · KLotto645/doc · KJangbu/doc 에 동일 사본으로 유지한다.*
