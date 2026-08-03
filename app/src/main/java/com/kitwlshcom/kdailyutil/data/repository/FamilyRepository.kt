@@ -41,6 +41,13 @@ object FamilyRepository {
     /** 레지스트리 오염/실수 대비 방어적 상한 */
     private const val MAX_APPS = 20
 
+    /**
+     * 응답 본문 상한. 이 JSON은 정상적으로 수 KB(현재 ~3.5KB)이므로 256KB면 충분히 넉넉하다.
+     * 무제한으로 읽으면 잘못된 응답 하나(오류 페이지·프록시 간섭 등)로 메모리를 다 쓸 수 있다.
+     * ⚠️ 상한은 **읽는 도중에** 적용해야 한다 — 다 읽은 뒤 크기를 검사하면 이미 메모리에 올라와 있다.
+     */
+    private const val MAX_BODY_BYTES = 256 * 1024
+
     /** 아는 스키마 버전. 더 높은 버전이 와도 아는 필드만 읽고 동작은 유지(전방 호환). */
     private const val SUPPORTED_SCHEMA_VERSION = 1
 
@@ -104,11 +111,29 @@ object FamilyRepository {
             connectTimeout = 5000
             readTimeout = 5000
         }
-        if (conn.responseCode == 200) {
-            conn.inputStream.bufferedReader().use { it.readText() }
-        } else {
-            Log.w(TAG, "원격 응답 코드 ${conn.responseCode}")
-            null
+        try {
+            if (conn.responseCode != 200) {
+                Log.w(TAG, "원격 응답 코드 ${conn.responseCode}")
+                null
+            } else {
+                // 상한을 넘으면 읽는 도중에 멈춘다(§8-7 방어적 상한).
+                val out = StringBuilder()
+                conn.inputStream.bufferedReader().use { reader ->
+                    val buf = CharArray(8 * 1024)
+                    while (true) {
+                        val n = reader.read(buf)
+                        if (n < 0) break
+                        if (out.length + n > MAX_BODY_BYTES) {
+                            Log.w(TAG, "원격 본문이 상한(${MAX_BODY_BYTES}B) 초과 — 폐기")
+                            return null
+                        }
+                        out.appendRange(buf, 0, n)
+                    }
+                }
+                out.toString()
+            }
+        } finally {
+            conn.disconnect()
         }
     } catch (e: Exception) {
         Log.e(TAG, "원격 로드 실패: ${e.message}")

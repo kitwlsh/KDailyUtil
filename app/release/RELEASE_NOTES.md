@@ -1,9 +1,51 @@
 # 📱 KDailyUtil 릴리즈 노트 (Release Notes)
 
 > 업로드용 AAB는 같은 폴더의 `kdailyutil-v{버전}.aab` 파일입니다.
-> 최신: **`kdailyutil-v1.5.aab`** (versionCode 5 / versionName 1.5) — **✅ 게시됨(2026-07-23)**.
-> 스토어 게시 이력: **v1.5(vc5) 게시됨(2026-07-23)** · v1.4(vc4) 2026-07-21 · v1.2(vc3) 2026-07-08 · v1.1(vc2). 
-> 버전 스킴: **versionName 끝자리 = versionCode** 로 맞춤(vc5=1.5, 이후 vc6=1.6…). versionCode는 정수만·증가만, versionName은 표시용 문자열.
+> 최신: **`kdailyutil-v1.6.aab`** (versionCode 6 / versionName 1.6) — **⏳ 업로드 대기(2026-08-03 빌드)**.
+> 스토어 게시 이력: v1.5(vc5) 2026-07-23 · v1.4(vc4) 2026-07-21 · v1.2(vc3) 2026-07-08 · v1.1(vc2).
+> 버전 스킴: **versionName 끝자리 = versionCode** 로 맞춤(vc6=1.6, 이후 vc7=1.7…). versionCode는 정수만·증가만, versionName은 표시용 문자열.
+> 서명 검증 완료: 업로드 키 SHA-256 `61:12:DE:02:AD:DF:…:A5:12:99` (`keytool -printcert -jarfile`).
+
+---
+
+## 📌 Google Play '출시 노트' 붙여넣기용 문구 — v1.6
+
+> Google Play Console > 프로덕션 > 새 버전 > **출시 노트(ko-KR)** 란에 아래 내용을 붙여넣으세요. (언어별 500자 제한)
+
+### ✅ 권장 (붙여넣기용)
+
+```
+같은 제작사의 다른 앱을 더 쉽게 만나보실 수 있게 했습니다.
+
+• 설정 > 앱정보 > '브랜드 & 자매앱'에서 K-시리즈 앱 목록을 확인하고 바로 설치하거나 열 수 있어요.
+• 새로운 자매앱이 나오면 앱 업데이트 없이도 목록에 자동으로 나타나요.
+• 인터넷이 안 되는 상황에서도 목록이 사라지지 않도록 처리했어요.
+
+이용해 주셔서 감사합니다!
+```
+
+### ✂️ 짧은 버전 (한 줄 요약형)
+
+```
+'브랜드 & 자매앱'에서 K-시리즈 앱을 바로 설치·실행할 수 있고, 새 자매앱이 나오면 앱 업데이트 없이 목록에 자동으로 반영됩니다.
+```
+
+### 🇺🇸 English (en-US, 선택)
+
+```
+Discover our other apps more easily.
+• Settings > App info > "Brand & Sister apps" now lists the K-series apps — install or open them in one tap.
+• New sister apps appear automatically, with no app update required.
+• The list stays visible even when you're offline.
+Thank you for using KDailyUtil!
+```
+
+### 🔧 내부 변경(출시 노트에는 넣지 않음)
+- 자매앱 목록을 원격 레지스트리(`family.json`)로 동적 렌더 — 신규 자매앱 추가 시 전 앱 재배포 불필요(표준 = `doc/KLOTTO_CONNECT_HANDOFF.md` §8).
+- 폴백 체인: 신선한 캐시(6h) → 원격 → last-good 캐시 → 번들 기본값. 실기기 검증 10/10 통과(§8-12).
+- 보안: 스토어/아이콘 URL 도메인 화이트리스트, 패키지명 형식 검증, 항목 상한 20, **응답 본문 상한 256KB**, 항목별 파싱 내구성, 자기 자신 제외.
+- `<queries>`에 미래 자매앱 예약 패키지 8개 선언(설치 감지·직접 실행용). `QUERY_ALL_PACKAGES` 미사용.
+- 서명 키 관리 정리: 키스토어를 저장소 밖(`_secrets`)으로 이전, git 추적 해제, `.gitignore` 보강.
 
 ---
 
