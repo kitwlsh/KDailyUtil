@@ -1,11 +1,12 @@
 # 🛠 KDailyUtil - 개발자 가이드 (Developer Context Guide)
 
 > **신규 세션 또는 AI 어시스턴트가 이 파일을 먼저 읽으면 프로젝트 전체 맥락을 즉시 파악할 수 있습니다.**
-> 최종 업데이트: 2026-07-29
+> 최종 업데이트: 2026-08-04
 
 > ### 🚩 지금 상태 (신규 세션 필독)
-> - **v1.6 (versionCode 6) — ⏳ 2026-08-03 업로드 완료·Google Play 검토 중.** 산출물 = [`app/release/kdailyutil-v1.6.aab`](../app/release/kdailyutil-v1.6.aab) (11,211,476 bytes, 업로드 키 서명 검증 완료). 소스 = v1.6([app/build.gradle.kts](../app/build.gradle.kts)). **검토 통과 전까지 게시본 = v1.5(vc5, 07-23).** (이전 v1.4=vc4 07-21 / v1.2=vc3 07-08 / v1.1=vc2.) **다음 업로드는 vc7=1.7.**
-> - **v1.6 내용**: 자매앱 동적 레지스트리(§8) — 이 배포부터 실사용 시작. 출시 노트 문구 = [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md).
+> - **v1.6 (versionCode 6) — 🎉 2026-08-04 Google Play 출시 완료·라이브.** 산출물 = [`app/release/kdailyutil-v1.6.aab`](../app/release/kdailyutil-v1.6.aab) (11,211,476 bytes, 업로드 키 서명 검증 완료). 소스 = v1.6([app/build.gradle.kts](../app/build.gradle.kts)). (이전 v1.5=vc5 07-23 / v1.4=vc4 07-21 / v1.2=vc3 07-08 / v1.1=vc2.) **다음 업로드는 vc7=1.7.**
+> - **v1.6 내용**: 자매앱 동적 레지스트리(§8) — **이 배포로 실사용 개시**. 출시 노트 문구 = [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md).
+> - **K-시리즈 배포 현황(2026-08-04)**: KDailyUtil **v1.6 라이브** · KLotto645 **v1.0.3(vc13) 라이브**(v1.0.2·v1.0.3 연속 출시) · K장부 **v1.0.0(vc1) 첫 출시 검토 중**. → **남은 일 = K장부 게시 확인 후 `k-series-config/family.json`의 K장부 `comingSoon: true → false`**(앱 재배포 불필요).
 > - **개인정보처리방침 URL 변경(2026-08-03)**: Netlify → **`https://kitwlsh.github.io/k-series-config/privacy-kdailyutil.html`** (Play Console 등록 완료). 원본 = [doc/privacy-kdailyutil.html](privacy-kdailyutil.html), 표준 = [KLOTTO_CONNECT_HANDOFF.md §9](KLOTTO_CONNECT_HANDOFF.md). ⚠️ **권한을 추가·제거하면 방침도 같은 커밋에서 고칠 것.**
 > - **버전 스킴**: versionName **끝자리 = versionCode**(vc5=1.5, 이후 vc6=1.6…). versionCode는 정수만·매 업로드 증가, versionName은 표시용 문자열(점 자유).
 > - **v1.5 AAB 빌드·업로드·출시 완료(2026-07-23 게시)**: [`app/release/kdailyutil-v1.5.aab`](../app/release/kdailyutil-v1.5.aab)(게시본 v1.4 이후 변경: 뉴스 AI 대화창+음성·마크다운·핸즈프리 / 증시 AI 포트폴리오 종합 분석 / 빠른독서 통계·난이도 / 이미지 퀴즈 Base64). 스토어 자산 그대로 사용 가능 — 앱 아이콘 512=`app/src/main/ic_launcher-playstore.png`, 그래픽 1024×500=[`doc/screenshot/feature_graphic_1024x500.png`](screenshot/feature_graphic_1024x500.png), 설명=[`doc/STORE_LISTING.md`](STORE_LISTING.md). **업로드 절차**: Play Console > 프로덕션 > 새 버전 > 이 AAB 업로드 + 출시노트(아래) 붙여넣기. ※ 새 기능 대비 STORE_LISTING 설명 갱신은 선택.
@@ -28,7 +29,7 @@
 - **패키지**: `com.kitwlshcom.kdailyutil`
 - **언어**: Kotlin (Jetpack Compose)
 - **최소 SDK**: 26 / 타겟 SDK: 36
-- **버전**: 소스 = versionCode 5 / versionName 1.5 · **현재 게시본 = vc5 / v1.5 (2026-07-23 출시)**. 스킴: versionName 끝자리 = versionCode(다음은 vc6=1.6).
+- **버전**: 소스 = versionCode 6 / versionName 1.6 · **현재 게시본 = vc6 / v1.6 (2026-08-04 출시)**. 스킴: versionName 끝자리 = versionCode(다음은 vc7=1.7).
 - **빌드 도구**: AGP 8.13.2, Kotlin 2.0.21
 - **GitHub**: `kitwlsh/KDailyUtil`
 - **로컬 경로**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil`
