@@ -6,7 +6,8 @@
 > ### 🚩 지금 상태 (신규 세션 필독)
 > - **🔴 2026-08-07 긴급 수정(미배포 — v1.7로 나가야 함)**: `GeminiManager`의 `gemini-2.5-flash` 하드코딩 제거. 이 모델은 **신규 사용자에게 404**(*"no longer available to new users"*)라서, **v1.6을 새로 설치해 자기 키를 넣은 사용자는 AI 13종이 전부 실패**한다. 기존 계정은 되기 때문에 개발 중엔 안 보인다. → 별칭 기본값(`gemini-flash-latest`) + 404 전용 폴백 + resolved 기억 + `family.json`의 `aiModel` 원격 지정. 전 기능이 `ask(prompt)` 한 곳을 통과한다. **라이브 사용자에게 영향 중이므로 v1.7 배포 우선순위 최상.**
 > - **AI 키 UX(2026-08-07)**: 키 형식 단정(`AIzaSy…`) 제거 · 첫 실행 안내 배너([ui/components/AiNotice.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/components/AiNotice.kt)) · 무료 등급 데이터 취급 고지(방침 제8조 + 앱 내) · `generateAiQuiz` 안내 누락 수정.
-> - **정책 근거는 K장부가 단일 기준**: `KJangbu/doc/AI_KEY_POLICY.md`(약관 실측·체험/킬스위치 설계·§9 방침 문안). 체험 20회·킬스위치는 **KDailyUtil 미구현** — 이식 시 AI 기능이 13종이라 총량 20회로는 부족하므로 **카테고리별 배분(뉴스/배움터/증시)** 을 검토할 것.
+> - **정책 근거는 K장부가 단일 기준**: `KJangbu/doc/AI_KEY_POLICY.md`(약관 실측·체험/킬스위치 설계·§9 방침 문안). KDailyUtil 쪽 현황·모델 실측표·**남은 일**은 → **[doc/AI_KEY_NOTES.md](AI_KEY_NOTES.md)** (신규 세션은 이것부터 읽으면 된다).
+> - **다음 세션 착수점**: ① **v1.7 릴리스**(vc6→7 상향 + AAB + 서명확인) ② 방침 배포 사본 교체(`k-series-config`, 앱 배포 무관·즉시 반영) ③ (선택) 체험·킬스위치 이식. 상세 = [AI_KEY_NOTES.md §4](AI_KEY_NOTES.md).
 > - **v1.6 (versionCode 6) — 🎉 2026-08-04 Google Play 출시 완료·라이브.** 산출물 = [`app/release/kdailyutil-v1.6.aab`](../app/release/kdailyutil-v1.6.aab) (11,211,476 bytes, 업로드 키 서명 검증 완료). 소스 = v1.6([app/build.gradle.kts](../app/build.gradle.kts)). (이전 v1.5=vc5 07-23 / v1.4=vc4 07-21 / v1.2=vc3 07-08 / v1.1=vc2.) **다음 업로드는 vc7=1.7.**
 > - **v1.6 내용**: 자매앱 동적 레지스트리(§8) — **이 배포로 실사용 개시**. 출시 노트 문구 = [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md).
 > - **K-시리즈 배포 현황(2026-08-04)**: KDailyUtil **v1.6 라이브** · KLotto645 **v1.0.3(vc13) 라이브**(v1.0.2·v1.0.3 연속 출시) · K장부 **v1.0.0(vc1) 첫 출시 검토 중**. → **남은 일 = K장부 게시 확인 후 `k-series-config/family.json`의 K장부 `comingSoon: true → false`**(앱 재배포 불필요).

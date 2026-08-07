@@ -1,14 +1,45 @@
 # 📱 KDailyUtil 릴리즈 노트 (Release Notes)
 
 > 업로드용 AAB는 같은 폴더의 `kdailyutil-v{버전}.aab` 파일입니다.
-> 최신: **`kdailyutil-v1.6.aab`** (versionCode 6 / versionName 1.6) — **⏳ 2026-08-03 업로드 완료·Google Play 검토 중**.
-> 스토어 게시 이력: v1.5(vc5) 2026-07-23 · v1.4(vc4) 2026-07-21 · v1.2(vc3) 2026-07-08 · v1.1(vc2).
+> 최신 게시본: **`kdailyutil-v1.6.aab`** (versionCode 6 / versionName 1.6) — ✅ **2026-08-04 출시·라이브**.
+> 스토어 게시 이력: **v1.6(vc6) 2026-08-04** · v1.5(vc5) 2026-07-23 · v1.4(vc4) 2026-07-21 · v1.2(vc3) 2026-07-08 · v1.1(vc2).
+> ⏳ **다음 = v1.7(vc7) — 코드 준비 완료·버전 미상향·AAB 미빌드.** 문구는 아래 'v1.7' 절 참고.
 > 버전 스킴: **versionName 끝자리 = versionCode** 로 맞춤(vc6=1.6, 이후 vc7=1.7…). versionCode는 정수만·증가만, versionName은 표시용 문자열.
 > 서명 검증 완료: 업로드 키 SHA-256 `61:12:DE:02:AD:DF:…:A5:12:99` (`keytool -printcert -jarfile`).
 
 ---
 
-## 📌 Google Play '출시 노트' 붙여넣기용 문구 — v1.6
+## 📌 Google Play '출시 노트' 붙여넣기용 문구 — v1.7 (⏳ 준비 중)
+
+> 🔴 **이 버전은 장애 수정이다.** v1.6을 **새로 설치**해 본인 Gemini 키를 등록한 사용자는
+> AI 기능 13종이 전부 실패한다(앱에 박혀 있던 `gemini-2.5-flash` 모델이 신규 사용자에게 닫힘 — 404).
+> 기존 사용자는 영향이 없어 개발 중엔 보이지 않았다. 상세 = [doc/AI_KEY_NOTES.md](../../doc/AI_KEY_NOTES.md).
+>
+> **릴리스 전 할 일**: `app/build.gradle.kts`의 versionCode 6→7 / versionName 1.6→"1.7" 상향 →
+> `./gradlew.bat :app:bundleRelease` → `keytool -printcert -jarfile`로 서명 확인 → `app/release/kdailyutil-v1.7.aab`로 복사.
+
+### ✅ 권장 (붙여넣기용)
+
+```
+AI 기능이 동작하지 않던 문제를 해결했습니다.
+
+• 앱을 새로 설치하고 AI 키를 등록했을 때 AI 요약·대화·퀴즈·글자 인식이 실패하던 문제를 수정했어요.
+• AI 키 발급 안내를 알아보기 쉽게 고쳤고, 첫 화면에서 바로 발급 방법을 볼 수 있어요.
+• 연결 테스트에서 어떤 AI 모델이 연결됐는지 확인할 수 있어요.
+• AI 키 없이 사용할 때의 안내 문구를 정리했습니다.
+
+이용해 주셔서 감사합니다!
+```
+
+### ✂️ 짧은 버전 (한 줄 요약형)
+
+```
+새로 설치한 기기에서 AI 기능이 동작하지 않던 문제를 해결하고, AI 키 발급 안내를 개선했습니다.
+```
+
+---
+
+## 📌 Google Play '출시 노트' 붙여넣기용 문구 — v1.6 (게시본)
 
 > Google Play Console > 프로덕션 > 새 버전 > **출시 노트(ko-KR)** 란에 아래 내용을 붙여넣으세요. (언어별 500자 제한)
 
