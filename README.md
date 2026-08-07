@@ -31,7 +31,8 @@
 | **퀴즈 시스템 워크스루** | [walkthrough_quiz_system.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/walkthrough_quiz_system.md) | KuizGenius 퀴즈 시스템 동작 흐름 워크스루(개발 참고) |
 | **전체 구현 계획 / 작업 현황** | [implementation_plan.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/implementation_plan.md) · [task.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/task.md) | 초기 설계 계획서 및 단계별 작업 체크리스트 |
 | **신규 자매앱 기획 — K운복** | [SISTER_APP_KUNBOK_PLAN.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/SISTER_APP_KUNBOK_PLAN.md) | K-시리즈 3번째 자매앱(AI 운세 'K운복') 기획 초안 — 네이밍/기능/재사용/법적·정책/§7 편입(기획 단계, 코드 미착수) |
-| **신규 자매앱 아이디어 백로그** | [SISTER_APP_IDEAS_BACKLOG.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/SISTER_APP_IDEAS_BACKLOG.md) | 향후 자매앱 후보·타당성 검토 모음 — 교통 브리핑 앱(API), 단톡 캡쳐 OCR 보조입력, 실시간 위치 소셜앱(헤비·기록만) + 우선순위 |
+| **신규 자매앱 아이디어 백로그** | [SISTER_APP_IDEAS_BACKLOG.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/SISTER_APP_IDEAS_BACKLOG.md) | 향후 자매앱 후보·타당성 검토 모음 — 교통 브리핑 앱(API), 인터넷 라디오, 실시간 위치 소셜앱(헤비·기록만), 블박 신고 도우미 + 우선순위(2026-08-07 갱신) |
+| **자매앱 검토 — 블박 신고 도우미** | [SISTER_APP_DASHCAM_REPORT_PLAN.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/SISTER_APP_DASHCAM_REPORT_PLAN.md) | 블랙박스 영상 → 증거 캡처·번호판 OCR → 안전신문고 신고 문안 작성 앱의 **타당성 검토**(⏸️ 착수 보류). 규제 실측 검증·출시 조건 7개·**AI 위반판별 배제 근거**·온디바이스 설계·미결사항 |
 | _(개인 메모)_ | 동전주전략_claude/gpt/jemini.md | 앱과 무관한 개인 투자 전략 메모 — 참고용, 앱 문서 아님 |
 
 ---
