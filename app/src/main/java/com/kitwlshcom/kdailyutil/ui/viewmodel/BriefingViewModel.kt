@@ -211,17 +211,18 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch(Dispatchers.Main) {
             _apiKeyStatus.value = ApiKeyStatus.Validating
             try {
-                // 사용자 제안 코드 적용: "Say Hello" 테스트
+                // GeminiManager.testConnection()에 위임한다. 이유 둘:
+                //  ① 실제로 어떤 모델이 통했는지 알려준다(모델 폴백이 있으므로 이 정보가 진단의 핵심).
+                //  ② 실패 사유를 키·권한·한도·모델로 구분해 안내한다.
+                // 예전에는 뉴스 브리핑 프롬프트(processAiCustomBriefing)로 검증해서
+                // 토큰도 더 쓰고 어느 모델이 잡혔는지도 알 수 없었다.
                 val gemini = GeminiManager(key)
-                val response = withContext(Dispatchers.IO) {
-                    gemini.processAiCustomBriefing("Say 'Hello' briefly.", emptyList<NewsItem>())
-                }
-                
-                if (response.isNotBlank() && !response.contains("오류")) {
+                val (ok, message) = gemini.testConnection()
+                if (ok) {
                     settingsRepository.setApiKeyValidated(true)
-                    _apiKeyStatus.value = ApiKeyStatus.Valid("✅ API 키가 유효합니다! 응답: $response")
+                    _apiKeyStatus.value = ApiKeyStatus.Valid(message)
                 } else {
-                    _apiKeyStatus.value = ApiKeyStatus.Invalid("⚠️ 응답이 비어있거나 올바르지 않습니다.")
+                    _apiKeyStatus.value = ApiKeyStatus.Invalid("❌ $message")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ API Key Validation Fail: ${e.message}", e)

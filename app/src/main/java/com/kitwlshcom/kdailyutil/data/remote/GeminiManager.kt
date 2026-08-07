@@ -79,10 +79,15 @@ class GeminiManager(private val apiKey: String?) {
             val m = modelOf(name) ?: return ""
             try {
                 val out = m.generateContent(prompt).text ?: ""
+                if (resolved != name) {
+                    // 진단용: `adb logcat -s GeminiModel` 로 어느 모델이 실제로 통했는지 확인한다.
+                    android.util.Log.d("GeminiModel", "✅ 모델 결정: $name (후보=${(listOfNotNull(resolved) + candidates()).distinct()})")
+                }
                 resolved = name
                 return out
             } catch (e: Exception) {
                 last = e
+                android.util.Log.w("GeminiModel", "⚠️ $name 실패(${if (isModelUnavailable(e)) "모델 없음 → 다음 후보" else "폴백 안 함"}): ${e.message}")
                 if (!isModelUnavailable(e)) throw e   // 모델 문제일 때만 폴백
             }
         }
