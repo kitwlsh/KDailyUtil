@@ -68,6 +68,14 @@ fun NewsBriefingScreen(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
+    // AI 키 미등록 안내 배너 — 키가 등록되면 자동으로 사라진다.
+    val geminiKey by viewModel.geminiApiKey.collectAsState()
+    val needsAiKey = geminiKey.isNullOrBlank()
+    var showAiKeyGuide by remember { mutableStateOf(false) }
+    if (showAiKeyGuide) {
+        com.kitwlshcom.kdailyutil.ui.components.AiKeyGuideDialog(onDismiss = { showAiKeyGuide = false })
+    }
+
     // 탭에서 바로 항목을 추가하는 '＋' 다이얼로그 (설정 화면과 동일한 저장 로직 재사용)
     var addTarget by remember { mutableStateOf<String?>(null) } // "category" | "stock" | "ai"
     var addText by remember { mutableStateOf("") }
@@ -217,6 +225,19 @@ fun NewsBriefingScreen(
                     .fillMaxSize()
                     .padding(horizontal = 12.dp)
             ) {
+                // 최초 설치 안내 — 키가 없을 때만. 지금까지는 설정에 들어가 보거나
+                // AI 기능을 한 번 실패해봐야 키가 필요한 걸 알 수 있었다.
+                if (needsAiKey) {
+                    com.kitwlshcom.kdailyutil.ui.components.AiKeyOnboardingBanner(
+                        onShowGuide = { showAiKeyGuide = true },
+                        onOpenSettings = {
+                            navController.navigate(
+                                com.kitwlshcom.kdailyutil.ui.navigation.NavScreen.MorningSettings.route
+                            )
+                        }
+                    )
+                }
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

@@ -3,6 +3,7 @@ package com.kitwlshcom.kdailyutil.ui.screens
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import com.kitwlshcom.kdailyutil.ui.components.GeminiDataNotice
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -857,16 +858,27 @@ fun MorningBriefingSettingsScreen(
                             Spacer(modifier = Modifier.height(6.dp))
                             Text("1. 아래 [무료 발급 사이트 이동] 버튼을 클릭합니다.", fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f))
                             Text("2. Google AI Studio에서 [Create API Key] 버튼을 누릅니다.", fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f))
-                            Text("3. 생성된 키(AIzaSy...)를 복사한 뒤, 설정창에 붙여넣고 [연결 테스트]를 진행하세요!", fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f))
+                            // ⚠️ 키 형식을 단정하지 않는다. 새로 발급되는 키는 예전 'AIzaSy…'(39자)가 아니라
+                            //    'AQ.Ab8…'(53자) 형태다. 형식을 적어두면 멀쩡한 키를 잘못된 키로 오해하게 만든다.
+                            Text("3. 생성된 키를 복사한 뒤, 설정창에 붙여넣고 [연결 테스트]를 진행하세요!", fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f))
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "※ 키 모양은 발급 시기에 따라 다릅니다. 복사한 키 전체를 그대로 붙여넣으면 됩니다.",
+                                fontSize = 11.sp,
+                                color = Color.White.copy(alpha = 0.55f)
+                            )
                         }
                     }
-                    
+
                     Text(
                         "⚠️ 주의: 발급받으신 API 키는 개인 기기에만 안전하게 암호화되어 저장되며, 외부로 절대 유출되지 않습니다.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.5f),
                         fontSize = 11.sp
                     )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    GeminiDataNotice()
                 }
             },
             confirmButton = {

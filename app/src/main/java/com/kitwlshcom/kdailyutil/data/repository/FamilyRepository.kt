@@ -5,6 +5,7 @@ import android.util.Log
 import com.kitwlshcom.kdailyutil.BuildConfig
 import com.kitwlshcom.kdailyutil.R
 import com.kitwlshcom.kdailyutil.data.model.FamilyApp
+import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -152,6 +153,10 @@ object FamilyRepository {
             if (schema > SUPPORTED_SCHEMA_VERSION) {
                 Log.w(TAG, "레지스트리 스키마 v$schema > 지원 v$SUPPORTED_SCHEMA_VERSION — 아는 필드만 읽음")
             }
+            // 원격 AI 모델 지정 — 모델이 막혀도 앱 재배포 없이 갈아끼우는 안전장치.
+            // 레지스트리를 읽는 모든 경로(신선캐시/원격/last-good/번들)에서 함께 반영된다.
+            applyAiModel(root)
+
             val arr = root.optJSONArray("apps") ?: return null
             val apps = ArrayList<FamilyApp>(arr.length())
             for (i in 0 until arr.length()) {
@@ -167,6 +172,29 @@ object FamilyRepository {
         } catch (e: Exception) {
             Log.e(TAG, "레지스트리 파싱 실패: ${e.message}")
             null
+        }
+    }
+
+    /**
+     * `aiModel`(문자열)을 [GeminiManager.preferredModel]에 반영한다.
+     *
+     * 배경: 모델을 버전으로 박아두면 그 버전이 신규 사용자에게 닫히는 순간 AI 기능이 전부 죽는다
+     * (`gemini-2.5-flash`가 실제로 그렇게 막혔다). 앱에는 별칭 + 404 폴백이 있지만,
+     * 그마저 안 통하는 상황이 오면 **JSON 한 줄로 전 사용자에게 새 모델을 지정**할 수 있어야 한다.
+     *
+     * 값이 없거나 형식이 수상하면 건드리지 않는다(앱 기본값 유지). 원격이 앱을 망가뜨리지 못하게.
+     */
+    private fun applyAiModel(root: JSONObject) {
+        val raw = root.optString("aiModel").trim()
+        if (raw.isEmpty()) return
+        // 모델 이름 형식 화이트리스트: 영숫자·하이픈·점만, 64자 이내 (URL·경로 주입 차단)
+        if (raw.length > 64 || !raw.matches(Regex("^[A-Za-z0-9.\\-]+$"))) {
+            Log.w(TAG, "aiModel 형식 부적격 — 무시: $raw")
+            return
+        }
+        if (GeminiManager.preferredModel != raw) {
+            GeminiManager.preferredModel = raw
+            Log.d(TAG, "🤖 원격 AI 모델 지정: $raw")
         }
     }
 

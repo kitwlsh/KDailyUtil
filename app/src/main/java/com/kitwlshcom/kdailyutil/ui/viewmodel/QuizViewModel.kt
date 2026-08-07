@@ -170,15 +170,24 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun generateAiQuiz(topic: String) {
+    /**
+     * 주제로 AI 퀴즈를 생성한다.
+     *
+     * @param onError 사용자에게 보여줄 사유(키 미등록·생성 실패 등). 호출부가 Toast/다이얼로그로 노출한다.
+     *
+     * ⚠️ 예전에는 키가 없으면 **안내 없이 조용히 기존 퀴즈를 시작**했다(`startQuiz()`).
+     * 사용자는 'AI 퀴즈 생성'을 눌렀는데 엉뚱한 일반 퀴즈가 시작돼 버그로 보였고,
+     * 다른 AI 기능 13곳이 전부 "설정에서 키를 등록해 주세요"를 안내하는 것과도 어긋났다.
+     */
+    fun generateAiQuiz(topic: String, onError: (String) -> Unit = {}) {
         viewModelScope.launch {
-            _quizState.value = QuizState.GENERATING
             val apiKey = settingsRepository.geminiApiKeyFlow.first()
             if (apiKey.isNullOrBlank()) {
-                // 에러 처리 (임시로 기존 퀴즈 시작)
-                startQuiz()
+                _quizState.value = QuizState.CATEGORY_SELECTION
+                onError("설정 > AI·키 에서 Gemini API Key를 먼저 등록해 주세요.")
                 return@launch
             }
+            _quizState.value = QuizState.GENERATING
 
             try {
                 val gemini = GeminiManager(apiKey)
@@ -217,8 +226,9 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                 resetHintState()
             } catch (e: Exception) {
                 Log.e("QuizViewModel", "❌ AI Quiz Generation Failed: ${e.message}", e)
-                // 에러 발생 시 초기 화면으로
+                // 에러 발생 시 초기 화면으로 — 사유는 사용자에게 알린다(조용히 삼키지 않는다)
                 _quizState.value = QuizState.CATEGORY_SELECTION
+                onError("AI 퀴즈를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.\n(${e.message})")
             }
         }
     }

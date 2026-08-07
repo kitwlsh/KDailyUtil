@@ -2,6 +2,7 @@ package com.kitwlshcom.kdailyutil.data.remote
 
 import com.google.ai.client.generativeai.Chat
 import com.google.ai.client.generativeai.GenerativeModel
+import com.google.ai.client.generativeai.type.Content
 import com.google.ai.client.generativeai.type.content
 import com.kitwlshcom.kdailyutil.data.model.NewsItem
 import kotlinx.coroutines.Dispatchers
@@ -12,12 +13,115 @@ private const val MAX_CHAT_HISTORY_MESSAGES = 16
 
 class GeminiManager(private val apiKey: String?) {
 
-    private val generativeModel by lazy {
-        apiKey?.let {
-            GenerativeModel(
-                modelName = "gemini-2.5-flash",
-                apiKey = it
-            )
+    companion object {
+        /**
+         * 기본 모델 — **버전 고정이 아니라 별칭**을 쓴다.
+         * 특정 버전을 박아두면 그 모델이 신규 사용자에게 닫히는 순간 앱이 죽는다.
+         */
+        const val DEFAULT_MODEL = "gemini-flash-latest"
+
+        /** 위에서부터 시도한다. 앞의 것이 404면 다음으로 넘어간다. */
+        val FALLBACK_MODELS = listOf(DEFAULT_MODEL, "gemini-3.5-flash", "gemini-2.0-flash")
+
+        /**
+         * 원격에서 지정한 모델(`family.json`의 `aiModel`).
+         * 앱이 자매앱 레지스트리를 읽을 때 채워진다 — 모델이 또 막혀도 **앱 재배포 없이** 갈아끼운다.
+         */
+        @Volatile var preferredModel: String? = null
+    }
+
+    val hasKey: Boolean get() = !apiKey.isNullOrBlank()
+
+    /**
+     * 🔴 **모델 이름을 하드코딩하지 않는다.**
+     *
+     * 예전엔 `gemini-2.5-flash`를 박아뒀는데, 2026-08 신규 계정에서
+     * *"This model is no longer available to new users"*(404)로 막혔다.
+     * 기존 계정은 계속 됐기 때문에 **새로 설치한 사람에게만 터지는** 형태였다
+     * (개발 중에는 보이지 않는다 — K장부에서 새 계정 키로 실측해 발견).
+     *
+     * 그래서 ① 버전이 아니라 **별칭**(`gemini-flash-latest`)을 기본으로 쓰고
+     * ② 404가 나면 다음 후보로 넘어가며 ③ 성공한 모델을 기억한다.
+     * ④ [preferredModel]로 **원격에서 갈아끼울 수 있다**(family.json — 재배포 불필요).
+     *
+     * ⚠️ ListModels 목록에 있어도 generateContent는 거부될 수 있다. 목록을 믿지 말고 실제 호출로 확인한다.
+     */
+    private fun candidates(): List<String> = buildList {
+        preferredModel?.takeIf { it.isNotBlank() }?.let { add(it) }
+        addAll(FALLBACK_MODELS)
+    }.distinct()
+
+    /** 이 인스턴스에서 실제로 통한 모델. 한 번 정해지면 계속 쓴다(매 호출 재탐색 방지). */
+    @Volatile private var resolved: String? = null
+
+    /** 마지막으로 성공한 모델 이름(연결 테스트 표시용). */
+    val resolvedModel: String? get() = resolved
+
+    private fun modelOf(name: String): GenerativeModel? =
+        apiKey?.takeIf { it.isNotBlank() }?.let { GenerativeModel(modelName = name, apiKey = it) }
+
+    /** 채팅 세션용 모델. 이미 통한 모델이 있으면 그것을, 없으면 첫 후보를 쓴다. */
+    private fun chatModel(): GenerativeModel? = modelOf(resolved ?: candidates().first())
+
+    /**
+     * 프롬프트 1건 실행 — **모든 AI 기능이 이 한 곳을 통과한다**(폴백이 전 기능에 적용되게).
+     * 모델이 사라졌으면(404 NOT_FOUND) 다음 후보로 넘어간다.
+     *
+     * ⚠️ 그 외 오류(키·한도·네트워크)는 **폴백하지 않고 그대로 던진다.**
+     * 폴백하면 같은 오류를 후보 수만큼 반복하고, 사용자에게 보여줄 사유도 흐려진다.
+     *
+     * @return 응답 텍스트. 키가 없으면 빈 문자열(호출부 가드가 먼저 걸러내는 게 정상 경로).
+     */
+    private suspend fun ask(prompt: Content): String {
+        if (!hasKey) return ""
+        var last: Exception? = null
+        for (name in (listOfNotNull(resolved) + candidates()).distinct()) {
+            val m = modelOf(name) ?: return ""
+            try {
+                val out = m.generateContent(prompt).text ?: ""
+                resolved = name
+                return out
+            } catch (e: Exception) {
+                last = e
+                if (!isModelUnavailable(e)) throw e   // 모델 문제일 때만 폴백
+            }
+        }
+        throw last ?: IllegalStateException("사용 가능한 Gemini 모델을 찾지 못했습니다.")
+    }
+
+    private fun isModelUnavailable(e: Exception): Boolean {
+        val m = (e.message ?: "") + (e.cause?.message ?: "")
+        return m.contains("NOT_FOUND", true) || m.contains("not found", true) ||
+            m.contains("no longer available", true) || m.contains("is not supported", true)
+    }
+
+    /** 기존 호출부의 `response?.text` 형태를 유지하기 위한 얇은 래퍼. 빈 응답은 null로 준다. */
+    private class AiResponse(val text: String)
+
+    private suspend fun askResponse(prompt: Content): AiResponse? =
+        ask(prompt).let { if (it.isBlank()) null else AiResponse(it) }
+
+    /**
+     * 키가 실제로 동작하는지 1회 호출로 확인한다. 어떤 모델이 잡혔는지도 함께 알려준다.
+     */
+    suspend fun testConnection(): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        if (!hasKey) return@withContext false to "API 키를 먼저 입력해 주세요."
+        return@withContext try {
+            val out = ask(content { text("한 단어로만 답해: OK") }).trim()
+            if (out.isBlank()) false to "응답이 비어 있습니다. 키를 다시 확인해 주세요."
+            else true to "✅ 연결 성공! (모델 ${resolved ?: "-"})"
+        } catch (e: Exception) {
+            val msg = e.message.orEmpty()
+            val hint = when {
+                msg.contains("API_KEY_INVALID", true) || msg.contains("API key not valid", true) ->
+                    "키가 올바르지 않습니다. AI Studio에서 복사한 키 전체를 붙여넣었는지 확인해 주세요."
+                msg.contains("PERMISSION", true) -> "이 키에 Gemini API 사용 권한이 없습니다. AI Studio에서 새 키를 만들어 보세요."
+                msg.contains("QUOTA", true) || msg.contains("RESOURCE_EXHAUSTED", true) ->
+                    "사용 한도를 초과했습니다. 잠시 뒤 다시 시도해 주세요."
+                isModelUnavailable(e) -> "사용 가능한 모델을 찾지 못했습니다. 앱 업데이트 후 다시 시도해 주세요."
+                else -> "연결에 실패했습니다: $msg"
+            }
+            false to hint
         }
     }
 
@@ -26,7 +130,7 @@ class GeminiManager(private val apiKey: String?) {
             return@withContext "브리핑할 뉴스가 없습니다. 키워드를 확인해 주세요."
         }
 
-        if (generativeModel == null || apiKey.isNullOrBlank()) {
+        if (!hasKey) {
             val mockSummary = StringBuilder("현재 API 키가 설정되지 않아 데모 모드로 브리핑을 진행합니다.\n\n")
             mockSummary.append("오늘의 주요 뉴스 제목입니다.\n")
             newsItems.forEachIndexed { index, item ->
@@ -42,7 +146,7 @@ class GeminiManager(private val apiKey: String?) {
                  newsItems.joinToString("\n") { "- ${it.title}: ${it.description}" })
         }
 
-        val response = generativeModel?.generateContent(prompt)
+        val response = askResponse(prompt)
         response?.text ?: "요약을 생성할 수 없습니다."
     }
 
@@ -50,7 +154,7 @@ class GeminiManager(private val apiKey: String?) {
      * 뉴스 웹페이지의 HTML에서 본문 텍스트만 추출합니다.
      */
     suspend fun extractArticleContent(htmlSnippet: String): String = withContext(Dispatchers.IO) {
-        if (generativeModel == null || apiKey.isNullOrBlank()) {
+        if (!hasKey) {
             return@withContext ""
         }
 
@@ -61,7 +165,7 @@ class GeminiManager(private val apiKey: String?) {
                  "데이터:\n$htmlSnippet")
         }
 
-        val response = generativeModel?.generateContent(prompt)
+        val response = askResponse(prompt)
         response?.text ?: ""
     }
     
@@ -69,7 +173,7 @@ class GeminiManager(private val apiKey: String?) {
      * 책 페이지 사진에서 본문 텍스트만 OCR로 추출합니다. (빠른 독서 훈련 지문용)
      */
     suspend fun extractTextFromImage(image: android.graphics.Bitmap): String = withContext(Dispatchers.IO) {
-        if (generativeModel == null || apiKey.isNullOrBlank()) return@withContext ""
+        if (!hasKey) return@withContext ""
         val prompt = content {
             image(image)
             text(
@@ -80,7 +184,7 @@ class GeminiManager(private val apiKey: String?) {
                 "설명·따옴표·마크다운 없이 본문만 출력하세요."
             )
         }
-        val out = (generativeModel?.generateContent(prompt)?.text ?: "").trim()
+        val out = (askResponse(prompt)?.text ?: "").trim()
         android.util.Log.d("GeminiOCR", "extractTextFromImage 결과 길이=${out.length}")
         out
     }
@@ -90,7 +194,7 @@ class GeminiManager(private val apiKey: String?) {
      * 반환 예: [{"question":"...","options":["a","b","c","d"],"answerIndex":0}, ...]
      */
     suspend fun generateComprehensionQuiz(passage: String, count: Int = 3): String = withContext(Dispatchers.IO) {
-        if (generativeModel == null || apiKey.isNullOrBlank()) return@withContext ""
+        if (!hasKey) return@withContext ""
         val prompt = content {
             text(
                 "다음 지문을 읽고 '내용 이해도'를 확인하는 4지선다 객관식 문제 ${count}개를 만들어 주세요. " +
@@ -100,7 +204,7 @@ class GeminiManager(private val apiKey: String?) {
                 "지문:\n$passage"
             )
         }
-        val response = generativeModel?.generateContent(prompt)
+        val response = askResponse(prompt)
         (response?.text ?: "").trim()
     }
 
@@ -108,7 +212,7 @@ class GeminiManager(private val apiKey: String?) {
      * 사용자의 맞춤형 뉴스 브리핑 명령을 처리합니다.
      */
     suspend fun processAiCustomBriefing(command: String, referenceNews: List<NewsItem>): String = withContext(Dispatchers.IO) {
-        if (generativeModel == null || apiKey.isNullOrBlank()) {
+        if (!hasKey) {
             return@withContext "API 키가 설정되지 않았습니다."
         }
 
@@ -121,7 +225,7 @@ class GeminiManager(private val apiKey: String?) {
                  "친절한 대화체로 작성해 주시고, 너무 길지 않게 핵심 위주로 요약해 주세요.")
         }
 
-        val response = generativeModel?.generateContent(prompt)
+        val response = askResponse(prompt)
         response?.text ?: "응답을 생성할 수 없습니다."
     }
 
@@ -139,7 +243,7 @@ class GeminiManager(private val apiKey: String?) {
         referenceNews: List<NewsItem>,
         priorMessages: List<Pair<Boolean, String>> = emptyList() // (isUser, text)
     ): Chat? {
-        val model = generativeModel ?: return null
+        val model = chatModel() ?: return null
         val contextText = buildString {
             append("당신은 개인 뉴스 비서입니다. 아래 '오늘의 뉴스 요약 목록'만 근거로 대화하세요.\n")
             append("• 목록에 없는 세부 사실은 추측하지 말고 '원문 확인이 필요하다'고 안내하세요.\n")
@@ -179,7 +283,7 @@ class GeminiManager(private val apiKey: String?) {
      */
     suspend fun generateQuizFromText(topic: String, count: Int = 5): String = withContext(Dispatchers.IO)
     {
-        if (generativeModel == null || apiKey.isNullOrBlank())
+        if (!hasKey)
         {
             return@withContext ""
         }
@@ -207,7 +311,7 @@ class GeminiManager(private val apiKey: String?) {
 
         return@withContext try
         {
-            val response = generativeModel?.generateContent(prompt)
+            val response = askResponse(prompt)
             val result = response?.text
             if (result.isNullOrBlank())
             {
@@ -270,7 +374,7 @@ class GeminiManager(private val apiKey: String?) {
         count: Int = 5
     ): String = withContext(Dispatchers.IO)
     {
-        if (generativeModel == null || apiKey.isNullOrBlank())
+        if (!hasKey)
         {
             return@withContext ""
         }
@@ -315,7 +419,7 @@ class GeminiManager(private val apiKey: String?) {
 
         return@withContext try
         {
-            val response = generativeModel?.generateContent(prompt)
+            val response = askResponse(prompt)
             val result = response?.text
             if (result.isNullOrBlank())
             {
@@ -340,7 +444,7 @@ class GeminiManager(private val apiKey: String?) {
         count: Int = 5
     ): String = withContext(Dispatchers.IO)
     {
-        if (generativeModel == null || apiKey.isNullOrBlank())
+        if (!hasKey)
         {
             return@withContext ""
         }
@@ -386,7 +490,7 @@ class GeminiManager(private val apiKey: String?) {
 
         return@withContext try
         {
-            val response = generativeModel?.generateContent(prompt)
+            val response = askResponse(prompt)
             val result = response?.text
             if (result.isNullOrBlank())
             {
@@ -409,7 +513,7 @@ class GeminiManager(private val apiKey: String?) {
         answer: String
     ): String = withContext(Dispatchers.IO)
     {
-        if (generativeModel == null || apiKey.isNullOrBlank())
+        if (!hasKey)
         {
             return@withContext ""
         }
@@ -433,7 +537,7 @@ class GeminiManager(private val apiKey: String?) {
 
         return@withContext try
         {
-            val response = generativeModel?.generateContent(prompt)
+            val response = askResponse(prompt)
             val result = response?.text ?: ""
             cleanJsonString(result)
         }
@@ -452,7 +556,7 @@ class GeminiManager(private val apiKey: String?) {
         correctAnswer: String,
         userAnswer: String
     ): Boolean = withContext(Dispatchers.IO) {
-        if (generativeModel == null || apiKey.isNullOrBlank()) {
+        if (!hasKey) {
             return@withContext false
         }
 
@@ -473,7 +577,7 @@ class GeminiManager(private val apiKey: String?) {
         }
 
         return@withContext try {
-            val response = generativeModel?.generateContent(prompt)
+            val response = askResponse(prompt)
             val result = response?.text ?: ""
             val cleaned = cleanJsonString(result)
             val obj = org.json.JSONObject(cleaned)
@@ -488,7 +592,7 @@ class GeminiManager(private val apiKey: String?) {
      * DART 정형 재무 JSON을 기반으로 어닝 서프라이즈 여부 판정 및 3줄 요약 Markdown을 생성합니다.
      */
     suspend fun verifyEarningsDisclosure(rawFinancialJson: String): String = withContext(Dispatchers.IO) {
-        if (generativeModel == null || apiKey.isNullOrBlank()) {
+        if (!hasKey) {
             return@withContext ""
         }
 
@@ -513,7 +617,7 @@ class GeminiManager(private val apiKey: String?) {
         }
 
         return@withContext try {
-            val response = generativeModel?.generateContent(prompt)
+            val response = askResponse(prompt)
             val result = response?.text ?: ""
             cleanJsonString(result)
         } catch (e: Exception) {
@@ -530,7 +634,7 @@ class GeminiManager(private val apiKey: String?) {
         consensusRevenue: String,
         consensusProfit: String
     ): String = withContext(Dispatchers.IO) {
-        if (generativeModel == null || apiKey.isNullOrBlank()) {
+        if (!hasKey) {
             return@withContext "API 키를 설정하면 AI 사전 전망 리포트를 생성할 수 있습니다."
         }
 
@@ -554,7 +658,7 @@ class GeminiManager(private val apiKey: String?) {
         }
 
         return@withContext try {
-            val response = generativeModel?.generateContent(prompt)
+            val response = askResponse(prompt)
             response?.text ?: "리포트를 생성할 수 없습니다."
         } catch (e: Exception) {
             android.util.Log.e("GeminiManager", "❌ generateExpectedEarningsReport error: ${e.message}", e)
@@ -570,7 +674,7 @@ class GeminiManager(private val apiKey: String?) {
         companyName: String,
         periodsText: String
     ): String = withContext(Dispatchers.IO) {
-        if (generativeModel == null || apiKey.isNullOrBlank()) {
+        if (!hasKey) {
             return@withContext "설정에서 Gemini API 키를 입력하면 추세 종합 AI 코멘트를 받을 수 있습니다."
         }
 
@@ -593,7 +697,7 @@ class GeminiManager(private val apiKey: String?) {
         }
 
         return@withContext try {
-            val response = generativeModel?.generateContent(prompt)
+            val response = askResponse(prompt)
             response?.text ?: "코멘트를 생성할 수 없습니다."
         } catch (e: Exception) {
             android.util.Log.e("GeminiManager", "❌ summarizeFinancialTrend error: ${e.message}", e)
@@ -606,7 +710,7 @@ class GeminiManager(private val apiKey: String?) {
      * @param portfolioText 종목별 최근 실적(매출/영업이익/순이익 + 전년동기%)을 사람이 읽을 수 있게 이어붙인 문자열.
      */
     suspend fun summarizePortfolio(portfolioText: String): String = withContext(Dispatchers.IO) {
-        if (generativeModel == null || apiKey.isNullOrBlank()) {
+        if (!hasKey) {
             return@withContext "설정에서 Gemini API 키를 입력하면 포트폴리오 종합 분석을 받을 수 있습니다."
         }
         val prompt = content {
@@ -630,7 +734,7 @@ class GeminiManager(private val apiKey: String?) {
             )
         }
         return@withContext try {
-            val response = generativeModel?.generateContent(prompt)
+            val response = askResponse(prompt)
             response?.text ?: "분석을 생성할 수 없습니다."
         } catch (e: Exception) {
             android.util.Log.e("GeminiManager", "❌ summarizePortfolio error: ${e.message}", e)

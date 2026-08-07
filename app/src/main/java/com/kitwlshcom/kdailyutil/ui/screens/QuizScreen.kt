@@ -567,7 +567,11 @@ fun QuizCategorySelectionScreen(viewModel: QuizViewModel)
                 Button(
                     onClick = {
                         if (aiTopic.isNotBlank()) {
-                            viewModel.generateAiQuiz(aiTopic)
+                            viewModel.generateAiQuiz(aiTopic) { msg ->
+                                android.widget.Toast
+                                    .makeText(context, msg, android.widget.Toast.LENGTH_LONG)
+                                    .show()
+                            }
                             showAiTopicDialog = false
                         }
                     },

@@ -16,6 +16,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitwlshcom.kdailyutil.audio.AudioCaptureService
 import com.kitwlshcom.kdailyutil.ui.MainScreen
@@ -33,11 +35,31 @@ class MainActivity : ComponentActivity() {
     // 알림 탭으로 요청된 증시 서브탭 (null = 요청 없음)
     private var navigateToStockSubTab by mutableStateOf<Int?>(null)
 
+    /**
+     * 앱 시작 시 원격 레지스트리(`family.json`)를 한 번 읽어 **AI 모델 원격 지정**을 반영한다.
+     *
+     * 자매앱 카드는 '브랜드 & 자매앱' 화면에서만 필요하지만, **AI 모델 지정은 그 화면과 무관하게
+     * 필요하다** — 모델이 막히면 AI 기능 전부가 죽고, 그때 사용자가 설정 화면에 들어가 줄 거라고
+     * 기대할 수 없다. 그래서 시작 시 한 번 읽는다.
+     *
+     * 비용은 거의 없다: 6시간 신선도 캐시가 있어 **대부분의 실행에서 네트워크를 타지 않고**,
+     * 타더라도 14KB 남짓이다. 실패해도 앱 기본값(별칭 + 404 폴백)으로 그냥 동작한다.
+     */
+    private fun primeRemoteConfig() {
+        lifecycleScope.launch {
+            runCatching {
+                com.kitwlshcom.kdailyutil.data.repository.FamilyRepository
+                    .loadSisterApps(applicationContext)
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         
         checkAndRequestPermissions()
+        primeRemoteConfig()
         startAutoBriefing = intent.getBooleanExtra("START_AUTO_BRIEFING", false)
         navigateToStockSubTab = if (intent.getStringExtra("NAVIGATE_TO") == "stock")
             intent.getIntExtra("STOCK_SUBTAB", 1) else null
