@@ -31,9 +31,9 @@
       "iconUrl": "https://raw.githubusercontent.com/kitwlsh/k-series-config/main/icons/kjangbu.png",
       "storeUrl": "https://play.google.com/store/apps/details?id=com.kitwlshcom.kjangbu",
       "active": true,
-      "comingSoon": true,
+      "comingSoon": false,
       "order": 3,
-      "_note": "스토어 출시 즉시 comingSoon=false로만 바꾸면 전 앱에서 활성 카드가 된다(재배포 불필요)."
+      "_note": "2026-08-07 Play 스토어 출시 완료 → comingSoon=false로 전환(앱 재배포 없이 전 앱에서 활성 카드)."
     },
     {
       "id": "com.kitwlshcom.kunbok",

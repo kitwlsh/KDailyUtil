@@ -31,9 +31,9 @@
       "iconUrl": "https://raw.githubusercontent.com/kitwlsh/k-series-config/main/icons/kjangbu.png",
       "storeUrl": "https://play.google.com/store/apps/details?id=com.kitwlshcom.kjangbu",
       "active": true,
-      "comingSoon": true,
+      "comingSoon": false,
       "order": 3,
-      "_note": "스토어 출시 즉시 comingSoon=false로만 바꾸면 전 앱에서 활성 카드가 된다(재배포 불필요)."
+      "_note": "2026-08-07 출시 완료. 이 번들값은 원격·캐시 모두 불가할 때(첫 실행 오프라인)만 쓰이며, v1.7부터 반영된다."
     },
     {
       "id": "com.kitwlshcom.kunbok",
