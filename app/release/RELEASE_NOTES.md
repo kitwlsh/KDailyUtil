@@ -3,20 +3,27 @@
 > 업로드용 AAB는 같은 폴더의 `kdailyutil-v{버전}.aab` 파일입니다.
 > 최신 게시본: **`kdailyutil-v1.6.aab`** (versionCode 6 / versionName 1.6) — ✅ **2026-08-04 출시·라이브**.
 > 스토어 게시 이력: **v1.6(vc6) 2026-08-04** · v1.5(vc5) 2026-07-23 · v1.4(vc4) 2026-07-21 · v1.2(vc3) 2026-07-08 · v1.1(vc2).
-> ⏳ **다음 = v1.7(vc7) — 코드 준비 완료·버전 미상향·AAB 미빌드.** 문구는 아래 'v1.7' 절 참고.
+> ⏳ **다음 = v1.7(vc7) — 🔨 AAB 빌드·서명 확인 완료(2026-08-10). Play Console 업로드만 남음.** 문구는 아래 'v1.7' 절.
 > 버전 스킴: **versionName 끝자리 = versionCode** 로 맞춤(vc6=1.6, 이후 vc7=1.7…). versionCode는 정수만·증가만, versionName은 표시용 문자열.
 > 서명 검증 완료: 업로드 키 SHA-256 `61:12:DE:02:AD:DF:…:A5:12:99` (`keytool -printcert -jarfile`).
+> ⚠️ `keytool`이 **"SHA1withRSA는 보안 위험"** 경고를 낸다 — 인증서 자체의 서명 알고리즘 문제이며 v1.0부터 쓰던 **동일 업로드 키**다. Play는 이 키로 계속 수락해 왔고(업로드 키일 뿐, 기기 설치 서명은 Google 앱 서명 키), 키 교체는 하지 않기로 결정된 사항이다.
 
 ---
 
-## 📌 Google Play '출시 노트' 붙여넣기용 문구 — v1.7 (⏳ 준비 중)
+## 📌 Google Play '출시 노트' 붙여넣기용 문구 — v1.7 (⏳ 업로드 대기)
 
 > 🔴 **이 버전은 장애 수정이다.** v1.6을 **새로 설치**해 본인 Gemini 키를 등록한 사용자는
 > AI 기능 13종이 전부 실패한다(앱에 박혀 있던 `gemini-2.5-flash` 모델이 신규 사용자에게 닫힘 — 404).
 > 기존 사용자는 영향이 없어 개발 중엔 보이지 않았다. 상세 = [doc/AI_KEY_NOTES.md](../../doc/AI_KEY_NOTES.md).
 >
-> **릴리스 전 할 일**: `app/build.gradle.kts`의 versionCode 6→7 / versionName 1.6→"1.7" 상향 →
-> `./gradlew.bat :app:bundleRelease` → `keytool -printcert -jarfile`로 서명 확인 → `app/release/kdailyutil-v1.7.aab`로 복사.
+> **빌드 완료(2026-08-10)** — `kdailyutil-v1.7.aab` (11,225,423 bytes)
+> · versionCode 7 / versionName 1.7 (병합 매니페스트에서 확인)
+> · 서명 SHA-256 `61:12:DE:02:AD:DF:…:A5:12:99` — v1.6과 동일 업로드 키
+> · 권장 문구 길이 **249자** (Play 언어별 한도 500자)
+>
+> **남은 것 = Play Console 업로드.** 그때 ⚠️ **앱 콘텐츠 > 데이터 안전** 양식이 새 방침 제8조
+> (무료 등급에서 Google이 제품 개선에 이용·사람이 검토 가능)와 일치하는지 대조할 것 —
+> 방침과 양식이 어긋나면 정책 위반이다. 상세 = [doc/AI_KEY_NOTES.md](../../doc/AI_KEY_NOTES.md) §4-2b.
 
 ### ✅ 권장 (붙여넣기용)
 
