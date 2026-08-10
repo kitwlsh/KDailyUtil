@@ -69,12 +69,26 @@
 3. `app/release/kdailyutil-v1.7.aab`로 복사(git 추적) · 출시 노트 = [RELEASE_NOTES.md](../app/release/RELEASE_NOTES.md) 'v1.7' 절
 4. 절차 상세 = [GOOGLE_PLAY_RELEASE_GUIDE.md](GOOGLE_PLAY_RELEASE_GUIDE.md)
 
+### 4-1c. ⚠️ `aiModel` 원격 교체 — **배선만 있고 실전 미검증** (v1.7 배포 후 할 것)
+`FamilyRepository.applyAiModel`이 `family.json`의 `aiModel`을 읽지만, **정본·번들·호스팅 세 파일 어디에도 `aiModel` 키가 없다.** 없으면 기본값(`gemini-flash-latest`)을 쓰므로 지금 동작은 정상이다.
+
+문제는 **이 비상 레버를 한 번도 당겨본 적이 없다**는 것이다. 다음에 또 모델이 막히면 그때 처음 시험하게 된다 — 급할 때 처음 쓰는 장치는 위험하다.
+
+> **v1.7 배포 후** 호스팅 `family.json`에 `"aiModel": "gemini-3.5-flash"` 를 한 줄 넣고
+> `adb logcat -s GeminiModel` 에서 `✅ 모델 결정: gemini-3.5-flash` 가 찍히는지 확인 → 확인 후 그 줄을 되돌린다.
+> **v1.6에는 이 배선이 없으므로 배포 전에는 검증 불가.** 캐시가 6시간이라 즉시 보려면 설정 > 브랜드 & 자매앱 > 🔄 새로고침.
+
 ### 4-1b. ✅ `k-series-config` 반영 — **완료(2026-08-10)**
 **K장부가 2026-08-10 출시**되어 `comingSoon: true→false` 전환을 **정본·번들에 반영**했다.
 호스팅 레포에 커밋·푸시했고 라이브 URL에서 `comingSoon:false` 응답을 확인했다. 사용자 화면은 앱 6시간 캐시라 즉시 보려면 설정 > 브랜드 & 자매앱 > 🔄 새로고침.
 
-### 4-2. 방침 배포 사본 교체 (앱 배포와 무관 — 지금 가능)
-원본 `doc/privacy-kdailyutil.html`은 수정됐다(개정일자 2026-08-07). **배포본은 `k-series-config` GitHub Pages**라 그쪽 사본을 갱신하면 **즉시 라이브**가 된다. 현재 게시본 v1.6에도 해당되는 내용이므로 **v1.7보다 먼저 해도 된다.**
+### 4-2. ✅ 방침 배포 사본 교체 — **완료(2026-08-10)**
+원본 `doc/privacy-kdailyutil.html`(개정일자 2026-08-07)을 **배포본 `k-series-config`에 반영**했다(커밋 `7c6abd4`, 푸시됨). GitHub Pages라 앱 배포와 무관하게 즉시 라이브. 게시본 v1.6에도 해당되는 내용이라 v1.7보다 먼저 처리했다.
+
+> ⚠️ 복사 시 **줄바꿈을 CRLF로 변환**했다 — 호스팅 레포의 방침 3종이 모두 CRLF인데 원본은 LF라, 그냥 복사하면 전체 파일이 diff로 잡혀 실제 변경을 검토할 수 없다. `sed 's/$/\r/'`로 변환하니 diff가 5+/4-로 줄었다.
+
+### 4-2b. ⚠️ Play Console '데이터 안전' 양식 대조 (v1.7 업로드 시)
+방침 제8조에 **"무료 등급에서는 Google이 제품 개선에 사용할 수 있고 사람이 검토할 수 있다"** 를 새로 명시했다. Play Console의 **앱 콘텐츠 > 데이터 안전** 양식은 방침과 **별개로** 관리되며, **둘이 어긋나면 정책 위반**이다. 텍스트·사진이 제3자(Google AI)로 전송되는 사실과 그 목적이 양식에 반영돼 있는지 확인할 것. (방침만 고치고 양식을 잊는 것이 흔한 함정.)
 
 ### 4-3. 체험 + 킬스위치 (선택 · 미구현)
 K장부에 **구현·검증 완료**돼 있다(`core/ai/AiKeyProvider.kt` · `PrefsStore.aiTrialUsed` · `FamilyRegistry.loadAiTrialConfig`). KDailyUtil로 이식할 때 그대로 쓸 수 없는 부분:

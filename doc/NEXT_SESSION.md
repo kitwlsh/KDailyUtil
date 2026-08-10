@@ -40,11 +40,19 @@
 5. Play Console 업로드 + 출시노트 붙여넣기 — **문구는 이미 써 뒀다** → [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md) 'v1.7' 절
 
 > 위험도 낮음. 코드·실기기 검증 완료, 출시노트 준비됨. **버전 올리고 빌드해서 올리는 일만 남았다.**
+> v1.6 이후 코드 변경은 **AI 수정 2건 + 자매앱 카드 1건, 총 3건뿐**이다(나머지 커밋은 전부 문서) — 그래서 위험이 낮다.
 > 상세 배경 = [`doc/AI_KEY_NOTES.md`](AI_KEY_NOTES.md)
+
+### 업로드할 때 / 배포 후에 같이 할 것
+- ⚠️ **Play Console > 앱 콘텐츠 > 데이터 안전** 양식이 새 방침(제8조)과 일치하는지 대조 → [`AI_KEY_NOTES.md`](AI_KEY_NOTES.md) §4-2b
+- ⚠️ **배포 후 `aiModel` 원격 교체를 실제로 한 번 시험** — "앱 재배포 없이 모델 교체" 배선은 코드에만 있고 세 `family.json` 어디에도 `aiModel` 키가 없어 **한 번도 당겨본 적 없는 비상 레버**다 → [`AI_KEY_NOTES.md`](AI_KEY_NOTES.md) §4-1c
 
 ---
 
-## 🟡 할 일 2 — 개인정보처리방침 배포본 교체 **(5분, 앱 배포와 무관)**
+## ✅ 할 일 2 — 개인정보처리방침 배포본 교체 — **완료(2026-08-10)**
+
+> `k-series-config` 커밋 `7c6abd4` 푸시 완료. 아래는 무엇을·왜 바꿨는지 기록으로 남긴 것이다.
+> ⚠️ **남은 확인 1건**: Play Console **앱 콘텐츠 > 데이터 안전** 양식이 이 방침과 일치하는지 대조해야 한다(v1.7 업로드 시). 방침과 양식이 어긋나면 정책 위반이다 — 상세 = [`AI_KEY_NOTES.md`](AI_KEY_NOTES.md) §4-2b.
 
 ### 쉽게 말하면
 **"AI에 보낸 내용이 어떻게 쓰이는지"를 방침에 정확히 적어야 한다.**
@@ -54,19 +62,22 @@
 ### 왜 지금
 사용자가 직접 발급하는 키도 **대부분 무료 등급**이라, **지금 스토어에 있는 v1.6에도 이미 해당된다.** 그리고 방침은 웹페이지라서 **앱 배포와 상관없이 지금 바꾸면 즉시 반영**된다. → **v1.7보다 먼저 해도 되고, 그게 낫다.**
 
-### 할 일
+### 어떻게 했나 (다음에 방침 고칠 때 그대로 재사용)
 KDailyUtil 저장소의 수정본을 호스팅 저장소에 복사해서 커밋·푸시하면 끝이다.
+단, **`cp`를 그냥 쓰면 안 된다** — 호스팅 레포의 방침 3종은 **CRLF**, KDailyUtil 원본은 **LF**라서
+그대로 복사하면 **파일 전체가 diff로 잡혀 실제 변경을 검토할 수 없다.** 변환해서 복사한다.
 
 ```bash
-cp  d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/privacy-kdailyutil.html \
-    d:/DATA/20_Source/80_Git_HUB/k-series-config/k-series-config/privacy-kdailyutil.html
-cd  d:/DATA/20_Source/80_Git_HUB/k-series-config/k-series-config
-git add privacy-kdailyutil.html && git commit -m "docs: KDailyUtil 방침 제8조 — 요금제 등급별 데이터 취급 명시" && git push
+cd d:/DATA/20_Source/80_Git_HUB/k-series-config/k-series-config
+sed 's/$/\r/' d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/privacy-kdailyutil.html \
+  > privacy-kdailyutil.html
+git diff --stat          # ← 몇 줄만 바뀌어야 정상 (이번엔 5+/4-)
+git add privacy-kdailyutil.html && git commit -m "docs: …" && git push
 ```
 
 확인: <https://kitwlsh.github.io/k-series-config/privacy-kdailyutil.html> (제8조)
 
-> 앱 안에는 이미 같은 고지가 들어가 있다(v1.7부터 보임). **웹 방침만 아직 옛 문구다.**
+> 앱 안에는 이미 같은 고지가 들어가 있다(v1.7부터 보임).
 
 ---
 

@@ -2,7 +2,7 @@
   "_readme": "K-시리즈 자매앱 동적 레지스트리(정본). 표준 = KLOTTO_CONNECT_HANDOFF.md §8. 배포 위치 = https://raw.githubusercontent.com/kitwlsh/k-series-config/main/family.json — 각 앱이 실행 시 받아 '브랜드 & 자매앱' 카드를 동적 렌더한다. 신규 자매앱 추가/출시상태 변경은 이 파일만 고치면 전 앱에 즉시 반영된다(앱 재배포 불필요).",
   "_rules": "① id = applicationId 대소문자 그대로 ② active=false는 카드 완전 숨김(기획 단계) ③ comingSoon=true는 '출시 예정' 비활성 카드(미출시) ④ storeUrl은 play.google.com/market: 만 허용 ⑤ iconUrl은 https + githubusercontent.com/github.io 만 허용 ⑥ 이 파일의 사본을 각 앱이 번들 기본값으로 포함(KDailyUtil = app/src/main/res/raw/family.json).",
   "version": 1,
-  "updatedAt": "2026-07-29",
+  "updatedAt": "2026-08-10",
   "apps": [
     {
       "id": "com.kitwlshcom.kdailyutil",
