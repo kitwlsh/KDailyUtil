@@ -10,7 +10,7 @@
 > - **다음 세션 착수점**: ① **v1.7 릴리스**(vc6→7 상향 + AAB + 서명확인) ② 방침 배포 사본 교체(`k-series-config`, 앱 배포 무관·즉시 반영) ③ (선택) 체험·킬스위치 이식. 상세 = [AI_KEY_NOTES.md §4](AI_KEY_NOTES.md).
 > - **v1.6 (versionCode 6) — 🎉 2026-08-04 Google Play 출시 완료·라이브.** 산출물 = [`app/release/kdailyutil-v1.6.aab`](../app/release/kdailyutil-v1.6.aab) (11,211,476 bytes, 업로드 키 서명 검증 완료). 소스 = v1.6([app/build.gradle.kts](../app/build.gradle.kts)). (이전 v1.5=vc5 07-23 / v1.4=vc4 07-21 / v1.2=vc3 07-08 / v1.1=vc2.) **다음 업로드는 vc7=1.7.**
 > - **v1.6 내용**: 자매앱 동적 레지스트리(§8) — **이 배포로 실사용 개시**. 출시 노트 문구 = [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md).
-> - **🎉 K-시리즈 배포 현황(2026-08-07) — 3개 앱 전부 라이브**: KDailyUtil **v1.6(vc6)** · KLotto645 **v1.0.3(vc13)** · K장부 **v1.0.0(vc1, 08-07 출시)**. 자매앱 동적 레지스트리(§8)가 **전 앱에서 실효** — 이후 신규 자매앱 추가에 어떤 앱도 재배포하지 않는다.
+> - **🎉 K-시리즈 배포 현황(2026-08-10) — 3개 앱 전부 라이브**: KDailyUtil **v1.6(vc6)** · KLotto645 **v1.0.3(vc13)** · K장부 **v1.0.0(vc1, 08-10 출시)**. 자매앱 동적 레지스트리(§8)가 **전 앱에서 실효** — 이후 신규 자매앱 추가에 어떤 앱도 재배포하지 않는다.
 >   - K장부 출시로 `comingSoon: true→false` 전환을 **정본**([doc/family_config/family.json](family_config/family.json))과 **번들 폴백**(`app/src/main/res/raw/family.json`)에 반영했다. ⏳ **`kitwlsh/k-series-config` 레포 반영은 수동으로 해야 라이브에 보인다**(절차 = [family_config/README.md](family_config/README.md) §3).
 > - **개인정보처리방침 URL 변경(2026-08-03)**: Netlify → **`https://kitwlsh.github.io/k-series-config/privacy-kdailyutil.html`** (Play Console 등록 완료). 원본 = [doc/privacy-kdailyutil.html](privacy-kdailyutil.html), 표준 = [KLOTTO_CONNECT_HANDOFF.md §9](KLOTTO_CONNECT_HANDOFF.md). ⚠️ **권한을 추가·제거하면 방침도 같은 커밋에서 고칠 것.**
 > - **버전 스킴**: versionName **끝자리 = versionCode**(vc5=1.5, 이후 vc6=1.6…). versionCode는 정수만·매 업로드 증가, versionName은 표시용 문자열(점 자유).

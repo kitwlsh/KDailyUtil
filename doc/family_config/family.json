@@ -33,7 +33,7 @@
       "active": true,
       "comingSoon": false,
       "order": 3,
-      "_note": "2026-08-07 Play 스토어 출시 완료 → comingSoon=false로 전환(앱 재배포 없이 전 앱에서 활성 카드)."
+      "_note": "2026-08-10 Play 스토어 출시 완료 → comingSoon=false로 전환(앱 재배포 없이 전 앱에서 활성 카드)."
     },
     {
       "id": "com.kitwlshcom.kunbok",

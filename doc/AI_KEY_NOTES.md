@@ -69,9 +69,9 @@
 3. `app/release/kdailyutil-v1.7.aab`로 복사(git 추적) · 출시 노트 = [RELEASE_NOTES.md](../app/release/RELEASE_NOTES.md) 'v1.7' 절
 4. 절차 상세 = [GOOGLE_PLAY_RELEASE_GUIDE.md](GOOGLE_PLAY_RELEASE_GUIDE.md)
 
-### 4-1b. ⭐ `k-series-config` 레포에 `family.json` 반영 (앱 배포와 무관 — 지금 가능)
-**K장부가 2026-08-07 출시**되어 `comingSoon: true→false` 전환을 **정본·번들에 반영**했다.
-⚠️ 하지만 **앱이 실제로 읽는 것은 `kitwlsh/k-series-config` 레포**다 — 그쪽에 올려야 사용자 화면의 K장부 카드가 '🔜 출시 예정'에서 정상 카드로 바뀐다. 절차 = [family_config/README.md](family_config/README.md) §3.
+### 4-1b. ✅ `k-series-config` 반영 — **완료(2026-08-10)**
+**K장부가 2026-08-10 출시**되어 `comingSoon: true→false` 전환을 **정본·번들에 반영**했다.
+호스팅 레포에 커밋·푸시했고 라이브 URL에서 `comingSoon:false` 응답을 확인했다. 사용자 화면은 앱 6시간 캐시라 즉시 보려면 설정 > 브랜드 & 자매앱 > 🔄 새로고침.
 
 ### 4-2. 방침 배포 사본 교체 (앱 배포와 무관 — 지금 가능)
 원본 `doc/privacy-kdailyutil.html`은 수정됐다(개정일자 2026-08-07). **배포본은 `k-series-config` GitHub Pages**라 그쪽 사본을 갱신하면 **즉시 라이브**가 된다. 현재 게시본 v1.6에도 해당되는 내용이므로 **v1.7보다 먼저 해도 된다.**

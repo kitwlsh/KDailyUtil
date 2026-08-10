@@ -12,6 +12,7 @@
 
 | 문서 구분 | 상세 문서 링크 | 설명 |
 | :--- | :--- | :--- |
+| **⭐ 다음 세션 브리핑** | [NEXT_SESSION.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/NEXT_SESSION.md) | **신규 세션은 여기부터** — 지금 상황 요약 + 다음 할 일(v1.7 배포·방침 교체·AI 체험판)을 쉬운 말로 정리. 백로그·주의사항·읽을 순서 포함 |
 | **개발자 가이드** | [DEVELOPER_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/DEVELOPER_GUIDE.md) | 프로젝트 아키텍처, 파일 구조, 개발 시 주의사항 총정리 |
 | **구글 플레이 가이드** | [GOOGLE_PLAY_RELEASE_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/GOOGLE_PLAY_RELEASE_GUIDE.md) | 구글 플레이 콘솔 업로드 및 릴리즈 빌드 전체 단계 안내 |
 | **릴리즈 노트 / 변경내역** | [RELEASE_NOTES.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/app/release/RELEASE_NOTES.md) | 버전별 Changelog + Google Play '출시 노트' 붙여넣기용 문구 (app/release/) |
