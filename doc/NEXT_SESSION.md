@@ -10,10 +10,11 @@
 **K-시리즈 3개 앱이 전부 구글 플레이에 나가 있다.** 오늘(08-10) K장부가 마지막으로 출시되면서, 앱끼리 서로 소개하는 '자매앱 카드'도 라이브에 반영을 마쳤다. 이제 새 앱을 추가해도 기존 앱들을 다시 배포할 필요가 없다 — 07-29에 설계한 목표가 오늘 처음 실제로 작동했다.
 
 **다만 KDailyUtil에 고쳐놓고 아직 스토어에 못 올린 수정이 하나 있고, 그게 급하다.**
+→ **08-10 현재 AAB 빌드·서명 확인까지 끝났다. Play Console 업로드만 남았다.**
 
 | 앱 | 스토어 상태 |
 |---|---|
-| KDailyUtil | v1.6 라이브 (08-04) · **⏳ v1.7 준비 완료·미배포** |
+| KDailyUtil | v1.6 라이브 (08-04) · **⏳ v1.7 빌드 완료 — 업로드 대기** |
 | KLotto645 | v1.0.3 라이브 (08-04) |
 | K장부 | v1.0.0 라이브 (08-10) |
 
@@ -32,14 +33,18 @@
 ### 지금 상태
 **고치는 건 다 끝났다.** 모델 이름을 특정 버전 대신 '항상 최신' 별칭으로 바꾸고, 그것마저 막히면 다른 모델로 자동 전환하게 했고, 최악의 경우 **앱을 다시 배포하지 않고도 원격으로 모델을 바꿀 수 있게** 해뒀다. 실제 기기에서 동작 확인까지 마쳤다.
 
-### 남은 것 (30분 내외)
-1. `app/build.gradle.kts` — versionCode `6` → `7`, versionName `"1.6"` → `"1.7"`
-2. `./gradlew.bat :app:bundleRelease`
-3. **`keytool -printcert -jarfile <aab>` 로 서명 확인** (서명 없이 빌드되는 사고 방지 — 과거 실제로 주의사항으로 남긴 항목)
-4. `app/release/kdailyutil-v1.7.aab` 로 복사(git 추적)
-5. Play Console 업로드 + 출시노트 붙여넣기 — **문구는 이미 써 뒀다** → [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md) 'v1.7' 절
+### 남은 것 — **업로드 하나뿐** (2026-08-10 빌드 완료, 커밋 `5c2060b`)
+1. ~~`app/build.gradle.kts` versionCode 6→7 / versionName 1.6→"1.7"~~ ✅
+2. ~~`./gradlew.bat :app:bundleRelease`~~ ✅ (BUILD SUCCESSFUL, `signReleaseBundle` 실행됨)
+3. ~~`keytool -printcert -jarfile` 서명 확인~~ ✅ SHA-256 `61:12:DE:02:AD:DF:…:A5:12:99` — **v1.6과 동일 업로드 키**
+4. ~~`app/release/kdailyutil-v1.7.aab` 로 복사~~ ✅ 11,225,423 bytes · 산출물과 sha256 일치 확인
+5. ⏳ **Play Console 업로드 + 출시노트 붙여넣기** — 문구는 써 뒀다(249자 / 한도 500) → [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md) 'v1.7' 절
 
-> 위험도 낮음. 코드·실기기 검증 완료, 출시노트 준비됨. **버전 올리고 빌드해서 올리는 일만 남았다.**
+> 빌드 전에 **서명 준비를 먼저 확인했다** — `local.properties`의 `release.*` 4개 키와 키스토어 파일 존재.
+> `hasReleaseSigning` 가드가 false면 **서명 없이 조용히 빌드된다**(경고도 없다). 앞으로도 빌드 전에 확인할 것.
+> 병합 릴리스 매니페스트에서 `versionCode="7"`도 확인했다. (`build/intermediates`에 남은 versionCode 6은 옛 **디버그** 메타데이터라 무관 — 헷갈리지 말 것.)
+
+> 위험도 낮음. 코드·실기기 검증 완료, 출시노트 준비됨. **이제 올리는 일만 남았다.**
 > v1.6 이후 코드 변경은 **AI 수정 2건 + 자매앱 카드 1건, 총 3건뿐**이다(나머지 커밋은 전부 문서) — 그래서 위험이 낮다.
 > 상세 배경 = [`doc/AI_KEY_NOTES.md`](AI_KEY_NOTES.md)
 

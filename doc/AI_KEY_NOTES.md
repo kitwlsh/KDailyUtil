@@ -63,10 +63,16 @@
 
 ## 4. 남은 일
 
-### 4-1. ⭐ v1.7 릴리스 (최우선 — 장애가 라이브에 남아 있다)
-1. `app/build.gradle.kts` versionCode **6→7** / versionName **1.6→"1.7"**
-2. `./gradlew.bat :app:bundleRelease` → **`keytool -printcert -jarfile`로 서명 확인**(서명 없이 빌드되는 사고 방지)
-3. `app/release/kdailyutil-v1.7.aab`로 복사(git 추적) · 출시 노트 = [RELEASE_NOTES.md](../app/release/RELEASE_NOTES.md) 'v1.7' 절
+### 4-1. ⭐ v1.7 릴리스 — **빌드 완료(2026-08-10, 커밋 `5c2060b`) · 업로드만 남음**
+1. ~~versionCode 6→7 / versionName 1.6→"1.7"~~ ✅
+2. ~~`./gradlew.bat :app:bundleRelease`~~ ✅ → ~~서명 확인~~ ✅ SHA-256 `61:12:DE:02:AD:DF:…:A5:12:99`(v1.6과 동일 업로드 키)
+3. ~~`app/release/kdailyutil-v1.7.aab`로 복사~~ ✅ 11,225,423 bytes
+4. ⏳ **Play Console 업로드** · 출시 노트 = [RELEASE_NOTES.md](../app/release/RELEASE_NOTES.md) 'v1.7' 절(249자 / 한도 500)
+
+> **빌드 전에 서명 준비를 먼저 확인하는 것이 핵심이다** — `local.properties`의 `release.store.file` /
+> `release.store.password` / `release.key.alias` / `release.key.password` 4개와 키스토어 파일 존재.
+> `hasReleaseSigning`이 false면 **경고 없이 서명 없는 AAB가 나온다.**
+> ⚠️ `keytool`의 **"SHA1withRSA 보안 위험"** 경고는 인증서 서명 알고리즘 문제이고 v1.0부터 쓴 동일 키다 — 키 교체는 하지 않기로 결정된 사항이다(근거 = [GOOGLE_PLAY_RELEASE_GUIDE.md](GOOGLE_PLAY_RELEASE_GUIDE.md) 1단계 ①).
 4. 절차 상세 = [GOOGLE_PLAY_RELEASE_GUIDE.md](GOOGLE_PLAY_RELEASE_GUIDE.md)
 
 ### 4-1c. ⚠️ `aiModel` 원격 교체 — **배선만 있고 실전 미검증** (v1.7 배포 후 할 것)
