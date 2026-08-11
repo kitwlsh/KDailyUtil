@@ -12,10 +12,10 @@
 
 | 문서 구분 | 상세 문서 링크 | 설명 |
 | :--- | :--- | :--- |
-| **⭐ 다음 세션 브리핑** | [NEXT_SESSION.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/NEXT_SESSION.md) | **신규 세션은 여기부터** — 지금 상황 요약 + 다음 할 일(v1.6.1 업로드·AI 체험판)을 쉬운 말로 정리. 백로그·주의사항·읽을 순서 포함 |
+| **⭐ 다음 세션 브리핑** | [NEXT_SESSION.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/NEXT_SESSION.md) | **신규 세션은 여기부터** — 지금 상황 요약 + 다음 할 일(v1.6.1 심사 결과 확인·AI 체험판)을 쉬운 말로 정리. 미결·백로그·주의사항·읽을 순서 포함 |
 | **개발자 가이드** | [DEVELOPER_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/DEVELOPER_GUIDE.md) | 프로젝트 아키텍처, 파일 구조, 개발 시 주의사항 총정리 |
 | **구글 플레이 가이드** | [GOOGLE_PLAY_RELEASE_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/GOOGLE_PLAY_RELEASE_GUIDE.md) | 구글 플레이 콘솔 업로드 및 릴리즈 빌드 전체 단계 안내 |
-| **🛡 Play 정책 준수(3앱 공용)** | [PLAY_POLICY_COMPLIANCE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/PLAY_POLICY_COMPLIANCE.md) | **K-시리즈 공통 기준.** Android 개발자 인증(2026-09-30 기한, ✅확인완료) · **데이터 보안 양식을 방침과 일치시키는 법**(AI 전송앱 판단 기준·KDailyUtil 확정 상태) · 미사용 앱 4건 방치 결정 · **K장부/KLotto 점검 항목** · 재발 방지 규칙 |
+| **🛡 Play 정책 준수(3앱 공용)** | [PLAY_POLICY_COMPLIANCE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/PLAY_POLICY_COMPLIANCE.md) | **K-시리즈 공통 기준.** Android 개발자 인증(2026-09-30 기한, ✅확인완료) · **데이터 보안 양식을 방침과 일치시키는 법**(AI 전송앱 판단 기준) · 미사용 앱 4건 방치 결정 · **✅ 3앱 전수 점검 결과(08-11)** — KDailyUtil·K장부는 어긋나 있어 고쳤고 KLotto645는 '수집 없음'이 정답 · 재발 방지 규칙 |
 | **릴리즈 노트 / 변경내역** | [RELEASE_NOTES.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/app/release/RELEASE_NOTES.md) | 버전별 Changelog + Google Play '출시 노트' 붙여넣기용 문구 (app/release/) |
 | **스토어 등록정보 (설명)** | [STORE_LISTING.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/STORE_LISTING.md) | Google Play 간단한 설명(≤80자)·자세한 설명(≤4000자) 최신본(버전별 갱신) |
 | **콘솔 기입 정보 엑셀** | [google_play_release_info.xlsx](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/google_play_release_info.xlsx) | 구글 플레이에 제출한 27개 질문과 상세 텍스트 기록 보관함 |
