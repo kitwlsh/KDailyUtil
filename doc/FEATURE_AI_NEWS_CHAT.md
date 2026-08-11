@@ -194,5 +194,6 @@ Google Play **"AI-Generated Content" 정책**은 사용자와 상호작용하는
 
 ## 9. 버전 / 배포 영향
 
-- 구현 시 **다음 배포 = versionCode 5 / versionName 1.5**(스킴: versionName 끝자리=versionCode). 현재 v1.4는 출시 검토중이므로 **v1.4 게시 확정 후 착수** 권장.
+- 구현 시 **다음 배포 = versionCode 5 / versionName 1.5**(당시 스킴: versionName 끝자리=versionCode). 현재 v1.4는 출시 검토중이므로 **v1.4 게시 확정 후 착수** 권장.
+  > ⚠️ 위 괄호의 스킴은 **2026-08-11에 폐기됐다** — 지금은 유의적 버전(MAJOR.MINOR.PATCH)이고 versionCode와 묶지 않는다. 이 줄은 v1.5 당시의 기록이다. 현행 규칙 = [DEVELOPER_GUIDE.md § 버전 스킴](DEVELOPER_GUIDE.md).
 - 배포 전 §7 체크리스트 완료 + 실기기 음성 인식/낭독 점검 필수.

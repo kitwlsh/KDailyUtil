@@ -7,7 +7,9 @@
 
 ---
 
-## 1. 🔴 왜 v1.7이 급한가
+## 1. 🔴 왜 v1.6.1이 급한가
+
+> 📛 **버전명**: 이 수정판은 08-10에 `1.7`로 빌드했다가, 순수 버그 수정이라 **`1.6.1`이 맞다**는 판단으로 08-11에 **유의적 버전으로 전환하며 재빌드**했다(`versionCode`는 예정대로 **7**). **스토어에 `1.7`이 올라간 적은 없다.** 옛 커밋·문서의 "v1.7"은 모두 이 `1.6.1`을 가리킨다. 스킴 = [DEVELOPER_GUIDE.md § 버전 스킴](DEVELOPER_GUIDE.md).
 
 `GeminiManager`에 `gemini-2.5-flash`가 하드코딩돼 있었고, **이 모델은 신규 사용자에게 닫혔다.**
 
@@ -24,7 +26,7 @@
 | 예전부터 쓰던 키 | 정상 (그래서 눈치채기 어렵다) |
 | **새로 설치 + 새로 발급한 키** | **AI 13종 전부 실패** |
 
-→ **게시본 v1.6에 지금도 해당된다.** v1.7 배포 전까지 신규 설치자는 AI를 쓸 수 없다.
+→ **게시본 v1.6에 지금도 해당된다.** v1.6.1 배포 전까지 신규 설치자는 AI를 쓸 수 없다.
 
 ## 2. 적용한 것 (2026-08-07 · 커밋 `9a1a4f7`, `50e7fa8`)
 
@@ -63,11 +65,11 @@
 
 ## 4. 남은 일
 
-### 4-1. ⭐ v1.7 릴리스 — **빌드 완료(2026-08-10, 커밋 `5c2060b`) · 업로드만 남음**
-1. ~~versionCode 6→7 / versionName 1.6→"1.7"~~ ✅
+### 4-1. ⭐ v1.6.1 릴리스 — **빌드 완료(2026-08-11) · 업로드만 남음**
+1. ~~versionCode 6→7~~ ✅ / ~~versionName → **"1.6.1"**~~ ✅ (08-10에 `1.7`로 빌드했다가 08-11에 스킴 전환하며 재빌드)
 2. ~~`./gradlew.bat :app:bundleRelease`~~ ✅ → ~~서명 확인~~ ✅ SHA-256 `61:12:DE:02:AD:DF:…:A5:12:99`(v1.6과 동일 업로드 키)
-3. ~~`app/release/kdailyutil-v1.7.aab`로 복사~~ ✅ 11,225,423 bytes
-4. ⏳ **Play Console 업로드** · 출시 노트 = [RELEASE_NOTES.md](../app/release/RELEASE_NOTES.md) 'v1.7' 절(249자 / 한도 500)
+3. ~~`app/release/kdailyutil-v1.6.1.aab`로 복사~~ ✅ 11,225,422 bytes · 산출물과 sha256 일치 확인
+4. ⏳ **Play Console 업로드** · 출시 노트 = [RELEASE_NOTES.md](../app/release/RELEASE_NOTES.md) 'v1.6.1' 절(249자 / 한도 500)
 
 > **빌드 전에 서명 준비를 먼저 확인하는 것이 핵심이다** — `local.properties`의 `release.store.file` /
 > `release.store.password` / `release.key.alias` / `release.key.password` 4개와 키스토어 파일 존재.
@@ -75,12 +77,12 @@
 > ⚠️ `keytool`의 **"SHA1withRSA 보안 위험"** 경고는 인증서 서명 알고리즘 문제이고 v1.0부터 쓴 동일 키다 — 키 교체는 하지 않기로 결정된 사항이다(근거 = [GOOGLE_PLAY_RELEASE_GUIDE.md](GOOGLE_PLAY_RELEASE_GUIDE.md) 1단계 ①).
 4. 절차 상세 = [GOOGLE_PLAY_RELEASE_GUIDE.md](GOOGLE_PLAY_RELEASE_GUIDE.md)
 
-### 4-1c. ⚠️ `aiModel` 원격 교체 — **배선만 있고 실전 미검증** (v1.7 배포 후 할 것)
+### 4-1c. ⚠️ `aiModel` 원격 교체 — **배선만 있고 실전 미검증** (v1.6.1 배포 후 할 것)
 `FamilyRepository.applyAiModel`이 `family.json`의 `aiModel`을 읽지만, **정본·번들·호스팅 세 파일 어디에도 `aiModel` 키가 없다.** 없으면 기본값(`gemini-flash-latest`)을 쓰므로 지금 동작은 정상이다.
 
 문제는 **이 비상 레버를 한 번도 당겨본 적이 없다**는 것이다. 다음에 또 모델이 막히면 그때 처음 시험하게 된다 — 급할 때 처음 쓰는 장치는 위험하다.
 
-> **v1.7 배포 후** 호스팅 `family.json`에 `"aiModel": "gemini-3.5-flash"` 를 한 줄 넣고
+> **v1.6.1 배포 후** 호스팅 `family.json`에 `"aiModel": "gemini-3.5-flash"` 를 한 줄 넣고
 > `adb logcat -s GeminiModel` 에서 `✅ 모델 결정: gemini-3.5-flash` 가 찍히는지 확인 → 확인 후 그 줄을 되돌린다.
 > **v1.6에는 이 배선이 없으므로 배포 전에는 검증 불가.** 캐시가 6시간이라 즉시 보려면 설정 > 브랜드 & 자매앱 > 🔄 새로고침.
 
@@ -89,11 +91,11 @@
 호스팅 레포에 커밋·푸시했고 라이브 URL에서 `comingSoon:false` 응답을 확인했다. 사용자 화면은 앱 6시간 캐시라 즉시 보려면 설정 > 브랜드 & 자매앱 > 🔄 새로고침.
 
 ### 4-2. ✅ 방침 배포 사본 교체 — **완료(2026-08-10)**
-원본 `doc/privacy-kdailyutil.html`(개정일자 2026-08-07)을 **배포본 `k-series-config`에 반영**했다(커밋 `7c6abd4`, 푸시됨). GitHub Pages라 앱 배포와 무관하게 즉시 라이브. 게시본 v1.6에도 해당되는 내용이라 v1.7보다 먼저 처리했다.
+원본 `doc/privacy-kdailyutil.html`(개정일자 2026-08-07)을 **배포본 `k-series-config`에 반영**했다(커밋 `7c6abd4`, 푸시됨). GitHub Pages라 앱 배포와 무관하게 즉시 라이브. 게시본 v1.6에도 해당되는 내용이라 v1.6.1보다 먼저 처리했다.
 
 > ⚠️ 복사 시 **줄바꿈을 CRLF로 변환**했다 — 호스팅 레포의 방침 3종이 모두 CRLF인데 원본은 LF라, 그냥 복사하면 전체 파일이 diff로 잡혀 실제 변경을 검토할 수 없다. `sed 's/$/\r/'`로 변환하니 diff가 5+/4-로 줄었다.
 
-### 4-2b. ⚠️ Play Console '데이터 안전' 양식 대조 (v1.7 업로드 시)
+### 4-2b. ⚠️ Play Console '데이터 안전' 양식 대조 (v1.6.1 업로드 시)
 방침 제8조에 **"무료 등급에서는 Google이 제품 개선에 사용할 수 있고 사람이 검토할 수 있다"** 를 새로 명시했다. Play Console의 **앱 콘텐츠 > 데이터 안전** 양식은 방침과 **별개로** 관리되며, **둘이 어긋나면 정책 위반**이다. 텍스트·사진이 제3자(Google AI)로 전송되는 사실과 그 목적이 양식에 반영돼 있는지 확인할 것. (방침만 고치고 양식을 잊는 것이 흔한 함정.)
 
 ### 4-3. 체험 + 킬스위치 (선택 · 미구현)

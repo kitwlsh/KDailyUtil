@@ -4,16 +4,19 @@
 > 최종 업데이트: 2026-08-07
 
 > ### 🚩 지금 상태 (신규 세션 필독)
-> - **🔴 2026-08-07 긴급 수정(미배포 — v1.7로 나가야 함)**: `GeminiManager`의 `gemini-2.5-flash` 하드코딩 제거. 이 모델은 **신규 사용자에게 404**(*"no longer available to new users"*)라서, **v1.6을 새로 설치해 자기 키를 넣은 사용자는 AI 13종이 전부 실패**한다. 기존 계정은 되기 때문에 개발 중엔 안 보인다. → 별칭 기본값(`gemini-flash-latest`) + 404 전용 폴백 + resolved 기억 + `family.json`의 `aiModel` 원격 지정. 전 기능이 `ask(prompt)` 한 곳을 통과한다. **라이브 사용자에게 영향 중이므로 v1.7 배포 우선순위 최상.**
+> - **🔴 2026-08-07 긴급 수정(미배포 — v1.6.1로 나가야 함)**: `GeminiManager`의 `gemini-2.5-flash` 하드코딩 제거. 이 모델은 **신규 사용자에게 404**(*"no longer available to new users"*)라서, **v1.6을 새로 설치해 자기 키를 넣은 사용자는 AI 13종이 전부 실패**한다. 기존 계정은 되기 때문에 개발 중엔 안 보인다. → 별칭 기본값(`gemini-flash-latest`) + 404 전용 폴백 + resolved 기억 + `family.json`의 `aiModel` 원격 지정. 전 기능이 `ask(prompt)` 한 곳을 통과한다. **라이브 사용자에게 영향 중이므로 v1.6.1 배포 우선순위 최상.**
 > - **AI 키 UX(2026-08-07)**: 키 형식 단정(`AIzaSy…`) 제거 · 첫 실행 안내 배너([ui/components/AiNotice.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/components/AiNotice.kt)) · 무료 등급 데이터 취급 고지(방침 제8조 + 앱 내) · `generateAiQuiz` 안내 누락 수정.
 > - **정책 근거는 K장부가 단일 기준**: `KJangbu/doc/AI_KEY_POLICY.md`(약관 실측·체험/킬스위치 설계·§9 방침 문안). KDailyUtil 쪽 현황·모델 실측표·**남은 일**은 → **[doc/AI_KEY_NOTES.md](AI_KEY_NOTES.md)** (신규 세션은 이것부터 읽으면 된다).
-> - **다음 세션 착수점**: ① **v1.7 릴리스**(vc6→7 상향 + AAB + 서명확인) ② 방침 배포 사본 교체(`k-series-config`, 앱 배포 무관·즉시 반영) ③ (선택) 체험·킬스위치 이식. 상세 = [AI_KEY_NOTES.md §4](AI_KEY_NOTES.md).
-> - **v1.6 (versionCode 6) — 🎉 2026-08-04 Google Play 출시 완료·라이브.** 산출물 = [`app/release/kdailyutil-v1.6.aab`](../app/release/kdailyutil-v1.6.aab) (11,211,476 bytes, 업로드 키 서명 검증 완료). 소스 = v1.6([app/build.gradle.kts](../app/build.gradle.kts)). (이전 v1.5=vc5 07-23 / v1.4=vc4 07-21 / v1.2=vc3 07-08 / v1.1=vc2.) **다음 업로드는 vc7=1.7.**
+> - **다음 세션 착수점**: ① ~~v1.6.1 빌드~~ ✅ 완료(08-11) → ⏳ **Play Console 업로드만 남음**(그때 '데이터 안전' 양식 대조) ② ~~방침 배포 사본 교체~~ ✅ 완료(08-10, 라이브 확인) ③ 배포 후 `aiModel` 원격 교체 실전 검증 ④ (선택) 체험·킬스위치 이식. 상세 = [AI_KEY_NOTES.md §4](AI_KEY_NOTES.md).
+> - **v1.6 (versionCode 6) — 🎉 2026-08-04 Google Play 출시 완료·라이브.** 산출물 = [`app/release/kdailyutil-v1.6.aab`](../app/release/kdailyutil-v1.6.aab) (11,211,476 bytes, 업로드 키 서명 검증 완료). 소스 = v1.6([app/build.gradle.kts](../app/build.gradle.kts)). (이전 v1.5=vc5 07-23 / v1.4=vc4 07-21 / v1.2=vc3 07-08 / v1.1=vc2.) **다음 업로드는 vc7 = `1.6.1`** — 여기서부터 versionName과 versionCode를 묶지 않는다(위 § 버전 스킴).
 > - **v1.6 내용**: 자매앱 동적 레지스트리(§8) — **이 배포로 실사용 개시**. 출시 노트 문구 = [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md).
 > - **🎉 K-시리즈 배포 현황(2026-08-10) — 3개 앱 전부 라이브**: KDailyUtil **v1.6(vc6)** · KLotto645 **v1.0.3(vc13)** · K장부 **v1.0.0(vc1, 08-10 출시)**. 자매앱 동적 레지스트리(§8)가 **전 앱에서 실효** — 이후 신규 자매앱 추가에 어떤 앱도 재배포하지 않는다.
 >   - K장부 출시로 `comingSoon: true→false` 전환을 **정본**([doc/family_config/family.json](family_config/family.json))과 **번들 폴백**(`app/src/main/res/raw/family.json`)에 반영했다. ⏳ **`kitwlsh/k-series-config` 레포 반영은 수동으로 해야 라이브에 보인다**(절차 = [family_config/README.md](family_config/README.md) §3).
 > - **개인정보처리방침 URL 변경(2026-08-03)**: Netlify → **`https://kitwlsh.github.io/k-series-config/privacy-kdailyutil.html`** (Play Console 등록 완료). 원본 = [doc/privacy-kdailyutil.html](privacy-kdailyutil.html), 표준 = [KLOTTO_CONNECT_HANDOFF.md §9](KLOTTO_CONNECT_HANDOFF.md). ⚠️ **권한을 추가·제거하면 방침도 같은 커밋에서 고칠 것.**
-> - **버전 스킴**: versionName **끝자리 = versionCode**(vc5=1.5, 이후 vc6=1.6…). versionCode는 정수만·매 업로드 증가, versionName은 표시용 문자열(점 자유).
+> - **🔄 버전 스킴 — 2026-08-11 전환: 유의적 버전(MAJOR.MINOR.PATCH)으로 바꿨다.** 자세한 규칙·전환 이유는 아래 [§ 버전 스킴](#-버전-스킴-유의적-버전) 참고.
+>   - **옛 규칙(폐기)**: versionName 끝자리 = versionCode(vc5=1.5, vc6=1.6…). → **버그 수정에도 MINOR가 올라가고, vc10이면 "1.10"이 되어 규칙 자체가 깨진다.**
+>   - **새 규칙**: `versionCode`(Play용 정수·업로드마다 증가)와 `versionName`(사람이 보는 문자열)을 **묶지 않는다.** 버그수정 → PATCH / 기능추가 → MINOR / 호환깨짐 → MAJOR.
+>   - 자매앱은 **이미 이 방식**이다 — KLotto645 `1.0.3`(vc13) · K장부 `1.0.1`(vc2). KDailyUtil만 예외였다.
 > - **v1.5 AAB 빌드·업로드·출시 완료(2026-07-23 게시)**: [`app/release/kdailyutil-v1.5.aab`](../app/release/kdailyutil-v1.5.aab)(게시본 v1.4 이후 변경: 뉴스 AI 대화창+음성·마크다운·핸즈프리 / 증시 AI 포트폴리오 종합 분석 / 빠른독서 통계·난이도 / 이미지 퀴즈 Base64). 스토어 자산 그대로 사용 가능 — 앱 아이콘 512=`app/src/main/ic_launcher-playstore.png`, 그래픽 1024×500=[`doc/screenshot/feature_graphic_1024x500.png`](screenshot/feature_graphic_1024x500.png), 설명=[`doc/STORE_LISTING.md`](STORE_LISTING.md). **업로드 절차**: Play Console > 프로덕션 > 새 버전 > 이 AAB 업로드 + 출시노트(아래) 붙여넣기. ※ 새 기능 대비 STORE_LISTING 설명 갱신은 선택.
 >   - 출시노트/버전별 내역: [`app/release/RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md) (콘솔 '출시 노트'란 붙여넣기용 문구 포함).
 > - 2026-07-20 세션분은 `origin/main` **푸시 완료**. 최신 상태는 `git status`로 확인.
@@ -34,11 +37,44 @@
 - **패키지**: `com.kitwlshcom.kdailyutil`
 - **언어**: Kotlin (Jetpack Compose)
 - **최소 SDK**: 26 / 타겟 SDK: 36
-- **버전**: 소스 = versionCode 6 / versionName 1.6 · **현재 게시본 = vc6 / v1.6 (2026-08-04 출시)**. 스킴: versionName 끝자리 = versionCode(다음은 vc7=1.7).
+- **버전**: 소스 = versionCode 7 / versionName **1.6.1** · **현재 게시본 = vc6 / v1.6 (2026-08-04 출시)**. 스킴 = 유의적 버전(아래 § 참고, `versionCode`와 분리).
 - **빌드 도구**: AGP 8.13.2, Kotlin 2.0.21
 - **GitHub**: `kitwlsh/KDailyUtil`
 - **로컬 경로**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil`
 - **원격 퀴즈 데이터**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\korean_quiz_data\`
+
+---
+
+## 🔢 버전 스킴 (유의적 버전)
+
+**2026-08-11 전환.** 그 전까지 KDailyUtil만 "versionName 끝자리 = versionCode"라는 자체 규칙을 썼고(1.5→1.6→1.7…), 이제 **유의적 버전(Semantic Versioning)** 을 쓴다.
+
+### 두 값은 별개다 — 묶지 않는다
+
+| | 무엇 | 규칙 |
+|---|---|---|
+| `versionCode` | **Play가 보는 정수.** 사용자에게 안 보인다 | **업로드마다 +1.** 되돌릴 수 없고, 버려진 업로드도 번호를 소모한다 |
+| `versionName` | **사람이 보는 문자열.** 스토어·앱 설정에 표시 | `MAJOR.MINOR.PATCH`. 내용에 따라 올린다 |
+
+### 어느 자리를 올리나
+
+| 자리 | 올리는 경우 | 예 |
+|---|---|---|
+| **MAJOR** `2.0.0` | 호환이 깨지는 큰 변화·전면 개편 | (아직 없음) |
+| **MINOR** `1.7.0` | **기능 추가** (동작하던 것은 그대로) | 자매앱 동적 레지스트리, 뉴스 AI 대화창 |
+| **PATCH** `1.6.1` | **버그 수정**·문구 교정만 | AI 모델 404 장애 수정(v1.6.1) |
+
+MINOR를 올리면 PATCH는 0으로 되돌린다(1.6.3 → 기능 추가 → 1.7.0).
+
+### 왜 바꿨나
+
+1. **버그 수정에도 MINOR가 올라갔다** — v1.7이 될 예정이던 릴리스는 순수 장애 수정이라 `1.6.1`이 맞다.
+2. **옛 규칙은 곧 깨진다** — `versionCode`가 10이 되면 "끝자리를 맞춘" versionName이 `1.10`이 되는데, 사람 눈에 `1.1`과 구별되지 않고 정렬도 뒤집힌다. 당시 vc7이었으니 3번의 릴리스 뒤 문제였다.
+3. **업로드 하나가 공개 버전 하나를 소모했다** — `versionCode`는 테스트 트랙·반려·재업로드에도 증가한다. 묶어두면 사용자에게 의미 없는 번호가 계속 올라간다. KLotto645가 실례다: 초기 `v0.0.4~v0.0.9`가 코드를 먼저 써서 **vc13인데 공개 버전은 1.0.3**이다. 옛 KDailyUtil 규칙이었다면 저 앱은 "1.13"이 되어 있었다.
+4. **자매앱이 이미 이 방식이었다** — KLotto645 `1.0.3`(vc13) · K장부 `1.0.1`(vc2). **KDailyUtil만 예외였다.**
+
+> ⚠️ 앱 코드는 손댈 것이 없다 — [MorningBriefingSettingsScreen.kt](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/screens/MorningBriefingSettingsScreen.kt)가 `packageInfo.versionName`을 그대로 읽어 표시하므로 형식을 바꾸면 자동으로 따라온다. 하드코딩된 버전 문자열은 없다.
+> ⚠️ **`versionCode`는 절대 내리거나 재사용하지 않는다.** 스토어에 한 번 올라간 코드는 영구 소모다.
 
 ---
 

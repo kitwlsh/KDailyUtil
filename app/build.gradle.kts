@@ -22,8 +22,12 @@ android {
         minSdk = 26
 
         targetSdk = 36
+        // 버전 스킴 = 유의적 버전(MAJOR.MINOR.PATCH). versionCode와 **묶지 않는다**.
+        //   versionCode = Play가 보는 정수(업로드마다 증가, 사용자에게 안 보임)
+        //   versionName = 사람이 보는 문자열. 버그수정→PATCH / 기능추가→MINOR / 호환깨짐→MAJOR
+        // 상세·전환 배경 = doc/DEVELOPER_GUIDE.md '버전 스킴'
         versionCode = 7
-        versionName = "1.7"
+        versionName = "1.6.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
