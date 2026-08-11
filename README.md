@@ -15,6 +15,7 @@
 | **⭐ 다음 세션 브리핑** | [NEXT_SESSION.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/NEXT_SESSION.md) | **신규 세션은 여기부터** — 지금 상황 요약 + 다음 할 일(v1.6.1 업로드·AI 체험판)을 쉬운 말로 정리. 백로그·주의사항·읽을 순서 포함 |
 | **개발자 가이드** | [DEVELOPER_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/DEVELOPER_GUIDE.md) | 프로젝트 아키텍처, 파일 구조, 개발 시 주의사항 총정리 |
 | **구글 플레이 가이드** | [GOOGLE_PLAY_RELEASE_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/GOOGLE_PLAY_RELEASE_GUIDE.md) | 구글 플레이 콘솔 업로드 및 릴리즈 빌드 전체 단계 안내 |
+| **🛡 Play 정책 준수(3앱 공용)** | [PLAY_POLICY_COMPLIANCE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/PLAY_POLICY_COMPLIANCE.md) | **K-시리즈 공통 기준.** Android 개발자 인증(2026-09-30 기한, ✅확인완료) · **데이터 보안 양식을 방침과 일치시키는 법**(AI 전송앱 판단 기준·KDailyUtil 확정 상태) · 미사용 앱 4건 방치 결정 · **K장부/KLotto 점검 항목** · 재발 방지 규칙 |
 | **릴리즈 노트 / 변경내역** | [RELEASE_NOTES.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/app/release/RELEASE_NOTES.md) | 버전별 Changelog + Google Play '출시 노트' 붙여넣기용 문구 (app/release/) |
 | **스토어 등록정보 (설명)** | [STORE_LISTING.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/STORE_LISTING.md) | Google Play 간단한 설명(≤80자)·자세한 설명(≤4000자) 최신본(버전별 갱신) |
 | **콘솔 기입 정보 엑셀** | [google_play_release_info.xlsx](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/google_play_release_info.xlsx) | 구글 플레이에 제출한 27개 질문과 상세 텍스트 기록 보관함 |
@@ -115,7 +116,7 @@
 
 ---
 
-## 🛠 최근 업데이트 및 작업 현황 (2026-08-11 · 게시본 **v1.6** / 다음 = **v1.6.1**, 빌드 완료·업로드 대기)
+## 🛠 최근 업데이트 및 작업 현황 (2026-08-11 · 게시본 **v1.6** / **v1.6.1 업로드 완료·검토 중**)
 
 > 🔄 **버전 스킴 전환(2026-08-11)**: 옛 규칙 "versionName 끝자리 = versionCode"를 폐기하고 **유의적 버전(MAJOR.MINOR.PATCH)** 으로 바꿨다. 버그수정→PATCH / 기능추가→MINOR. 그래서 이번 장애 수정판은 **`1.7`이 아니라 `1.6.1`**(versionCode는 7). 자매앱(KLotto645 `1.0.3`·K장부 `1.0.1`)과 같은 방식이 됐다. 규칙 = [DEVELOPER_GUIDE.md § 버전 스킴](doc/DEVELOPER_GUIDE.md).
 

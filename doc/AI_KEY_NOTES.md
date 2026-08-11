@@ -69,7 +69,9 @@
 1. ~~versionCode 6→7~~ ✅ / ~~versionName → **"1.6.1"**~~ ✅ (08-10에 `1.7`로 빌드했다가 08-11에 스킴 전환하며 재빌드)
 2. ~~`./gradlew.bat :app:bundleRelease`~~ ✅ → ~~서명 확인~~ ✅ SHA-256 `61:12:DE:02:AD:DF:…:A5:12:99`(v1.6과 동일 업로드 키)
 3. ~~`app/release/kdailyutil-v1.6.1.aab`로 복사~~ ✅ 11,225,422 bytes · 산출물과 sha256 일치 확인
-4. ⏳ **Play Console 업로드** · 출시 노트 = [RELEASE_NOTES.md](../app/release/RELEASE_NOTES.md) 'v1.6.1' 절(249자 / 한도 500)
+4. ~~Play Console 업로드~~ ✅ **완료(2026-08-11) — 🕐 검토 중.** 출시 노트 = [RELEASE_NOTES.md](../app/release/RELEASE_NOTES.md) 'v1.6.1' 절(249자 / 한도 500)
+
+> ⚠️ **검토 통과 전까지 라이브는 v1.6이다** — 신규 설치자의 AI 장애는 아직 진행 중.
 
 > **빌드 전에 서명 준비를 먼저 확인하는 것이 핵심이다** — `local.properties`의 `release.store.file` /
 > `release.store.password` / `release.key.alias` / `release.key.password` 4개와 키스토어 파일 존재.
@@ -95,8 +97,14 @@
 
 > ⚠️ 복사 시 **줄바꿈을 CRLF로 변환**했다 — 호스팅 레포의 방침 3종이 모두 CRLF인데 원본은 LF라, 그냥 복사하면 전체 파일이 diff로 잡혀 실제 변경을 검토할 수 없다. `sed 's/$/\r/'`로 변환하니 diff가 5+/4-로 줄었다.
 
-### 4-2b. ⚠️ Play Console '데이터 안전' 양식 대조 (v1.6.1 업로드 시)
-방침 제8조에 **"무료 등급에서는 Google이 제품 개선에 사용할 수 있고 사람이 검토할 수 있다"** 를 새로 명시했다. Play Console의 **앱 콘텐츠 > 데이터 안전** 양식은 방침과 **별개로** 관리되며, **둘이 어긋나면 정책 위반**이다. 텍스트·사진이 제3자(Google AI)로 전송되는 사실과 그 목적이 양식에 반영돼 있는지 확인할 것. (방침만 고치고 양식을 잊는 것이 흔한 함정.)
+### 4-2b. ✅ Play Console '데이터 보안' 양식 대조 — **완료(2026-08-11) · 실제로 어긋나 있었다**
+
+방침 제8조에 무료 등급 고지를 넣었는데, 양식은 **2026-06-25(v1.1 시점)에 멈춰** 있었고 `공유됨`이 비어 있어 스토어에 **"제3자와 공유되는 데이터 없음"** 이 떠 있었다 — 방침과 정면으로 모순.
+
+→ `사진`·`기타 사용자 제작 콘텐츠` 둘 다 **`공유됨` + 공유 목적 `앱 기능`** 으로 수정. (`임시 처리 아니요`·`선택`·수집목적 `앱 기능`은 원래 맞아서 그대로 뒀다.)
+
+> **전말·판단 기준·다른 앱 점검 항목 = [PLAY_POLICY_COMPLIANCE.md](PLAY_POLICY_COMPLIANCE.md) §3** (K-시리즈 3앱 공용 문서)
+> 📌 재발 방지: **방침을 고치면 양식도 같이 본다.** 방침(원본) → 배포본(`k-series-config`) → **Console 양식** 세 곳이 한 세트다.
 
 ### 4-3. 체험 + 킬스위치 (선택 · 미구현)
 K장부에 **구현·검증 완료**돼 있다(`core/ai/AiKeyProvider.kt` · `PrefsStore.aiTrialUsed` · `FamilyRegistry.loadAiTrialConfig`). KDailyUtil로 이식할 때 그대로 쓸 수 없는 부분:
