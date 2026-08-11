@@ -115,6 +115,8 @@ KDailyUtil에서 **방침과 데이터 보안 양식이 어긋나 있던 문제*
 > 근거·판단 기준·구체적 점검 항목 전부 → **[`PLAY_POLICY_COMPLIANCE.md`](PLAY_POLICY_COMPLIANCE.md) §3-4**
 > ⚠️ **KDailyUtil 세션은 KJangbu 저장소를 건드리지 않는다.** 그 세션에 위 문서를 읽히는 방식으로 넘긴다.
 
+**KLotto645는 급하지 않다** — 코드를 확인해보니 **AI 전송도, 수집 SDK도, 업로드 경로도 없다**(QR은 zxing 온디바이스 해독). 오히려 **양식에 `사진`이 과하게 켜져 있지 않은지**만 보면 된다 → [`PLAY_POLICY_COMPLIANCE.md`](PLAY_POLICY_COMPLIANCE.md) §3-5
+
 ---
 
 ## 🟢 할 일 4 — AI 체험판 (선택 · 급하지 않음)
