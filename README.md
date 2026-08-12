@@ -12,7 +12,7 @@
 
 | 문서 구분 | 상세 문서 링크 | 설명 |
 | :--- | :--- | :--- |
-| **⭐ 다음 세션 브리핑** | [NEXT_SESSION.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/NEXT_SESSION.md) | **신규 세션은 여기부터** — 지금 상황 요약 + 다음 할 일(v1.6.1 심사 결과 확인·AI 체험판)을 쉬운 말로 정리. 미결·백로그·주의사항·읽을 순서 포함 |
+| **⭐ 다음 세션 브리핑** | [NEXT_SESSION.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/NEXT_SESSION.md) | **신규 세션은 여기부터** — 지금 상황 요약(3앱 전부 최신 라이브) + 남은 출시 후 확인 3건 + 다음 작업 후보(AI 체험판)를 쉬운 말로 정리. 백로그·주의사항·읽을 순서 포함 |
 | **개발자 가이드** | [DEVELOPER_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/DEVELOPER_GUIDE.md) | 프로젝트 아키텍처, 파일 구조, 개발 시 주의사항 총정리 |
 | **구글 플레이 가이드** | [GOOGLE_PLAY_RELEASE_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/GOOGLE_PLAY_RELEASE_GUIDE.md) | 구글 플레이 콘솔 업로드 및 릴리즈 빌드 전체 단계 안내 |
 | **🛡 Play 정책 준수(3앱 공용)** | [PLAY_POLICY_COMPLIANCE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/PLAY_POLICY_COMPLIANCE.md) | **K-시리즈 공통 기준.** Android 개발자 인증(2026-09-30 기한, ✅확인완료) · **데이터 보안 양식을 방침과 일치시키는 법**(AI 전송앱 판단 기준) · 미사용 앱 4건 방치 결정 · **✅ 3앱 전수 점검 결과(08-11)** — KDailyUtil·K장부는 어긋나 있어 고쳤고 KLotto645는 '수집 없음'이 정답 · 재발 방지 규칙 |
@@ -23,7 +23,7 @@
 | **K-시리즈 아이콘 표준** | [K_SERIES_ICON_RECIPE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/K_SERIES_ICON_RECIPE.md) | 형제 앱(KDailyUtil·KLotto645 등) 아이콘·스플래시·워터마크 패밀리 통일 규격 및 신규 앱 제작 절차(단일 기준 문서) |
 | **자매앱 상호연결 표준** | [KLOTTO_CONNECT_HANDOFF.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KLOTTO_CONNECT_HANDOFF.md) | K-시리즈 자매앱 상호 설치링크 표준 + 신규앱 편입 절차(§7 정적) + **동적 레지스트리(원격 구성) §8 — ✅ KDailyUtil 구현 완료(2026-07-29)**, 신규앱 JSON 편입(§8-9)·자매앱 이식 체크리스트(§8-10)·호스팅 절차(§8-11) + KLotto645↔KDailyUtil 핸드오프 |
 | **자매앱 레지스트리 정본** | [family_config/README.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/family_config/README.md) | 원격 `family.json` 정본 + 아이콘(384²) + `k-series-config` 레포 업로드·편집 가이드(앱 재배포 없이 자매앱 추가하는 절차) + **🔴 §3-1 최상위 레버 키 레지스트리**(`aiModel`·`aiTrial`·`fscApi` — 라이브를 덮어쓰기 전에 필히 확인, 안 하면 껐던 기능이 되살아난다) |
-| **AI 키 현황·남은 일** | [AI_KEY_NOTES.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/AI_KEY_NOTES.md) | 🔴 **모델 하드코딩 장애**(신규 사용자 AI 전면 실패)와 4중 방어·모델 실측표·키 안내 개선 + **남은 일**(v1.6.1 업로드·`aiModel` 실전 검증·체험/킬스위치 이식 시 주의). 정책 단일 기준은 `KJangbu/doc/AI_KEY_POLICY.md` |
+| **AI 키 현황·남은 일** | [AI_KEY_NOTES.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/AI_KEY_NOTES.md) | 🔴 **모델 하드코딩 장애**(신규 사용자 AI 전면 실패)와 4중 방어·모델 실측표·키 안내 개선 + **남은 일**(✅v1.6.1 출시완료 / ⏳`aiModel` 레버 검증 — 회귀 테스트 이식 권장 · 체험/킬스위치 이식 시 주의). 정책 단일 기준은 `KJangbu/doc/AI_KEY_POLICY.md` |
 | **개인정보처리방침** | [privacy-kdailyutil.html](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/privacy-kdailyutil.html) | 이 앱의 방침 **원본**(마이크·카메라·음성입력(STT)·AI 제3자 처리 포함). 배포는 `k-series-config` GitHub Pages, 등록 URL·앱별 작성 규칙 = [KLOTTO_CONNECT_HANDOFF.md §9](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KLOTTO_CONNECT_HANDOFF.md). ⚠️ 권한을 바꾸면 이 문서도 같이 고칠 것 |
 | **뉴스 우회 보고서** | [Google_News_Redirect_Issue_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/Google_News_Redirect_Issue_Report.md) | 구글 뉴스 수집 시 발생하는 리디렉션 이슈 분석 및 해결책 |
 | **오디오 개선 보고서** | [20260422_Audio_System_Enhancement_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/20260422_Audio_System_Enhancement_Report.md) | 미니 플레이어 및 오디오 수집 성능 최적화 개선 보고서 |
@@ -116,11 +116,14 @@
 
 ---
 
-## 🛠 최근 업데이트 및 작업 현황 (2026-08-11 · 게시본 **v1.6** / **v1.6.1 업로드 완료·검토 중**)
+## 🛠 최근 업데이트 및 작업 현황 (2026-08-12 · 게시본 **v1.6.1(vc7)** — 🎉 **2026-08-12 출시·라이브**)
+
+> 🎉 **K-시리즈 3개 앱 전부 라이브 + 전부 최신판**: KDailyUtil **v1.6.1** · KLotto645 **v1.0.3** · K장부 **v1.0.1**. 밀린 배포 없음. 다음 업로드는 **vc8**.
+> ⏱ 심사 실측: 업데이트는 **몇 시간~하루**(데이터 보안 양식을 함께 고쳐도 지연 없음), 신규 앱 첫 심사만 4일.
 
 > 🔄 **버전 스킴 전환(2026-08-11)**: 옛 규칙 "versionName 끝자리 = versionCode"를 폐기하고 **유의적 버전(MAJOR.MINOR.PATCH)** 으로 바꿨다. 버그수정→PATCH / 기능추가→MINOR. 그래서 이번 장애 수정판은 **`1.7`이 아니라 `1.6.1`**(versionCode는 7). 자매앱(KLotto645 `1.0.3`·K장부 `1.0.1`)과 같은 방식이 됐다. 규칙 = [DEVELOPER_GUIDE.md § 버전 스킴](doc/DEVELOPER_GUIDE.md).
 
-### 🔴 AI 모델 하드코딩 제거 — 신규 사용자 AI 전면 실패 수정 (2026.08.07 · **v1.6.1로 배포 예정**)
+### ✅ AI 모델 하드코딩 제거 — 신규 사용자 AI 전면 실패 수정 (2026.08.07 · **v1.6.1로 배포 완료 — 08-12 라이브**)
 - **문제**: `GeminiManager`에 `gemini-2.5-flash`가 박혀 있었고, 이 모델이 **신규 사용자에게 닫혔다**(404 `NOT_FOUND` — *"no longer available to new users"*). 기존 계정은 계속 되기 때문에 개발 중엔 보이지 않고, **새로 설치해 자기 키를 넣은 사람만 AI 13종이 전부 실패**했다. K장부에서 새 계정 키로 실측해 발견.
 - **4중 방어**: ① 기본값을 버전이 아니라 **별칭**(`gemini-flash-latest`) ② 404/NOT_FOUND일 때만 다음 후보로 **폴백**(키 오류·한도·네트워크에는 폴백하지 않음 — 같은 오류를 후보 수만큼 반복하지 않기 위해) ③ 성공한 모델 **기억**(매 호출 재탐색 방지) ④ `family.json`의 `aiModel`로 **원격 지정**(앱 재배포 없이 교체).
 - **단일 통과 지점**: AI 기능 14개 호출을 `ask(prompt)` 하나로 모아 폴백이 **전 기능에 자동 적용**된다.
