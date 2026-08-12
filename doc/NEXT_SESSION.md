@@ -1,4 +1,4 @@
-# 📋 다음 세션 브리핑 (2026-08-11 16:50 기준)
+# 📋 다음 세션 브리핑 (2026-08-12 11:00 기준)
 
 > **신규 세션은 이 문서 하나만 읽고 사용자에게 브리핑하면 된다.** 기술 배경은 각 항목의 링크에 있다.
 > 상태: KDailyUtil 저장소 **커밋·푸시 완료**, 진행 중인 코드 작업 없음.
@@ -32,7 +32,9 @@
 
 ### 통과 후에 할 것
 1. **스토어 반영 확인** — '데이터 보안' 칸에 *공유되는 데이터: 사진, 기타 사용자 제작 콘텐츠*가 뜨는지
-2. ⚠️ **`aiModel` 원격 교체를 실제로 한 번 당겨볼 것** — "앱 재배포 없이 모델 교체"는 코드에만 있고 세 `family.json` 어디에도 `aiModel` 키가 없다. **한 번도 시험해보지 않은 비상 레버** → [`AI_KEY_NOTES.md`](AI_KEY_NOTES.md) §4-1c
+2. ⚠️ **`aiModel` 원격 교체를 실제로 한 번 당겨볼 것** — "앱 재배포 없이 모델 교체"는 코드에만 있고 `family.json` 어디에도 `aiModel` 키가 없다. **한 번도 시험해보지 않은 비상 레버** → [`AI_KEY_NOTES.md`](AI_KEY_NOTES.md) §4-1c
+   - 💡 **K장부가 같은 문제를 회귀 테스트로 푼 선례가 있다** → §K장부 근황 ②. 수동 확인보다 이 쪽이 낫다
+   - 레버를 당길 땐 **정본·라이브 둘 다** 넣는다 → [`family_config/README.md`](family_config/README.md) §3-1
 3. **깨끗한 계정으로 신규 설치 확인** — 이번 장애가 *새 계정에서만* 터지던 것이라 기존 기기 테스트로는 검증되지 않는다
 
 ### 반려되면
@@ -108,10 +110,25 @@ K장부에는 **이미 만들어져 돌아가고 있다**(체험 20회 + 문제 
 - `k-series-config` — `618613b` 푸시 완료. **라이브 페이지 확인**: 최종 개정일자 8/11 · 제2·3조 OS 자동 백업 · 제6조 세션 쿠키 서술 모두 반영됨
 - **방침 원본 ↔ 배포본 3앱 전부 일치**(`diff --strip-trailing-cr`로 검증, 줄바꿈 차이만)
 
-### 🟡 남은 것 1건 — **KJangbu 저장소 미푸시 7건**
-`git -C d:/DATA/20_Source/80_Git_HUB/KJangbu status` → **ahead 7**(08-10 17:23 ~ 08-11 15:28).
-그중 `e06758a release: v1.0.1(vc2) 핫픽스 빌드`가 있다 → **이미 라이브인 버전의 소스가 GitHub에 없다.**
-데이터 보안 양식 절차 문서(§4-4·4-5)도 로컬에만 있다. **그 세션 몫이므로 대신 푸시하지 않는다** — 다음에 K장부 세션이 열리면 알려줄 것.
+- `KJangbu` 저장소 — **푸시 완료(08-12 확인).** ahead 7이던 것이 해소됐고 작업 트리도 깨끗하다
+
+### 🟢 세 저장소 전부 커밋·푸시 완료 (2026-08-12 11:00 확인)
+남은 미결 없음. K장부는 이후로도 계속 진행 중이다 → 아래 §K장부 근황.
+
+### 📣 K장부 근황 (08-11 17:30 ~ 08-12 10:23) — **KDailyUtil에 영향 있는 것 2건**
+
+그 세션이 v1.0.1 출시 후에도 계속 작업 중이다. 대부분은 그쪽 몫이지만 **아래 2건은 이 저장소가 받아야 한다.**
+
+**① 🔴 `family.json`에 새 레버 키가 생겼다 — `fscApi.enabled`** (K장부 `452df15`)
+금융위 배당 API 키가 dex에서 추출 가능해서(하루 10,000콜 한도) 남용되면 정상 사용자가 배당 조회를 못 하게 된다 → 원격으로 끄는 레버를 붙였다. **문제는 `family.json` 정본을 KDailyUtil이 소유한다는 것이다.**
+
+→ ✅ **조치 완료**: [`family_config/README.md`](family_config/README.md) **§3-1 '최상위 레버 키 레지스트리'** 신설.
+**사고 경로를 여기서 막았다** — 레버는 급할 때 라이브에만 넣는 경우가 많은데, 그 상태에서 §3 절차대로 *"정본을 그대로 올린다"* 를 하면 **레버 키가 조용히 사라져 껐던 기능이 되살아난다.** `fscApi`는 기본값이 '켜짐'이라 가장 조용히 되살아난다. **라이브를 덮어쓰기 전에 최상위 키를 먼저 확인하는 절차**를 §3-1에 넣었다.
+
+**② 🟡 `aiModel` 레버에 회귀 테스트가 없다 — 이식 후보**
+K장부는 킬스위치에 **양방향 회귀 12건**을 붙였다(`FamilyRegistryConfigTest`: 없으면 켜짐 / false면 실제로 꺼짐 / 한쪽을 당겨도 다른 쪽은 안 꺼짐). 근거가 정확하다 — *"킬스위치는 사고 난 날 처음 당겨보는 물건이라 그날 안 먹히면 최악이다."*
+**KDailyUtil의 `aiModel`이 바로 그 상태다**(코드에만 있고 한 번도 당겨본 적 없음, 테스트 0건). §할 일 1의 '실전 검증'을 할 때 **수동 확인 대신 이 테스트를 이식하는 쪽이 낫다.**
+> 이식 시 함정 2개도 그쪽이 이미 풀어놨다 — `testImplementation(libs.json)`으로 android.jar의 org.json 스텁을 우회, `unitTests.isReturnDefaultValues`로 `android.util.Log`가 예외를 안 던지게. 상세 = `KJangbu/doc/OPERATIONS.md` §1-1·§3-4
 
 > 💡 참고: KLotto 세션이 방침 사본 동기화 명령을 **멱등 형태로 고정**했다(`sed 's/\r$//; s/$/\r/'`).
 > KLotto 저장소는 `core.autocrlf=true`라 같은 파일이 시점에 따라 LF일 때도 CRLF일 때도 있어서,
@@ -123,7 +140,7 @@ K장부에는 **이미 만들어져 돌아가고 있다**(체험 20회 + 문제 
 
 | 항목 | 상태 |
 |---|---|
-| **증권계좌 장부(M8)** | K장부에서 진행 중 — **그 세션 담당**. `KJangbu/doc/FEATURE_SECURITIES_LEDGER.md` |
+| **증권계좌 장부(M8)** | K장부에서 **거의 완료** — 시세·배당 API·배당 알림·휴지통까지 08-07에 끝났고 남은 건 미래에셋 파서 하나(08-12 확인). **그 세션 담당**. `KJangbu/doc/FEATURE_SECURITIES_LEDGER.md` |
 | **블박 신고 도우미 앱** | ⏸️ 검토 완료·보류. 조건부 출시 가능하나 **번호판 인식이 실제로 되는지 로컬 검증이 먼저** → [`SISTER_APP_DASHCAM_REPORT_PLAN.md`](SISTER_APP_DASHCAM_REPORT_PLAN.md) |
 | **출근길 교통 브리핑 앱** | 다음 신규 앱 후보 중 가장 안전·저렴 → [`SISTER_APP_IDEAS_BACKLOG.md`](SISTER_APP_IDEAS_BACKLOG.md) 아이디어 A |
 | **K운복(AI 운세)** | ⏸️ 보류(08-04 사용자 지시) |
@@ -136,7 +153,8 @@ K장부에는 **이미 만들어져 돌아가고 있다**(체험 20회 + 문제 
 - **KJangbu·KLotto645 저장소는 다른 세션이 작업 중이다.** 오늘도 15:28까지 K장부 커밋이 올라왔다. 그쪽 코드·문서를 건드리기 전에 반드시 `git status`·`git log`부터 확인하고, **그 앱 관련 결정은 그 세션이 단일 기준**이라고 보면 된다.
 - **날짜를 추측하지 말 것.** 정리 중에 K장부 출시일을 08-07로 잘못 적었다가 커밋 타임스탬프(`git log --date=format:...`)로 08-10임을 확인해 고쳤다.
 - **`versionCode`는 업로드마다 +1이고 반려에도 소모되며 되돌릴 수 없다.** 현재: KDailyUtil vc7 · KLotto645 vc13 · K장부 vc2.
-- **`family.json`은 세 곳을 맞춰야 한다** — 정본 `KDailyUtil/doc/family_config/family.json` + 앱 번들 `res/raw/family.json` + **실제 라이브인 `k-series-config`**(로컬 클론 = `d:/DATA/20_Source/80_Git_HUB/k-series-config/k-series-config`).
+- **`family.json`은 네 곳을 맞춰야 한다** — 정본 `KDailyUtil/doc/family_config/family.json` + 앱 번들 `res/raw/family.json` + **실제 라이브인 `k-series-config`**(로컬 클론 = `d:/DATA/20_Source/80_Git_HUB/k-series-config/k-series-config`) + K장부 사본 `KJangbu/doc/family_config/family.json`(그 세션이 낡아서 겪은 적 있음). **08-12 현재 4개 일치 확인**(`_note` 문구만 다름).
+  - 🔴 **라이브를 덮어쓰기 전에 최상위 레버 키(`aiModel`·`aiTrial`·`fscApi`)를 먼저 확인한다** → [`family_config/README.md`](family_config/README.md) §3-1. 확인 없이 정본을 올리면 **껐던 기능이 조용히 되살아난다.**
 - **방침을 바꾸면 원본·배포본·Console 양식 세 곳**을 갱신한다.
 - **새 문서를 만들면 README '문서 인덱스' 표에 등록**한다(K-시리즈 규칙).
 - 서명 키는 저장소 밖 `d:/DATA/20_Source/_secrets/`. **업로드 전 서명 확인 필수.**
