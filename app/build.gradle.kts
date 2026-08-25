@@ -74,6 +74,14 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        unitTests {
+            // 🔴 이게 없으면 `android.util.Log`가 단위 테스트에서 «not mocked» 예외를 던진다.
+            // 진단 로그를 넣은 코드는 그 순간부터 테스트가 불가능해진다 — 로그를 지우는 게 아니라
+            // 이 스위치를 켜는 것이 답이다(K장부 `doc/OPERATIONS.md` §3-4에서 같은 함정을 이미 풀었다).
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {

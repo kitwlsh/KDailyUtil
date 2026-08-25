@@ -12,7 +12,7 @@
 
 | 문서 구분 | 상세 문서 링크 | 설명 |
 | :--- | :--- | :--- |
-| **⭐ 다음 세션 브리핑** | [NEXT_SESSION.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/NEXT_SESSION.md) | **신규 세션은 여기부터** — 지금 상황 요약(3앱 전부 최신 라이브) + 남은 출시 후 확인 3건 + 다음 작업 후보(AI 체험판)를 쉬운 말로 정리. 백로그·주의사항·읽을 순서 포함 |
+| **⭐ 다음 세션 브리핑** | [NEXT_SESSION.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/NEXT_SESSION.md) | **신규 세션은 여기부터** — 지금 상황 요약(3앱 전부 라이브) + **✅08-25 503 대응 이식 완료·vc8 빌드 대기** + 남은 확인 3건 + 다음 작업 후보(AI 체험판)를 쉬운 말로 정리. 백로그·주의사항·읽을 순서 포함 |
 | **개발자 가이드** | [DEVELOPER_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/DEVELOPER_GUIDE.md) | 프로젝트 아키텍처, 파일 구조, 개발 시 주의사항 총정리 |
 | **구글 플레이 가이드** | [GOOGLE_PLAY_RELEASE_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/GOOGLE_PLAY_RELEASE_GUIDE.md) | 구글 플레이 콘솔 업로드 및 릴리즈 빌드 전체 단계 안내 |
 | **🛡 Play 정책 준수(3앱 공용)** | [PLAY_POLICY_COMPLIANCE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/PLAY_POLICY_COMPLIANCE.md) | **K-시리즈 공통 기준.** Android 개발자 인증(2026-09-30 기한, ✅확인완료) · **데이터 보안 양식을 방침과 일치시키는 법**(AI 전송앱 판단 기준) · 미사용 앱 4건 방치 결정 · **✅ 3앱 전수 점검 결과(08-11)** — KDailyUtil·K장부는 어긋나 있어 고쳤고 KLotto645는 '수집 없음'이 정답 · 재발 방지 규칙 |
@@ -23,7 +23,7 @@
 | **K-시리즈 아이콘 표준** | [K_SERIES_ICON_RECIPE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/K_SERIES_ICON_RECIPE.md) | 형제 앱(KDailyUtil·KLotto645 등) 아이콘·스플래시·워터마크 패밀리 통일 규격 및 신규 앱 제작 절차(단일 기준 문서) |
 | **자매앱 상호연결 표준** | [KLOTTO_CONNECT_HANDOFF.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KLOTTO_CONNECT_HANDOFF.md) | K-시리즈 자매앱 상호 설치링크 표준 + 신규앱 편입 절차(§7 정적) + **동적 레지스트리(원격 구성) §8 — ✅ KDailyUtil 구현 완료(2026-07-29)**, 신규앱 JSON 편입(§8-9)·자매앱 이식 체크리스트(§8-10)·호스팅 절차(§8-11) + KLotto645↔KDailyUtil 핸드오프 |
 | **자매앱 레지스트리 정본** | [family_config/README.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/family_config/README.md) | 원격 `family.json` 정본 + 아이콘(384²) + `k-series-config` 레포 업로드·편집 가이드(앱 재배포 없이 자매앱 추가하는 절차) + **🔴 §3-1 최상위 레버 키 레지스트리**(`aiModel`·`aiTrial`·`fscApi` — 라이브를 덮어쓰기 전에 필히 확인, 안 하면 껐던 기능이 되살아난다) |
-| **AI 키 현황·남은 일** | [AI_KEY_NOTES.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/AI_KEY_NOTES.md) | 🔴 **모델 하드코딩 장애**(신규 사용자 AI 전면 실패)와 4중 방어·모델 실측표·키 안내 개선 + **남은 일**(✅v1.6.1 출시완료 / ⏳`aiModel` 레버 검증 — 회귀 테스트 이식 권장 · 체험/킬스위치 이식 시 주의). 정책 단일 기준은 `KJangbu/doc/AI_KEY_POLICY.md` |
+| **AI 키 현황·남은 일** | [AI_KEY_NOTES.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/AI_KEY_NOTES.md) | 🔴 **모델 하드코딩 장애**(신규 사용자 AI 전면 실패)와 4중 방어·키 안내 개선 + **모델 실측표 2종**(§3 08-07 / **§3-1 08-25 — 503은 상시가 아니라 간헐적(21회 중 4회)이라는 실측, 무료 등급 분당 한도 실측**) + **남은 일**(✅v1.6.1 출시완료 / ⏳`aiModel` 레버 검증 · 체험/킬스위치 이식 시 주의). 정책 단일 기준은 `KJangbu/doc/AI_KEY_POLICY.md` |
 | **개인정보처리방침** | [privacy-kdailyutil.html](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/privacy-kdailyutil.html) | 이 앱의 방침 **원본**(마이크·카메라·음성입력(STT)·AI 제3자 처리 포함). 배포는 `k-series-config` GitHub Pages, 등록 URL·앱별 작성 규칙 = [KLOTTO_CONNECT_HANDOFF.md §9](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KLOTTO_CONNECT_HANDOFF.md). ⚠️ 권한을 바꾸면 이 문서도 같이 고칠 것 |
 | **뉴스 우회 보고서** | [Google_News_Redirect_Issue_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/Google_News_Redirect_Issue_Report.md) | 구글 뉴스 수집 시 발생하는 리디렉션 이슈 분석 및 해결책 |
 | **오디오 개선 보고서** | [20260422_Audio_System_Enhancement_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/20260422_Audio_System_Enhancement_Report.md) | 미니 플레이어 및 오디오 수집 성능 최적화 개선 보고서 |

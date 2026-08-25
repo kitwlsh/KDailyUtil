@@ -154,11 +154,27 @@ class GeminiManager(private val apiKey: String?) {
      */
     private suspend fun ask(prompt: Content): String {
         if (!hasKey) return ""
+        return askWithFallback { name ->
+            modelOf(name)?.generateContent(prompt)?.text ?: ""
+        }
+    }
+
+    /**
+     * 후보 모델을 순서대로 시도하는 **폴백 루프 본체**. [ask]가 여기에 «실제 호출»만 넘긴다.
+     *
+     * 🔴 **왜 굳이 분리했나 — 이 루프가 이 수정의 전부인데 테스트할 방법이 없었다.**
+     * `GenerativeModel`을 직접 만들어 쓰면 단위 테스트가 들어갈 틈이 없어서, 정작
+     * *「503이면 진짜로 다음 후보로 넘어가는가」* 를 아무도 확인하지 못한 채 배포하게 된다.
+     * [call]을 밖에서 넣을 수 있게 하면 **기기도 네트워크도 키도 없이** 그 판단을 고정할 수 있다
+     * (`GeminiFallbackTest`). 사고 대응 장치는 사고 난 날 처음 당겨보는 물건이라 그날 안 먹히면 최악이다.
+     *
+     * @param call 모델 이름을 받아 실제 호출을 수행한다. 테스트는 여기에 가짜 예외를 넣는다.
+     */
+    internal suspend fun askWithFallback(call: suspend (String) -> String): String {
         var last: Exception? = null
         for (name in (listOfNotNull(resolved) + candidates()).distinct()) {
-            val m = modelOf(name) ?: return ""
             try {
-                val out = m.generateContent(prompt).text ?: ""
+                val out = call(name)
                 if (resolved != name) {
                     // 진단용: `adb logcat -s GeminiModel` 로 어느 모델이 실제로 통했는지 확인한다.
                     android.util.Log.d("GeminiModel", "✅ 모델 결정: $name (후보=${(listOfNotNull(resolved) + candidates()).distinct()})")
