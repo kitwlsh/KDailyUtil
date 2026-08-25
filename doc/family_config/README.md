@@ -69,7 +69,7 @@ https://raw.githubusercontent.com/kitwlsh/k-series-config/main/icons/kjangbu.png
 
 | 키 | 읽는 앱 | 기본값(키 없을 때) | 당기면 | 유효 버전 |
 |---|---|---|---|---|
-| `aiModel` (문자열) | KDailyUtil | 앱 내장 별칭 사용 | 전 사용자 AI 모델을 지정 모델로 교체 | vc7 / v1.6.1+ |
+| `aiModel` (문자열) | 🔴 **KDailyUtil + K장부 (둘 다)** | 앱 내장 별칭 사용 | **두 앱 모두** AI 모델이 지정 모델로 교체된다 | KDailyUtil vc7 / v1.6.1+ · K장부 vc2+ |
 | `aiTrial` (객체) | K장부 | 체험 활성(한도는 앱 기본) | AI 체험 중단 / 한도 조정 | K장부 vc2+ |
 | `fscApi.enabled` (불린) | K장부 | **`true`(켜짐)** | 금융위 배당 API 차단 → Yahoo 폴백(지급일·알림만 사라짐) | **K장부 vc3+** |
 
@@ -88,7 +88,14 @@ https://raw.githubusercontent.com/kitwlsh/k-series-config/main/icons/kjangbu.png
 > 여기서 `aiModel`·`aiTrial`·`fscApi`가 보이면 **그 값을 정본에도 옮긴 뒤에** 올린다.
 > 레버를 당길 때도 **정본·라이브 둘 다** 넣는 것이 원칙이다(라이브만 고치는 건 사고 대응 중의 임시 조치로만).
 
-**앱마다 자기 키만 읽고 모르는 키는 무시한다** — `optString`/`optJSONObject` 기반이라 KDailyUtil에 `fscApi`가 있어도, K장부에 `aiModel`이 있어도 아무 일도 일어나지 않는다. 그래서 세 앱이 한 파일을 공유할 수 있다.
+> 🔴 **`aiModel`은 두 앱이 공유하는 유일한 레버다 — 한쪽만 고치려고 당길 수 없다.**
+> K장부도 2026-08-07(`62284d2`)부터 같은 최상위 `aiModel` 키를 읽는다(`FamilyRegistry.loadAiModel`).
+> 즉 **KDailyUtil 하나를 구하려고 당긴 레버가 K장부의 모델까지 바꾼다**(그 반대도 같다).
+> 값을 넣기 전에 **두 앱 모두에서 그 모델이 되는지** 확인할 것. 한 앱에만 적용하고 싶다면
+> 레버가 아니라 **앱별 키**(예: `aiModel.kdailyutil`)를 새로 설계해야 한다 — 지금은 그런 게 없다.
+> *(2026-08-12 이 표를 만들 때 「KDailyUtil 전용」으로 잘못 적었다. 2026-08-25 정정.)*
+
+**앱마다 자기 키만 읽고 모르는 키는 무시한다** — `optString`/`optJSONObject` 기반이라 KDailyUtil에 `fscApi`·`aiTrial`이 있어도 아무 일도 일어나지 않는다. **단 `aiModel`은 예외다 — 두 앱이 같은 키를 읽으므로 위 경고를 먼저 볼 것.** 그래서 세 앱이 한 파일을 공유할 수 있다.
 
 **새 레버를 만들 때 지킬 것**(K장부 `fscApi` 설계에서 확립, 2026-08-12):
 - **실패 방향은 '켜짐'으로 고정** — 원격이 죽거나 JSON이 깨졌을 때 조용히 꺼지면 사용자는 이유도 모른 채 기능을 잃는다
