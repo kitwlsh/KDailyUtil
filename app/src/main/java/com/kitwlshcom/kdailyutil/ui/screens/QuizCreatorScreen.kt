@@ -966,7 +966,7 @@ fun ImageScannerTab(
                         }
                         catch (e: Exception)
                         {
-                            Toast.makeText(context, "에러 발생: ${e.message}", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, com.kitwlshcom.kdailyutil.data.remote.GeminiManager.aiErrorMessage(e), Toast.LENGTH_LONG).show()
                         }
                         finally
                         {
@@ -1266,7 +1266,7 @@ fun WebCrawlingTab(
                         }
                         catch (e: Exception)
                         {
-                            Toast.makeText(context, "에러 발생: ${e.message}", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, com.kitwlshcom.kdailyutil.data.remote.GeminiManager.aiErrorMessage(e), Toast.LENGTH_LONG).show()
                         }
                         finally
                         {

@@ -228,7 +228,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                 Log.e("QuizViewModel", "❌ AI Quiz Generation Failed: ${e.message}", e)
                 // 에러 발생 시 초기 화면으로 — 사유는 사용자에게 알린다(조용히 삼키지 않는다)
                 _quizState.value = QuizState.CATEGORY_SELECTION
-                onError("AI 퀴즈를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.\n(${e.message})")
+                onError("AI 퀴즈를 만들지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))
             }
         }
     }
@@ -610,7 +610,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             catch (e: Exception)
             {
                 Log.e("QuizViewModel", "❌ AI Option Generation Failed: ${e.message}", e)
-                onComplete(null, "보기 생성 오류: ${e.message}")
+                onComplete(null, "보기를 만들지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))
             }
         }
     }

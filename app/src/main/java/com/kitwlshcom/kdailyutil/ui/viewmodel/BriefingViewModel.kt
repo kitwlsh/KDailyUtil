@@ -226,7 +226,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ API Key Validation Fail: ${e.message}", e)
-                _apiKeyStatus.value = ApiKeyStatus.Invalid("❌ 문제가 있습니다: ${e.message}")
+                _apiKeyStatus.value = ApiKeyStatus.Invalid("❌ " + GeminiManager.aiErrorMessage(e))
             }
         }
     }
@@ -468,7 +468,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 NewsItem(
                     title = "분석 오류",
                     link = "error",
-                    description = "AI 분석 중 오류가 발생했습니다. API 키가 정확한지, 인터넷 연결이 되어 있는지 확인해 주세요.\n(상세: ${e.message})",
+                    description = "AI 분석 중 오류가 발생했습니다.\n" + GeminiManager.aiErrorMessage(e),
                     pubDate = "-",
                     source = "Error"
                 )

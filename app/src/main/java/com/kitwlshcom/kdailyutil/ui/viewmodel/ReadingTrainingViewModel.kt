@@ -132,7 +132,7 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
                 else onResult(text, null)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ extractTextFromImage 실패: ${e.message}")
-                onResult(null, "텍스트 추출 오류: ${e.message}")
+                onResult(null, "글자를 추출하지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))
             } finally {
                 _isExtractingText.value = false
             }
@@ -196,7 +196,7 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
                 else onResult(list, null)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ generateComprehension 실패: ${e.message}")
-                onResult(null, "분석 오류: ${e.message}")
+                onResult(null, "이해도 문제를 만들지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))
             } finally {
                 _isGeneratingQuiz.value = false
             }

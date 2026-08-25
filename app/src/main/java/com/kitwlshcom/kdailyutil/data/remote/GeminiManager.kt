@@ -20,14 +20,90 @@ class GeminiManager(private val apiKey: String?) {
          */
         const val DEFAULT_MODEL = "gemini-flash-latest"
 
-        /** 위에서부터 시도한다. 앞의 것이 404면 다음으로 넘어간다. */
-        val FALLBACK_MODELS = listOf(DEFAULT_MODEL, "gemini-3.5-flash", "gemini-2.0-flash")
+        /**
+         * 위에서부터 시도한다. 앞의 것이 **404(사라짐)거나 503(과부하)면** 다음으로 넘어간다.
+         *
+         * ⚠️ **실제로 있는 모델만 둔다.** `gemini-2.0-flash`가 오래 들어 있었는데
+         * 이 계정에는 **존재하지 않는다**(models 목록에 없음) — 폴백이 한 칸 헛돌았다.
+         * 2026-08-18 K장부 실측: `gemini-flash-latest` 503 / `gemini-3.5-flash` 18초 정상 /
+         * `gemini-3.6-flash` 45초 정상 / `gemini-2.5-flash` 404(신규 계정 차단).
+         */
+        val FALLBACK_MODELS = listOf(DEFAULT_MODEL, "gemini-3.5-flash", "gemini-3.6-flash")
 
         /**
          * 원격에서 지정한 모델(`family.json`의 `aiModel`).
          * 앱이 자매앱 레지스트리를 읽을 때 채워진다 — 모델이 또 막혀도 **앱 재배포 없이** 갈아끼운다.
+         *
+         * ⚠️ 이 키는 **K장부도 같이 읽는다**(2026-08-07~). 레버를 당기면 두 앱의 모델이 함께 바뀐다
+         * — `doc/family_config/README.md` §3-1.
          */
         @Volatile var preferredModel: String? = null
+
+        /**
+         * 이번 실행에서 **마지막으로 성공한 모델**. 앱 전체가 공유한다(인스턴스별 [resolved]와 별개).
+         *
+         * 🔴 이게 없으면 기본 모델이 503으로 막힌 동안 **호출마다 그 모델을 먼저 다시 찔러본다** —
+         * 실측에서 503 응답이 오기까지 3~70초가 걸렸다. 사용자에게는 그냥 «너무 오래 걸린다»다.
+         * KDailyUtil은 AI 기능이 13종이고 화면마다 `GeminiManager`를 새로 만들기 때문에
+         * **인스턴스 단위 기억만으로는 부족하다.**
+         */
+        @Volatile var lastGoodModel: String? = null
+
+        /**
+         * 예외를 **사용자가 읽을 수 있는 한국어 안내**로 바꾼다. AI 오류를 사람에게 보여주는 곳은
+         * 전부 이 함수를 지난다 — 화면마다 다르게 번역하면 같은 사고를 화면 수만큼 다시 겪는다.
+         *
+         * 🔴 **가장 중요한 건 «내 문제»와 «남의 문제»를 구분하는 것이다.**
+         * 503(서버 혼잡)을 한도 소진처럼 안내하면 사용자는 «내가 많이 썼나» 하고 그냥 기다리고,
+         * 혼잡을 «키 문제»로 안내하면 멀쩡한 키를 지우고 새로 발급받는다.
+         *
+         * 안드로이드 API를 쓰지 않는 순수 함수다(단위 테스트 대상 — `AiErrorMessageTest`).
+         */
+        fun aiErrorMessage(e: Throwable): String {
+            val m = (e.message ?: "") + (e.cause?.message ?: "")
+            return when {
+                m.contains("API_KEY_INVALID", true) || m.contains("API key not valid", true) ->
+                    "API 키가 올바르지 않습니다. AI Studio에서 복사한 키 전체를 붙여넣었는지 확인해 주세요."
+                m.contains("PERMISSION", true) ->
+                    "이 키에 Gemini API 사용 권한이 없습니다. AI Studio에서 새 키를 만들어 보세요."
+                looksOverloaded(m) ->
+                    "지금 AI 서버가 붐빕니다. 사용량을 다 쓴 것이 아니라 구글 쪽이 혼잡한 것이니, 잠시 뒤 다시 시도해 주세요."
+                looksRateLimited(m) ->
+                    "이 키의 사용 한도를 초과했습니다. 무료 등급은 분당·하루 한도가 있어 잠시 뒤 풀립니다."
+                looksModelUnavailable(m) ->
+                    "사용 가능한 AI 모델을 찾지 못했습니다. 앱을 최신 버전으로 업데이트한 뒤 다시 시도해 주세요."
+                m.contains("UnknownHost", true) || m.contains("timeout", true) ||
+                    m.contains("Unable to resolve host", true) || m.contains("Failed to connect", true) ->
+                    "네트워크에 연결하지 못했습니다. 인터넷 상태를 확인한 뒤 다시 시도해 주세요."
+                else -> "AI 응답을 받지 못했습니다. 잠시 뒤 다시 시도해 주세요. (상세: ${e.message ?: e.javaClass.simpleName})"
+            }
+        }
+
+        /**
+         * **503 — 그 모델이 지금 붐빈다**(내 한도와 무관하다).
+         *
+         * 🔴 2026-08-18 K장부 실사용에서 이것 때문에 «사진 인식이 하루종일 실패»했다.
+         * `gemini-flash-latest`가 *"This model is currently experiencing high demand"*(503)를
+         * 3~70초 뒤에 돌려줬는데 404 판정에도 429 판정에도 걸리지 않아
+         * **재시도도 모델 폴백도 없이** 그대로 실패했고, 안내는 «원인 미상»으로 떨어졌다.
+         *
+         * ⚠️ 429와 **다르게 다뤄야 한다**: 429는 내 호출이 많아서이니 기다리면 되지만,
+         * 503은 그 모델 자체가 붐비는 것이라 기다려도 잘 안 풀린다 → **다른 모델로 넘어간다.**
+         */
+        internal fun looksOverloaded(m: String): Boolean =
+            m.contains("503") || m.contains("UNAVAILABLE", true) ||
+                m.contains("high demand", true) || m.contains("overloaded", true) ||
+                m.contains("Service Unavailable", true)
+
+        /** 429 / 사용량 한도인가. **키가 틀린 것·서버 혼잡과 구분해야 한다.** */
+        internal fun looksRateLimited(m: String): Boolean =
+            m.contains("429") || m.contains("RESOURCE_EXHAUSTED", true) ||
+                m.contains("QUOTA", true) || m.contains("rate limit", true)
+
+        /** 404 — 그 모델이 이 계정에 없다(사라졌거나 신규 계정에 닫혔다). */
+        internal fun looksModelUnavailable(m: String): Boolean =
+            m.contains("NOT_FOUND", true) || m.contains("not found", true) ||
+                m.contains("no longer available", true) || m.contains("is not supported", true)
     }
 
     val hasKey: Boolean get() = !apiKey.isNullOrBlank()
@@ -47,7 +123,10 @@ class GeminiManager(private val apiKey: String?) {
      * ⚠️ ListModels 목록에 있어도 generateContent는 거부될 수 있다. 목록을 믿지 말고 실제 호출로 확인한다.
      */
     private fun candidates(): List<String> = buildList {
+        // ① 원격 지정(family.json) — 사고 대응용 레버라 가장 세다
         preferredModel?.takeIf { it.isNotBlank() }?.let { add(it) }
+        // ② 이번 실행에서 이미 통한 모델 — 막힌 기본 모델을 매번 다시 찌르지 않기 위해
+        lastGoodModel?.takeIf { it.isNotBlank() }?.let { add(it) }
         addAll(FALLBACK_MODELS)
     }.distinct()
 
@@ -65,10 +144,11 @@ class GeminiManager(private val apiKey: String?) {
 
     /**
      * 프롬프트 1건 실행 — **모든 AI 기능이 이 한 곳을 통과한다**(폴백이 전 기능에 적용되게).
-     * 모델이 사라졌으면(404 NOT_FOUND) 다음 후보로 넘어간다.
+     * 모델이 **사라졌거나(404) 붐비면(503)** 다음 후보로 넘어간다.
      *
      * ⚠️ 그 외 오류(키·한도·네트워크)는 **폴백하지 않고 그대로 던진다.**
      * 폴백하면 같은 오류를 후보 수만큼 반복하고, 사용자에게 보여줄 사유도 흐려진다.
+     * 특히 **429(내 한도)는 폴백하지 않는다** — 한도는 키 단위라 모델을 바꿔도 그대로다.
      *
      * @return 응답 텍스트. 키가 없으면 빈 문자열(호출부 가드가 먼저 걸러내는 게 정상 경로).
      */
@@ -84,21 +164,32 @@ class GeminiManager(private val apiKey: String?) {
                     android.util.Log.d("GeminiModel", "✅ 모델 결정: $name (후보=${(listOfNotNull(resolved) + candidates()).distinct()})")
                 }
                 resolved = name
+                lastGoodModel = name   // 다음 호출은 이 모델로 바로 간다(막힌 모델 재탐색 방지)
                 return out
             } catch (e: Exception) {
                 last = e
-                android.util.Log.w("GeminiModel", "⚠️ $name 실패(${if (isModelUnavailable(e)) "모델 없음 → 다음 후보" else "폴백 안 함"}): ${e.message}")
-                if (!isModelUnavailable(e)) throw e   // 모델 문제일 때만 폴백
+                // 🔴 실패 원문을 **반드시 남긴다.** 사용자에게는 번역해 보여주지만(aiErrorMessage),
+                //    로그에도 없으면 «원인 미상» 오류를 나중에 조사할 방법이 사라진다.
+                //    실제로 503을 이 때문에 못 찾고 «AI가 오래 걸리다 실패한다»로만 겪었다(K장부, 08-18).
+                val reason = when {
+                    isModelUnavailable(e) -> "모델 없음(404) → 다음 후보"
+                    isOverloaded(e) -> "모델 과부하(503) → 다음 후보"
+                    else -> "폴백 안 함"
+                }
+                android.util.Log.w("GeminiModel", "⚠️ $name 실패($reason): ${e.javaClass.simpleName}: ${e.message}")
+                // 🔴 503은 **기다려도 그 모델이 안 풀린다** — 다른 모델로 넘어가야 한다.
+                //    예전엔 어느 분기에도 안 걸려서 폴백도 재시도도 없이 그냥 실패했다.
+                if (!isModelUnavailable(e) && !isOverloaded(e)) throw e
             }
         }
         throw last ?: IllegalStateException("사용 가능한 Gemini 모델을 찾지 못했습니다.")
     }
 
-    private fun isModelUnavailable(e: Exception): Boolean {
-        val m = (e.message ?: "") + (e.cause?.message ?: "")
-        return m.contains("NOT_FOUND", true) || m.contains("not found", true) ||
-            m.contains("no longer available", true) || m.contains("is not supported", true)
-    }
+    private fun isModelUnavailable(e: Exception): Boolean =
+        looksModelUnavailable((e.message ?: "") + (e.cause?.message ?: ""))
+
+    private fun isOverloaded(e: Exception): Boolean =
+        looksOverloaded((e.message ?: "") + (e.cause?.message ?: ""))
 
     /** 기존 호출부의 `response?.text` 형태를 유지하기 위한 얇은 래퍼. 빈 응답은 null로 준다. */
     private class AiResponse(val text: String)
@@ -116,17 +207,9 @@ class GeminiManager(private val apiKey: String?) {
             if (out.isBlank()) false to "응답이 비어 있습니다. 키를 다시 확인해 주세요."
             else true to "✅ 연결 성공! (모델 ${resolved ?: "-"})"
         } catch (e: Exception) {
-            val msg = e.message.orEmpty()
-            val hint = when {
-                msg.contains("API_KEY_INVALID", true) || msg.contains("API key not valid", true) ->
-                    "키가 올바르지 않습니다. AI Studio에서 복사한 키 전체를 붙여넣었는지 확인해 주세요."
-                msg.contains("PERMISSION", true) -> "이 키에 Gemini API 사용 권한이 없습니다. AI Studio에서 새 키를 만들어 보세요."
-                msg.contains("QUOTA", true) || msg.contains("RESOURCE_EXHAUSTED", true) ->
-                    "사용 한도를 초과했습니다. 잠시 뒤 다시 시도해 주세요."
-                isModelUnavailable(e) -> "사용 가능한 모델을 찾지 못했습니다. 앱 업데이트 후 다시 시도해 주세요."
-                else -> "연결에 실패했습니다: $msg"
-            }
-            false to hint
+            // 번역은 aiErrorMessage 한 곳에서만 한다 — 여기에만 503 분기가 빠져 있던 적이 있다.
+            android.util.Log.w("GeminiModel", "⚠️ 연결 테스트 실패: ${e.javaClass.simpleName}: ${e.message}")
+            false to aiErrorMessage(e)
         }
     }
 
@@ -277,7 +360,7 @@ class GeminiManager(private val apiKey: String?) {
         try {
             chat.sendMessage(message).text ?: "응답을 생성할 수 없습니다."
         } catch (e: Exception) {
-            "응답 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. (${e.message})"
+            "응답 생성 중 오류가 발생했습니다.\n" + aiErrorMessage(e)
         }
     }
 
@@ -667,7 +750,7 @@ class GeminiManager(private val apiKey: String?) {
             response?.text ?: "리포트를 생성할 수 없습니다."
         } catch (e: Exception) {
             android.util.Log.e("GeminiManager", "❌ generateExpectedEarningsReport error: ${e.message}", e)
-            "사전 리포트 생성 중 오류가 발생했습니다: ${e.message}"
+            "사전 리포트를 만들지 못했습니다.\n" + aiErrorMessage(e)
         }
     }
 
@@ -706,7 +789,7 @@ class GeminiManager(private val apiKey: String?) {
             response?.text ?: "코멘트를 생성할 수 없습니다."
         } catch (e: Exception) {
             android.util.Log.e("GeminiManager", "❌ summarizeFinancialTrend error: ${e.message}", e)
-            "추세 코멘트 생성 중 오류가 발생했습니다: ${e.message}"
+            "추세 코멘트를 만들지 못했습니다.\n" + aiErrorMessage(e)
         }
     }
 
@@ -743,7 +826,7 @@ class GeminiManager(private val apiKey: String?) {
             response?.text ?: "분석을 생성할 수 없습니다."
         } catch (e: Exception) {
             android.util.Log.e("GeminiManager", "❌ summarizePortfolio error: ${e.message}", e)
-            "포트폴리오 분석 중 오류가 발생했습니다: ${e.message}"
+            "포트폴리오 분석을 하지 못했습니다.\n" + aiErrorMessage(e)
         }
     }
 }

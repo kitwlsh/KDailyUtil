@@ -464,7 +464,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 _financialTrendComment.value = gemini.summarizeFinancialTrend(_financialHistoryTitle.value, periodsText)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 추세 코멘트 생성 실패: ${e.message}")
-                _financialTrendComment.value = "추세 코멘트 생성 중 오류가 발생했습니다: ${e.message}"
+                _financialTrendComment.value = "추세 코멘트를 만들지 못했습니다.\n" + GeminiManager.aiErrorMessage(e)
             } finally {
                 _financialTrendLoading.value = false
             }
@@ -540,7 +540,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 withContext(Dispatchers.IO) { stockRepository.savePortfolioAnalysis(result, timeStr) }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 포트폴리오 분석 실패: ${e.message}", e)
-                _portfolioAnalysis.value = "포트폴리오 분석 중 오류가 발생했습니다: ${e.message}"
+                _portfolioAnalysis.value = "포트폴리오 분석을 하지 못했습니다.\n" + GeminiManager.aiErrorMessage(e)
             } finally {
                 _portfolioLoading.value = false
             }
@@ -765,7 +765,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     } catch (e: Exception) {
                         attempts++
-                        val isRateLimitError = e.message?.contains("429") == true || e.message?.contains("Quota") == true
+                        val isRateLimitError = GeminiManager.looksRateLimited((e.message ?: "") + (e.cause?.message ?: ""))
                         if (isRateLimitError && attempts < maxAttempts) {
                             Log.w(TAG, "⚠️ Gemini API Rate Limit (429) detected. Retrying in $delayMillis ms... (Attempt $attempts/$maxAttempts)")
                             delay(delayMillis)
@@ -789,7 +789,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to summarize disclosure: ${e.message}", e)
-                onComplete(false, "분석 오류 발생: ${e.message}")
+                onComplete(false, "실적 분석을 하지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))
             } finally {
                 _isAiSummarizing.value = false
             }
@@ -837,7 +837,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 onComplete(report)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to generate pre-report: ${e.message}")
-                onComplete("사전 리포트 분석 중 오류가 발생했습니다: ${e.message}")
+                onComplete("사전 리포트를 만들지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))
             }
         }
     }
