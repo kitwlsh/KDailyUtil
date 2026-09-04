@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -103,12 +104,153 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     val currentHintText: StateFlow<String?> = _currentHintText.asStateFlow()
 
     private val _isCheckingAnswer = MutableStateFlow(false)
+
+    // ──────────────────────────────────────────────────────────────
+    // 🔁 오늘의 퀴즈 · 출석 · 오답 노트 (2026-09-04)
+    // ──────────────────────────────────────────────────────────────
+
+    /** 지금 돌고 있는 퀴즈가 무엇인지. 끝났을 때 «출석을 찍을지»가 이걸로 갈린다. */
+    enum class Mode { NORMAL, DAILY, REVIEW }
+
+    private val _mode = MutableStateFlow(Mode.NORMAL)
+    val mode: StateFlow<Mode> = _mode.asStateFlow()
+
+    /** 출석·연속·누적 기록. 화면이 조각을 다시 합칠 필요가 없게 한 덩어리로 준다. */
+    val dailyStatus = settingsRepository.dailyStatusFlow.stateIn(
+        viewModelScope,
+        kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+        com.kitwlshcom.kdailyutil.data.repository.SettingsRepository.DailyStatus()
+    )
+
+    /** 마지막으로 본 뒤로 새로 들어온 문제 수. 0이면 배지를 숨긴다. */
+    private val _newQuizCount = MutableStateFlow(0)
+    val newQuizCount: StateFlow<Int> = _newQuizCount.asStateFlow()
+
+    /** 아직 한 번도 못 맞힌 문제 수(오답 노트 배지). */
+    private val _wrongToReviewCount = MutableStateFlow(0)
+    val wrongToReviewCount: StateFlow<Int> = _wrongToReviewCount.asStateFlow()
+
+    /** 오늘 세트를 방금 끝냈을 때 한 번만 띄우는 축하 정보. 화면이 소비하면 null로 지운다. */
+    private val _dailyCelebration = MutableStateFlow<DailyCelebration?>(null)
+    val dailyCelebration: StateFlow<DailyCelebration?> = _dailyCelebration.asStateFlow()
+
+    data class DailyCelebration(
+        val streak: Int,
+        val correct: Int,
+        val total: Int,
+        val newBadges: List<com.kitwlshcom.kdailyutil.data.DailyRecord.Badge>
+    )
+
+    fun consumeCelebration() { _dailyCelebration.value = null }
     val isCheckingAnswer: StateFlow<Boolean> = _isCheckingAnswer.asStateFlow()
 
     fun syncRemoteData() {
         viewModelScope.launch {
             repository.syncRemoteQuizzes(getApplication())
+            refreshCounters()
         }
+    }
+
+    /**
+     * 「새 문제 N개」·「복습할 N개」를 다시 센다.
+     *
+     * 자동 생성 로봇이 매일 문제를 넣고 있는데도 앱이 그 사실을 말해 주지 않으면,
+     * 사용자에게 어제와 오늘의 앱은 완전히 똑같다. 열 이유가 없어진다.
+     */
+    fun refreshCounters() {
+        viewModelScope.launch {
+            try {
+                val context = getApplication<Application>().applicationContext
+                val total = repository.countAll(context)
+                val seen = settingsRepository.dailyStatusFlow.first().seenQuizCount
+                // 처음 실행(기준값 0)이면 «500개가 새로 왔다»가 되어 버린다 → 조용히 기준만 잡는다.
+                if (seen == 0) {
+                    settingsRepository.updateSeenQuizCount(total)
+                    _newQuizCount.value = 0
+                } else {
+                    _newQuizCount.value = (total - seen).coerceAtLeast(0)
+                }
+                _wrongToReviewCount.value = com.kitwlshcom.kdailyutil.data.QuizStatsManager
+                    .getInstance(context).getUnresolvedWrongCount()
+            } catch (e: Exception) {
+                Log.e("QuizViewModel", "카운터 갱신 실패: ${e.message}")
+            }
+        }
+    }
+
+    /** 사용자가 새 문제를 확인했다 → 기준점을 지금으로 옮긴다. */
+    fun markNewQuizzesSeen() {
+        viewModelScope.launch {
+            try {
+                val total = repository.countAll(getApplication<Application>().applicationContext)
+                settingsRepository.updateSeenQuizCount(total)
+                _newQuizCount.value = 0
+            } catch (e: Exception) {
+                Log.e("QuizViewModel", "새 문제 기준점 갱신 실패: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * 오늘의 퀴즈를 시작한다 — 날짜로 정해진 다섯 문제.
+     *
+     * 기존 랜덤 모드와 달리 «끝»이 있다. 끝이 없으면 «언제 해도 되니까 안 하게» 되고,
+     * 그래서 내일 다시 올 이유도 생기지 않는다.
+     */
+    fun startDailyQuiz() {
+        viewModelScope.launch {
+            val context = getApplication<Application>().applicationContext
+            val today = java.time.LocalDate.now()
+            val daily = repository.getDailyQuizzes(context, today)
+
+            if (daily.isEmpty()) {
+                android.widget.Toast.makeText(
+                    context,
+                    "오늘의 문제를 준비하지 못했어요. 인터넷 연결 후 다시 시도해 주세요.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                return@launch
+            }
+
+            _mode.value = Mode.DAILY
+            _selectedCategory.value = "오늘의 퀴즈"
+            _questions.value = daily
+            startLoadedQuestions()
+        }
+    }
+
+    /** 오답 노트 — 틀린 문제만 다시. 통계는 이미 쌓여 있었는데 볼 곳이 없었다. */
+    fun startReviewQuiz() {
+        viewModelScope.launch {
+            val context = getApplication<Application>().applicationContext
+            val wrong = repository.getWrongQuizzes(context, limit = 10)
+
+            if (wrong.isEmpty()) {
+                android.widget.Toast.makeText(
+                    context,
+                    "아직 복습할 오답이 없어요. 문제를 풀면 여기에 모입니다.",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                return@launch
+            }
+
+            _mode.value = Mode.REVIEW
+            _selectedCategory.value = "오답 노트"
+            _questions.value = wrong
+            startLoadedQuestions()
+        }
+    }
+
+    /** _questions에 문항을 넣은 뒤의 공통 초기화. */
+    private fun startLoadedQuestions() {
+        // 지난 축하 배너를 지운다. 안 지우면 다음 퀴즈 결과 화면에까지 「오늘 완료」가 따라붙는다.
+        _dailyCelebration.value = null
+        _currentIndex.value = 0
+        _score.value = 0
+        _quizState.value = QuizState.PLAYING
+        _currentInput.value = ""
+        _isCorrect.value = false
+        resetHintState()
     }
 
     fun selectCategory(category: String?)
@@ -133,6 +275,8 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startQuiz() {
+        _mode.value = Mode.NORMAL
+        _dailyCelebration.value = null
         viewModelScope.launch {
             val allQuestions = repository.getQuizzes(getApplication(), _selectedCategory.value)
             
@@ -383,11 +527,50 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             _quizState.value = QuizState.FINISHED
             if (finishSoundId != 0) soundPool.play(finishSoundId, 1f, 1f, 0, 0, 1f)
+            if (_mode.value == Mode.DAILY) recordDailyCompletion()
+        }
+    }
+
+    /**
+     * 오늘 몫을 끝냈다 → 출석을 찍는다.
+     *
+     * **오늘의 퀴즈를 끝까지 푼 것만 출석으로 친다**(앱 실행은 출석이 아니다).
+     * 출석이 너무 쉬우면 연속일수가 아무 의미도 없어지고, 「오늘 다 했다」는 완결감도 안 생긴다.
+     */
+    private fun recordDailyCompletion() {
+        viewModelScope.launch {
+            try {
+                val before = settingsRepository.dailyStatusFlow.first()
+                val beforeBadges = com.kitwlshcom.kdailyutil.data.DailyRecord
+                    .badges(before.streak, before.bestStreak, before.totalSolved, before.totalCorrect)
+                    .filter { it.achieved }.map { it.id }.toSet()
+
+                val after = settingsRepository.completeDailyQuiz(
+                    correct = _score.value,
+                    total = _questions.value.size
+                )
+
+                val newBadges = com.kitwlshcom.kdailyutil.data.DailyRecord
+                    .badges(after.streak, after.bestStreak, after.totalSolved, after.totalCorrect)
+                    .filter { it.achieved && it.id !in beforeBadges }
+
+                _dailyCelebration.value = DailyCelebration(
+                    streak = after.displayStreak(),
+                    correct = _score.value,
+                    total = _questions.value.size,
+                    newBadges = newBadges
+                )
+                refreshCounters()
+            } catch (e: Exception) {
+                // 기록에 실패해도 결과 화면은 떠야 한다.
+                Log.e("QuizViewModel", "출석 기록 실패: ${e.message}")
+            }
         }
     }
 
     fun exitQuiz()
     {
+        _mode.value = Mode.NORMAL
         _quizState.value = QuizState.CATEGORY_SELECTION
         _selectedCategory.value = null
     }

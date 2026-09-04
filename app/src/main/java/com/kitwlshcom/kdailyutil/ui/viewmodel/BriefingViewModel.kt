@@ -130,6 +130,26 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     val apiKeyStatus: StateFlow<ApiKeyStatus> = _apiKeyStatus.asStateFlow()
 
     init {
+        // 🔁 앱을 켤 때마다 모닝 브리핑 알람을 다시 걸어 둔다. (2026-09-04)
+        //
+        // 왜 필요한가: 2026-09-04 이전 버전에서는 알람이 **한 번 울리고 죽었다**
+        // (BriefingReceiver가 다음 알람을 다시 걸지 않았다). 그래서 이미 알람이
+        // 죽어 버린 기존 사용자는, 수신부만 고쳐서는 영영 알림을 못 받는다
+        // — 죽은 알람은 다시 울릴 일이 없으니 재예약 코드에 닿지도 않기 때문이다.
+        //
+        // 같은 PendingIntent(요청코드 0)로 다시 걸므로 알람이 늘어나지 않고 갱신만 된다.
+        viewModelScope.launch {
+            try {
+                if (settingsRepository.isBriefingEnabledFlow.first()) {
+                    val (hour, minute) = settingsRepository.briefingTimeFlow.first()
+                    scheduler.scheduleBriefing(hour, minute)
+                    Log.d(TAG, "🔁 앱 시작 — 브리핑 알람 재무장: ${hour}:${String.format("%02d", minute)}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "브리핑 알람 재무장 실패: ${e.message}")
+            }
+        }
+
         // 앱 시작 시 API 키 검증 상태 복구
         viewModelScope.launch {
             combine(geminiApiKey, isApiKeyValidated) { key, isValidated ->

@@ -73,7 +73,7 @@ fun QuizScreen(
             .fillMaxSize()
     ) {
         when (quizState) {
-            QuizState.IDLE -> QuizIdleScreen(onStart = { viewModel.selectCategory(null) })
+            QuizState.IDLE -> QuizIdleScreen(viewModel = viewModel, onStart = { viewModel.selectCategory(null) })
             QuizState.CATEGORY_SELECTION -> QuizCategorySelectionScreen(viewModel)
             QuizState.GENERATING -> QuizGeneratingScreen()
             QuizState.PLAYING, QuizState.ANSWER_CHECKED -> QuizPlayScreen(viewModel)
@@ -92,54 +92,73 @@ fun QuizScreen(
     }
 }
 
+/**
+ * 퀴즈 첫 화면.
+ *
+ * 2026-09-04부터 «오늘의 퀴즈»가 맨 위에 온다. 그 아래가 기존 분야별 풀기다.
+ * 순서를 이렇게 둔 이유: 매일 열 이유를 만드는 것은 무한한 분야 목록이 아니라
+ * **오늘 끝낼 수 있는 하루치**이기 때문이다(doc/RETENTION_PLAN.md).
+ */
 @Composable
-fun QuizIdleScreen(onStart: () -> Unit) {
+fun QuizIdleScreen(viewModel: QuizViewModel, onStart: () -> Unit) {
+    // 화면에 들어올 때마다 「새 문제 N개」·「복습할 N개」를 다시 센다.
+    LaunchedEffect(Unit) { viewModel.refreshCounters() }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             imageVector = Icons.Default.EmojiEvents,
             contentDescription = null,
-            modifier = Modifier.size(120.dp),
+            modifier = Modifier.size(64.dp),
             tint = com.kitwlshcom.kdailyutil.ui.theme.Gold24K
         )
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = "K-Quiz Hub",
-            fontSize = 32.sp,
+            fontSize = 26.sp,
             fontWeight = FontWeight.ExtraBold,
             color = Color.White
         )
         Text(
             text = "지식의 가치를 높이는 시간",
-            fontSize = 16.sp,
+            fontSize = 14.sp,
             color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K.copy(alpha = 0.7f)
         )
+
         Spacer(modifier = Modifier.height(24.dp))
+
+        DailyQuizHomeCard(viewModel)
+
+        Spacer(modifier = Modifier.height(28.dp))
+
         Text(
-            text = "우리말 겨루기부터 AI가 직접 출제하는\n커스텀 퀴즈까지 모두 즐겨보세요.",
-            textAlign = TextAlign.Center,
-            color = Color.White.copy(alpha = 0.6f),
-            lineHeight = 22.sp
+            text = "더 풀고 싶다면",
+            fontSize = 13.sp,
+            color = Color.White.copy(alpha = 0.5f)
         )
-        Spacer(modifier = Modifier.height(64.dp))
-        Button(
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedButton(
             onClick = onStart,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
-                contentColor = Color.Black
-            )
+                .height(54.dp),
+            shape = RoundedCornerShape(16.dp)
         ) {
-            Text("시작하기", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text("분야별로 풀기", fontSize = 17.sp, fontWeight = FontWeight.Bold)
         }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "우리말 겨루기부터 AI가 직접 출제하는 커스텀 퀴즈까지.",
+            textAlign = TextAlign.Center,
+            fontSize = 12.sp,
+            color = Color.White.copy(alpha = 0.45f),
+            lineHeight = 18.sp
+        )
     }
 }
 
@@ -1118,16 +1137,29 @@ fun QuizFinishedScreen(viewModel: QuizViewModel) {
     val score by viewModel.score.collectAsState()
     val questions by viewModel.questions.collectAsState()
     val total = questions.size
+    val mode by viewModel.mode.collectAsState()
+    val celebration by viewModel.dailyCelebration.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // 오늘 몫을 끝낸 사람에게는 점수보다 «연속»을 먼저 보여 준다 — 그게 내일 다시 올 이유다.
+        celebration?.let {
+            DailyCelebrationBanner(it)
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
         Text(
-            text = "퀴즈 종료!",
+            text = when (mode) {
+                QuizViewModel.Mode.DAILY -> "오늘의 퀴즈 종료!"
+                QuizViewModel.Mode.REVIEW -> "복습 완료!"
+                else -> "퀴즈 종료!"
+            },
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
@@ -1147,6 +1179,8 @@ fun QuizFinishedScreen(viewModel: QuizViewModel) {
         Spacer(modifier = Modifier.height(16.dp))
         
         val feedbackText = when {
+            mode == QuizViewModel.Mode.REVIEW && score == total -> "틀렸던 문제를 전부 맞혔어요. 복습 성공입니다!"
+            mode == QuizViewModel.Mode.REVIEW -> "틀린 문제는 오답 노트에 그대로 남아 있어요. 또 만나요."
             score == total -> "만점입니다! 완벽한 우리말 실력을 갖추셨네요!"
             score >= total * 0.7 -> "훌륭합니다! 조금만 더 다듬으면 완벽하겠어요."
             else -> "아쉽네요. 다음에는 더 잘할 수 있을 거예요!"
@@ -1166,11 +1200,18 @@ fun QuizFinishedScreen(viewModel: QuizViewModel) {
                 .height(56.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("다른 분야 도전하기", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = if (mode == QuizViewModel.Mode.DAILY) "더 풀어보기" else "다른 분야 도전하기",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedButton(
-            onClick = { viewModel.exitQuiz() },
+            onClick = {
+                viewModel.consumeCelebration()
+                viewModel.backToIdle()
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),

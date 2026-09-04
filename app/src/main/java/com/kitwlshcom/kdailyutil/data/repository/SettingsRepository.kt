@@ -42,6 +42,18 @@ class SettingsRepository(private val context: Context) {
         val AI_BRIEFING_COMMANDS_ORDER = stringPreferencesKey("ai_briefing_commands_order")
         val STOCK_KEYWORDS_ORDER = stringPreferencesKey("stock_keywords_order")
         val WATCH_STOCK_KEYWORDS_ORDER = stringPreferencesKey("watch_stock_keywords_order")
+
+        // ── 🔁 매일 오게 하는 장치(출석·연속·기록) 2026-09-04 ──
+        // ⚠️ 이 키들의 의미는 한 번 출시하면 되돌리기 어렵다. 사용자 기기에 이 규칙대로 기록이 쌓인다.
+        //    규칙 자체는 DailyRecord(순수 로직)에 있고 DailyRecordTest가 고정한다.
+        val DAILY_LAST_DONE = stringPreferencesKey("daily_last_done")       // 마지막으로 '오늘의 퀴즈'를 끝낸 날(yyyy-MM-dd)
+        val DAILY_STREAK = intPreferencesKey("daily_streak")                // 그날 기준 연속일수
+        val DAILY_BEST_STREAK = intPreferencesKey("daily_best_streak")      // 최고 기록(배지 판정은 이것으로 — 끊겼다고 뺏지 않는다)
+        val DAILY_LAST_FREEZE = stringPreferencesKey("daily_last_freeze")   // 유예를 마지막으로 쓴 날
+        val DAILY_TOTAL_SOLVED = intPreferencesKey("daily_total_solved")    // 누적 풀이 문항
+        val DAILY_TOTAL_CORRECT = intPreferencesKey("daily_total_correct")  // 누적 정답
+        val DAILY_HISTORY = stringPreferencesKey("daily_history")           // 최근 30일 "yyyy-MM-dd:정답/전체"
+        val DAILY_SEEN_QUIZ_COUNT = intPreferencesKey("daily_seen_quiz_count") // 마지막으로 사용자가 인지한 전체 문항 수(=새 문제 N개 계산용)
     }
 
     /**
@@ -238,5 +250,109 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun updateSplashTheme(theme: String) {
         context.dataStore.edit { it[PreferencesKeys.SPLASH_THEME] = theme }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // 🔁 출석·연속·기록 (2026-09-04)
+    //
+    // 규칙은 여기 두지 않는다 — 전부 DailyRecord(순수 로직)에 있고 테스트로 고정돼 있다.
+    // 이 클래스는 «읽고 쓰는 일»만 한다.
+    // ──────────────────────────────────────────────────────────────
+
+    /** 화면 한 번 그리는 데 필요한 출석 정보 전부. 조각조각 Flow를 만들면 화면에서 다시 합쳐야 한다. */
+    data class DailyStatus(
+        val lastDone: java.time.LocalDate? = null,
+        val streak: Int = 0,
+        val bestStreak: Int = 0,
+        val lastFreeze: java.time.LocalDate? = null,
+        val totalSolved: Int = 0,
+        val totalCorrect: Int = 0,
+        val history: List<com.kitwlshcom.kdailyutil.data.DailyRecord.DayScore> = emptyList(),
+        val seenQuizCount: Int = 0
+    ) {
+        /** 오늘 몫을 이미 끝냈는가. */
+        fun isDoneToday(today: java.time.LocalDate = java.time.LocalDate.now()): Boolean = lastDone == today
+
+        /** 화면에 보여 줄 연속일수(저장값을 그대로 쓰면 쉰 사람에게 거짓말이 된다). */
+        fun displayStreak(today: java.time.LocalDate = java.time.LocalDate.now()): Int =
+            com.kitwlshcom.kdailyutil.data.DailyRecord.displayStreak(today, lastDone, streak)
+    }
+
+    /** 저장된 날짜 문자열을 LocalDate로. 깨져 있으면 null(기록 하나 때문에 화면이 죽으면 안 된다). */
+    private fun parseDate(raw: String?): java.time.LocalDate? = try {
+        if (raw.isNullOrBlank()) null else java.time.LocalDate.parse(raw)
+    } catch (e: Exception) {
+        null
+    }
+
+    val dailyStatusFlow: Flow<DailyStatus> = context.dataStore.data.map { preferences ->
+        DailyStatus(
+            lastDone = parseDate(preferences[PreferencesKeys.DAILY_LAST_DONE]),
+            streak = preferences[PreferencesKeys.DAILY_STREAK] ?: 0,
+            bestStreak = preferences[PreferencesKeys.DAILY_BEST_STREAK] ?: 0,
+            lastFreeze = parseDate(preferences[PreferencesKeys.DAILY_LAST_FREEZE]),
+            totalSolved = preferences[PreferencesKeys.DAILY_TOTAL_SOLVED] ?: 0,
+            totalCorrect = preferences[PreferencesKeys.DAILY_TOTAL_CORRECT] ?: 0,
+            history = com.kitwlshcom.kdailyutil.data.DailyRecord.decodeHistory(preferences[PreferencesKeys.DAILY_HISTORY]),
+            seenQuizCount = preferences[PreferencesKeys.DAILY_SEEN_QUIZ_COUNT] ?: 0
+        )
+    }
+
+    /**
+     * 오늘의 퀴즈를 끝냈다 — 출석을 찍고 연속을 갱신한다.
+     *
+     * 누적 문항/정답은 **연속과 무관하게 항상** 더한다(하루에 두 번 풀어도 푼 것은 푼 것이다).
+     * 반면 연속·기록은 [com.kitwlshcom.kdailyutil.data.DailyRecord.advance] 규칙을 따른다.
+     *
+     * @return 갱신 후 상태(화면이 «연속 7일!»을 바로 띄울 수 있게)
+     */
+    suspend fun completeDailyQuiz(
+        correct: Int,
+        total: Int,
+        today: java.time.LocalDate = java.time.LocalDate.now()
+    ): DailyStatus {
+        val daily = com.kitwlshcom.kdailyutil.data.DailyRecord
+        var result = DailyStatus()
+        context.dataStore.edit { prefs ->
+            val lastDone = parseDate(prefs[PreferencesKeys.DAILY_LAST_DONE])
+            val streak = prefs[PreferencesKeys.DAILY_STREAK] ?: 0
+            val lastFreeze = parseDate(prefs[PreferencesKeys.DAILY_LAST_FREEZE])
+
+            val advanced = daily.advance(today, lastDone, streak, lastFreeze)
+            val best = maxOf(prefs[PreferencesKeys.DAILY_BEST_STREAK] ?: 0, advanced.streak)
+
+            val totalSolved = (prefs[PreferencesKeys.DAILY_TOTAL_SOLVED] ?: 0) + total
+            val totalCorrect = (prefs[PreferencesKeys.DAILY_TOTAL_CORRECT] ?: 0) + correct
+
+            val history = daily.upsertHistory(
+                daily.decodeHistory(prefs[PreferencesKeys.DAILY_HISTORY]),
+                com.kitwlshcom.kdailyutil.data.DailyRecord.DayScore(today, correct, total)
+            )
+
+            prefs[PreferencesKeys.DAILY_LAST_DONE] = today.toString()
+            prefs[PreferencesKeys.DAILY_STREAK] = advanced.streak
+            prefs[PreferencesKeys.DAILY_BEST_STREAK] = best
+            advanced.lastFreeze?.let { prefs[PreferencesKeys.DAILY_LAST_FREEZE] = it.toString() }
+            prefs[PreferencesKeys.DAILY_TOTAL_SOLVED] = totalSolved
+            prefs[PreferencesKeys.DAILY_TOTAL_CORRECT] = totalCorrect
+            prefs[PreferencesKeys.DAILY_HISTORY] = daily.encodeHistory(history)
+
+            result = DailyStatus(
+                lastDone = today,
+                streak = advanced.streak,
+                bestStreak = best,
+                lastFreeze = advanced.lastFreeze,
+                totalSolved = totalSolved,
+                totalCorrect = totalCorrect,
+                history = history,
+                seenQuizCount = prefs[PreferencesKeys.DAILY_SEEN_QUIZ_COUNT] ?: 0
+            )
+        }
+        return result
+    }
+
+    /** 「새 문제 N개」를 계산하는 기준점. 사용자가 문제 목록을 본 시점에 갱신한다. */
+    suspend fun updateSeenQuizCount(count: Int) {
+        context.dataStore.edit { it[PreferencesKeys.DAILY_SEEN_QUIZ_COUNT] = count }
     }
 }

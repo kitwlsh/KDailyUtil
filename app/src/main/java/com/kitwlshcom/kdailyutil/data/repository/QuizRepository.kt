@@ -177,7 +177,19 @@ class QuizRepository {
      * 게임을 시작할 때 로컬에 저장된 퀴즈 리스트를 가져옵니다.
      * 캐시 파일이 없으면 하드코딩된 정적 퀴즈를 반환합니다.
      */
-    suspend fun getQuizzes(context: Context, category: String? = null): List<QuizQuestion> = withContext(Dispatchers.IO) {
+    /**
+     * 화면에 낼 문항. **순서는 매번 섞인다** — 같은 문제가 늘 같은 자리에 나오면 금방 질린다.
+     * 순서가 고정돼야 하는 곳(오늘의 퀴즈)은 [loadQuizzes]를 직접 쓴다.
+     */
+    suspend fun getQuizzes(context: Context, category: String? = null): List<QuizQuestion> =
+        loadQuizzes(context, category).shuffled()
+
+    /**
+     * 저장된 모든 문항을 **섞지 않고** 돌려준다(정적 뼈대 + 원격 + 사용자 커스텀, 중복 제거 후).
+     *
+     * 오늘의 퀴즈는 «같은 날이면 같은 문제»여야 해서 섞인 목록 위에서는 만들 수 없다.
+     */
+    suspend fun loadQuizzes(context: Context, category: String? = null): List<QuizQuestion> = withContext(Dispatchers.IO) {
         val staticQuizzes = getStaticQuizzes()
         val file = File(context.filesDir, QUIZ_CACHE_FILE)
         
@@ -226,7 +238,79 @@ class QuizRepository {
         }
 
         // 표시 단계 안전망: static/remote/custom 어디서 왔든 같은 카테고리의 정답·질문 중복은 한 번만 노출
-        return@withContext dedupeQuizzes(filtered).shuffled()
+        return@withContext dedupeQuizzes(filtered)
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // 🔁 오늘의 퀴즈 (2026-09-04)
+    // ──────────────────────────────────────────────────────────────
+
+    /**
+     * 카테고리마다 «새로 들어온 것»으로 볼 문항 수.
+     *
+     * 자동 생성 로봇이 카테고리당 하루 한두 문제씩 넣으므로 10개면 대략 최근 일주일치다.
+     * 이 몫이 없으면, 새 문제는 목록 맨 뒤에 쌓이기만 하고 500문항 중 하나로 묻혀
+     * **매일 만드는 콘텐츠를 사용자가 영영 못 보게 된다**.
+     */
+    private val FRESH_PER_CATEGORY = 10
+
+    /**
+     * 오늘의 퀴즈 — **날짜로 정해지는 고정 세트**.
+     *
+     * 같은 날이면 몇 번을 불러도 같은 문제가 나오고(앱을 껐다 켜도 이어진다), 날이 바뀌면 새 세트다.
+     * 기준은 기기 로컬 날짜다(서버가 없다).
+     *
+     * 뽑는 규칙 자체는 [DailyRecord.pickDailyIndices]에 있고 테스트로 고정돼 있다.
+     * 여기서 하는 일은 «그 규칙이 고를 수 있도록 순서가 고정된 목록을 만드는 것» 하나다.
+     */
+    suspend fun getDailyQuizzes(
+        context: Context,
+        date: java.time.LocalDate,
+        count: Int = com.kitwlshcom.kdailyutil.data.DailyRecord.DAILY_QUIZ_COUNT
+    ): List<QuizQuestion> = withContext(Dispatchers.IO) {
+        // 오늘의 퀴즈는 여러 분야를 섞는다 — 하루치니까 골고루가 낫다.
+        // 단 'AI 자동 생성'은 사용자마다 내용이 달라 하루 세트로는 맞지 않아 제외한다.
+        val all = loadQuizzes(context, null).filter { !it.category.contains("AI 자동 생성") }
+        if (all.isEmpty()) return@withContext emptyList()
+
+        // 카테고리별로 id가 큰 쪽(=나중에 들어온 쪽) 일부를 '새 문항'으로 본다.
+        val freshKeys = all.groupBy { it.category }
+            .flatMap { (_, list) -> list.sortedBy { it.id }.takeLast(FRESH_PER_CATEGORY) }
+            .map { it.id }
+            .toHashSet()
+
+        // 순서를 고정한다: 오래된 것 → 새 것. 새 것이 꼬리에 모이므로 freshFrom 한 값으로 지정된다.
+        val older = all.filter { it.id !in freshKeys }.sortedBy { it.id }
+        val fresher = all.filter { it.id in freshKeys }.sortedBy { it.id }
+        val ordered = older + fresher
+
+        val indices = com.kitwlshcom.kdailyutil.data.DailyRecord.pickDailyIndices(
+            date = date,
+            total = ordered.size,
+            count = count,
+            freshFrom = older.size
+        )
+        return@withContext indices.mapNotNull { ordered.getOrNull(it) }
+    }
+
+    /** 전체 문항 수 — 「새 문제 N개 도착」을 계산하는 데 쓴다. */
+    suspend fun countAll(context: Context): Int = loadQuizzes(context, null).size
+
+    /**
+     * 오답 노트 — 한 번이라도 틀린 문제만, **최근에 틀린 순**으로.
+     *
+     * 통계에는 문제 본문이 아니라 키만 있다(같은 것을 두 군데 저장하면 반드시 어긋난다).
+     * 그래서 여기서 현재 문항 목록과 키를 맞춘다 — 사라진 문제는 자연히 빠진다.
+     */
+    suspend fun getWrongQuizzes(context: Context, limit: Int = 20): List<QuizQuestion> = withContext(Dispatchers.IO) {
+        val stats = com.kitwlshcom.kdailyutil.data.QuizStatsManager.getInstance(context)
+        val wrongKeys = stats.getWrongKeysByRecency()
+        if (wrongKeys.isEmpty()) return@withContext emptyList()
+
+        val byKey = loadQuizzes(context, null).associateBy {
+            com.kitwlshcom.kdailyutil.data.QuizStatsManager.getUniqueKey(it.category, it.question)
+        }
+        return@withContext wrongKeys.mapNotNull { byKey[it] }.take(limit)
     }
 
     /**

@@ -10,6 +10,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.kitwlshcom.kdailyutil.MainActivity
+import com.kitwlshcom.kdailyutil.data.repository.QuizRepository
 import com.kitwlshcom.kdailyutil.data.repository.SettingsRepository
 import com.kitwlshcom.kdailyutil.scheduler.BriefingScheduler
 import kotlinx.coroutines.CoroutineScope
@@ -40,9 +41,28 @@ class BriefingReceiver : BroadcastReceiver() {
 
                         if (isEnabled) {
                             Log.d(TAG, "✅ 자동 브리핑 활성화 상태 — 알림 표시")
-                            showNotification(context)
+                            showNotification(context, buildBriefingMessage(context))
                         } else {
                             Log.d(TAG, "⏸️ 자동 브리핑 비활성화 상태 — 알림 생략")
+                        }
+
+                        // 🔴 여기가 없으면 「매일 아침 알림」이 **딱 한 번만** 온다.
+                        //
+                        // setExactAndAllowWhileIdle은 단발 알람이다. 2026-09-04 이전에는 알람이
+                        // 울린 뒤 아무도 다음 알람을 걸지 않아서, 사용자가 설정을 다시 만지거나
+                        // 폰을 재부팅하기 전까지 알림이 영영 오지 않았다.
+                        // (개발자는 설정을 자주 만져 계속 되살아나므로 자기 기기로는 안 보이는 실패다)
+                        //
+                        // 알림을 못 띄웠더라도 재예약은 한다 — 오늘 실패했다고 내일까지 포기할 이유는 없다.
+                        // 켜져 있을 때만 다시 건다(꺼져 있으면 알람 자체가 필요 없다).
+                        if (isEnabled) {
+                            try {
+                                val (hour, minute) = settingsRepo.briefingTimeFlow.first()
+                                BriefingScheduler(context).scheduleBriefing(hour, minute)
+                                Log.d(TAG, "🔁 다음 브리핑 재예약: ${hour}:${String.format("%02d", minute)}")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "❌ 다음 브리핑 재예약 실패: ${e.message}")
+                            }
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "설정 읽기 실패: ${e.message}")
@@ -86,7 +106,45 @@ class BriefingReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun showNotification(context: Context) {
+    /**
+     * 오늘 무엇이 새로운지 한 줄로 만든다.
+     *
+     * 고정 문구를 사흘 보면 사람은 알림을 끈다. **알림을 끄면 다시 데려올 수단이 영구히 사라진다**
+     * — 가장 비싼 실패라 매일 달라지게 한다.
+     *
+     * ⚠️ 네트워크는 쓰지 않는다. 이 코드는 BroadcastReceiver 안에서 도는 데다(시간 제한이 있다),
+     * 알림 한 줄 때문에 통신이 걸려 알림 자체를 놓치는 쪽이 훨씬 나쁘다.
+     * 그래서 **이미 기기에 있는 것**(내려받아 둔 문제 수, 출석 기록)만 본다.
+     */
+    private suspend fun buildBriefingMessage(context: Context): String {
+        val parts = mutableListOf<String>()
+
+        try {
+            val settingsRepo = SettingsRepository(context)
+            val status = settingsRepo.dailyStatusFlow.first()
+            val total = QuizRepository().countAll(context)
+
+            val newCount = if (status.seenQuizCount > 0) (total - status.seenQuizCount).coerceAtLeast(0) else 0
+            if (newCount > 0) parts.add("새 문제 ${newCount}개")
+
+            val streak = status.displayStreak()
+            if (streak > 0) {
+                // 「끊겼다」고 말하지 않는다. 죄책감 알림은 앱 삭제로 직행한다.
+                parts.add("${streak}일 연속 도전 중")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "알림 문구 구성 실패(기본 문구로 대체): ${e.message}")
+        }
+
+        // 무엇도 못 만들었으면 원래 문구로 돌아간다. 빈 알림은 안 보내느니만 못하다.
+        return if (parts.isEmpty()) {
+            "터치하여 오늘의 뉴스와 AI 맞춤 분석을 들어보세요."
+        } else {
+            parts.joinToString(" · ") + " — 오늘의 뉴스와 퀴즈가 기다립니다."
+        }
+    }
+
+    private fun showNotification(context: Context, contentText: String) {
         val channelId = "briefing_channel"
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -116,7 +174,8 @@ class BriefingReceiver : BroadcastReceiver() {
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("모닝 브리핑 준비 완료! 📢")
-            .setContentText("터치하여 오늘의 뉴스와 AI 맞춤 분석을 들어보세요.")
+            .setContentText(contentText)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
