@@ -122,7 +122,7 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 | KDailyUtil → KLotto | `ic_k_app_icon.png` · `KDailyUtil/app/src/main/res/drawable-nodpi/` | `ic_kdailyutil.png` · `KLotto645/app/src/main/res/drawable-nodpi/` | ✅ 완료 |
 | KDailyUtil → KLotto (패밀리 메인로고) | `ic_k_logo_3d.png` · `KDailyUtil/app/src/main/res/drawable/` | `ic_k_logo_3d.png` · `KLotto645/app/src/main/res/drawable-nodpi/` | ✅ 완료 |
 
-> 로컬 저장소 루트: `d:/DATA/20_Source/80_Git_HUB/`(하위에 `KDailyUtil/KDailyUtil`, `KLotto645`).
+> 형제 저장소들은 **같은 상위 폴더**에 나란히 둔다(이 저장소 기준 `../../`). 배치·GitHub 주소 = [README §🌐 이 저장소 밖에 있는 것들](../README.md).
 > **패밀리 메인로고 `ic_k_logo_3d.png`**(K-Brand 3D Hexagon Emblem)는 앱별 아이콘과 별개로 **모든 자매앱이 공유하는 공통 브랜드 자산**이다. 각 앱의 '브랜드 & 자매앱' 최상단 카드로 동일하게 노출한다(파일명도 동일 유지).
 
 ## 6. KDailyUtil 세션이 확정할 결정사항

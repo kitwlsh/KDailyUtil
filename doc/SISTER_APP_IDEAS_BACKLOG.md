@@ -119,7 +119,7 @@
 
 ## 아이디어 D. 🧾 K장부(K-Jangbu) — ✅ **확정·착수 준비**(별도 프로젝트 생성됨)
 
-> **이름 확정 = K장부(K-Jangbu)**, applicationId 제안 `com.kitwlshcom.kjangbu`. **프로젝트 폴더 생성됨**: `d:/DATA/20_Source/80_Git_HUB/KJangbu/`(README + doc/APP_PLAN.md + doc/GETTING_STARTED.md). 상세는 그 폴더 문서 참조.
+> **이름 확정 = K장부(K-Jangbu)**, applicationId 제안 `com.kitwlshcom.kjangbu`. **프로젝트 폴더 생성됨**: 형제 저장소 `KJangbu`(이 저장소 기준 `../../KJangbu/`)(README + doc/APP_PLAN.md + doc/GETTING_STARTED.md). 상세는 그 폴더 문서 참조.
 > **개념 확장**: 단순 가계부가 아니라 **"AI 생활 기록·관리 장부"** — 공통 엔진(기록+카테고리+주기/만료 리마인더+분석)을 여러 모듈에 재사용. 💰가계부(MVP) + 🚗차계부 + 🔌전자제품 케어/보증 + 🔁구독 + 🎁경조사/기프티콘 + 🏠생활 유지보수 + (선택)건강·반려동물·자산만기. MVP=가계부 단일, 이후 차계부·전자제품 케어 우선 확장.
 
 **컨셉**: 영수증(종이/모바일/문자)을 **이미지로 주면 AI가 읽어 기록**, 나머지는 **빠른 수동 템플릿**. **완전 로컬 저장**(서버비 0원·프라이버시).
@@ -151,7 +151,7 @@
 - 시장은 레드오션(편한가계부·뱅크샐러드·토스)이나, **"로컬·프라이버시·AI영수증·심플"** 로 개인용/틈새 차별화. 자동연동으론 경쟁 불가(마이데이터 게임).
 - 엑셀 내보내기: CSV는 기본, XLSX는 경량 라이브러리 또는 CSV로 대체(Excel에서 열림).
 
-> 📄 ✅ 승격 완료 — 별도 프로젝트 `d:/DATA/20_Source/80_Git_HUB/KJangbu/`에 상세 기획서(doc/APP_PLAN.md)·착수 가이드(doc/GETTING_STARTED.md) 생성됨.
+> 📄 ✅ 승격 완료 — 별도 프로젝트 `KJangbu`(이 저장소 기준 `../../KJangbu/`)에 상세 기획서(doc/APP_PLAN.md)·착수 가이드(doc/GETTING_STARTED.md) 생성됨.
 
 ---
 

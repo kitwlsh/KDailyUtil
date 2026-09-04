@@ -237,12 +237,12 @@ K장부에는 **이미 만들어져 돌아가고 있다**(체험 20회 + 킬스�
 - **KJangbu·KLotto645 저장소는 다른 세션이 작업 중이다.** 건드리기 전에 `git status`·`git log`부터. **그 앱 관련 결정은 그 세션이 단일 기준**
 - **날짜를 추측하지 말 것.** 커밋 타임스탬프(`git log --date=format:...`)로 확인한다
 - **`versionCode`는 업로드마다 +1, 반려에도 소모, 되돌릴 수 없다.** 현재: KDailyUtil vc7 · K장부 vc3 · KLotto645 vc13
-- **`family.json`은 네 곳을 맞춘다** — 정본 `KDailyUtil/doc/family_config/family.json` + 번들 `res/raw/family.json` + 라이브 `k-series-config`(로컬 = `d:/DATA/20_Source/80_Git_HUB/k-series-config/k-series-config`) + K장부 사본
+- **`family.json`은 네 곳을 맞춘다** — 정본 `KDailyUtil/doc/family_config/family.json` + 번들 `res/raw/family.json` + 라이브 `k-series-config`(로컬 = `../../k-series-config/k-series-config`) + K장부 사본
   - 🔴 **라이브를 덮어쓰기 전에 최상위 레버 키를 먼저 확인** → [`family_config/README.md`](family_config/README.md) §3-1
 - **방침을 바꾸면 세 곳이 한 세트** — 원본 `doc/privacy-*.html` → 배포본 `k-series-config` → **Play Console '데이터 보안' 양식**. AI 전송앱 정답 = `공유됨`✅ / `임시 처리`❌ / `선택` / 목적 `앱 기능`
   - 배포본 복사는 줄바꿈 멱등 형태로: `sed 's/\r$//; s/$/\r/' <원본> > <배포본>` · 확인은 `diff --strip-trailing-cr`
 - **새 문서를 만들면 README '문서 인덱스' 표에 등록**한다(K-시리즈 규칙)
-- 서명 키는 저장소 밖 `d:/DATA/20_Source/_secrets/`. **업로드 전 서명 확인 필수**
+- 서명 키는 저장소 밖 `_secrets/`(저장소 루트 기준 `../../../_secrets/`). **업로드 전 서명 확인 필수**
 - 🔴 **세션을 끝낼 때 `git status -sb`로 `ahead N`을 확인한다.** 08-25 세션이 커밋만 하고 푸시를 잊어 **503 수정이 열흘간 이 기기 안에만 있었다**(09-04 발견). 커밋은 저장이 아니다
 
 ---

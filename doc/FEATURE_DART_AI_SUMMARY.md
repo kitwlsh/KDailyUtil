@@ -224,7 +224,7 @@ def analyze_earnings_with_gemini(raw_financial_data):
 전체 상장사(2,500+)의 모든 공시를 돌리는 것은 비용과 기기 성능 문제로 불가능하므로 아래와 같이 **투트랙(Two-track)**으로 수집 범위를 제한합니다.
 
 1. **관심 종목 대상 실시간 자동 모니터링 (백그라운드)**
-   * 사용자가 설정란([MorningBriefingSettingsScreen](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/app/src/main/java/com/kitwlshcom/kdailyutil/ui/screens/MorningBriefingSettingsScreen.kt))에서 등록한 **'관심 증시/종목' 키워드 리스트**를 기준으로 삼습니다.
+   * 사용자가 설정란([MorningBriefingSettingsScreen](../app/src/main/java/com/kitwlshcom/kdailyutil/ui/screens/MorningBriefingSettingsScreen.kt))에서 등록한 **'관심 증시/종목' 키워드 리스트**를 기준으로 삼습니다.
    * 백그라운드 스케줄러(WorkManager)가 돌며 이 관심 기업들의 고유번호(`corp_code`)에 대해 새로운 실적 공시가 떴는지만 필터링하여 감지합니다.
    * 감지 시 즉시 백그라운드에서 Gemini 요약을 생성하고 푸시 알림으로 보고합니다.
 2. **당일 전체 실적 공시 목록 중 선택 요약 (프론트엔드)**

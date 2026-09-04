@@ -1,42 +1,153 @@
 # 📱 KDailyUtil
 
-데일리 라이프스타일을 더 스마트하고 고급스럽게 만들어주는 안드로이드 통합 유틸리티 애플리케이션입니다.  
+데일리 라이프스타일을 더 스마트하고 고급스럽게 만들어주는 안드로이드 통합 유틸리티 애플리케이션입니다.
 일상의 편의를 위해 AI 뉴스 브리핑, 운전 중 말하기 연습, 오디오 캡처, AI 퀴즈 크리에이터 등 다양한 스마트 도구들을 제공합니다.
+
+- **저장소**: https://github.com/kitwlsh/KDailyUtil
+- **패키지**: `com.kitwlshcom.kdailyutil` · **최소/타깃 SDK**: 26 / 36 · **언어**: Kotlin + Jetpack Compose
+
+---
+
+## 🚦 지금 상태 (2026-09-04)
+
+| 항목 | 값 |
+|---|---|
+| **스토어 게시본** | **v1.6.1 (versionCode 7)** — 2026-08-12 출시·라이브 |
+| **저장소 최신** | 스토어보다 앞서 있다 — **vc8 분량이 코드에 들어와 있고 아직 안 올라갔다** |
+| `versionCode` | **7 그대로**(의도적. 빌드할 때 8로 올린다) |
+| 빌드 상태 | 단위 테스트 **52건 통과** · `:app:compileReleaseKotlin` 성공 |
+| 남은 일 | **실기기 확인 → vc 7→8 → 빌드 → 업로드** |
+
+**vc8에 들어 있는 것(미출시)**
+1. **503(AI 서버 과부하) 대응** — 13종 AI가 무방비였던 것 수정(2026-08-25)
+2. **리텐션 한 판** — 하루만 울리고 죽던 모닝 브리핑 알람 수정 + 오늘의 퀴즈·출석·오답 노트·배지(2026-09-04)
+
+---
+
+## 🧭 처음 왔다면 — 읽는 순서
+
+1. 🔴 **[doc/NEXT_SESSION.md](doc/NEXT_SESSION.md)** — **여기부터.** 지금 상황·다음에 할 일·주의사항이 전부 이 문서 하나에 있다.
+   맨 아래 **부록 A**에 실기기 확인 절차가 화면·버튼 단위로 적혀 있다.
+2. [doc/DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md) — 아키텍처·파일 구조·개발 시 주의사항
+3. 아래 **문서 인덱스** — 필요한 주제만 골라 읽는다
+
+---
+
+## ⚙️ 클론 직후 세팅 (이것 없이는 빌드가 반쪽이다)
+
+```bash
+git clone https://github.com/kitwlsh/KDailyUtil.git
+```
+
+### 1) `local.properties` 만들기 — **저장소에 없다**(`.gitignore` 처리)
+
+프로젝트 루트에 아래 형식으로 직접 만든다. 값은 **저장소 밖 `_secrets` 폴더**와 개인 발급분에서 가져온다.
+
+```properties
+sdk.dir=C\:\\Users\\<사용자>\\AppData\\Local\\Android\\Sdk
+
+# Open DART 기본 키 (사용자가 직접 키를 안 넣었을 때의 폴백)
+dart.default.key=<Open DART에서 발급받은 키>
+
+# 릴리즈 서명 — 4개가 모두 있어야 서명된 AAB가 나온다
+release.store.file=<키스토어 경로 (예: ../../_secrets/user.keystore)>
+release.store.password=<비밀번호>
+release.key.alias=<별칭>
+release.key.password=<비밀번호>
+```
+
+| 없으면 어떻게 되나 | 결과 |
+|---|---|
+| `sdk.dir` 없음 | 빌드 불가 |
+| `dart.default.key` 없음 | 앱은 뜨지만 DART 실적 조회가 기본 키 없이 동작(사용자가 직접 키 입력해야 함) |
+| `release.*` 4개 중 하나라도 없음 | 🔴 **경고 한 줄 없이 「서명 없는 AAB」가 나온다.** 업로드 전 `keytool -printcert -jarfile <aab>` 로 반드시 확인할 것 |
+
+> 🔑 **키스토어 실물은 이 저장소에 없다.** 저장소 밖 `_secrets/` 에 있고 `release.store.file` 로 참조한다.
+> 과거에 키스토어가 이 공개 저장소에 커밋돼 있었던 적이 있어 `.gitignore`로 `*.jks`·`*.keystore`를 막아 두었다 — 배경은 [doc/GOOGLE_PLAY_RELEASE_GUIDE.md](doc/GOOGLE_PLAY_RELEASE_GUIDE.md).
+
+### 2) 빌드·테스트
+
+```bash
+./gradlew :app:testDebugUnitTest      # 단위 테스트 (기기 불필요, 52건)
+./gradlew :app:assembleDebug          # 디버그 APK
+./gradlew :app:bundleRelease          # 업로드용 AAB (서명 설정 필요)
+```
+
+### 3) AI 키 (선택)
+
+[Google AI Studio](https://aistudio.google.com/app/apikey)에서 발급 → 앱 **설정 > AI·키** 에 입력 후 **[연결 테스트]**.
+**키가 없어도 앱 대부분은 그대로 동작한다** — 뉴스·증시·DART·오디오·퀴즈·독서 훈련. AI 기능(13종)만 키가 필요하다.
+
+---
+
+## 🌐 이 저장소 밖에 있는 것들 (중요)
+
+앱이 **혼자 돌지 않는다.** 아래를 모르면 「왜 이게 원격에서 바뀌지?」를 이해할 수 없다.
+
+### 폴더 배치 (문서의 상대경로는 이 배치를 전제로 한다)
+
+```
+<작업 폴더>/
+├─ _secrets/                 # 🔑 서명 키 (Git 아님, 백업 필수)
+│   └─ kitwlsh-upload.jks
+└─ 80_Git_HUB/               # 저장소들을 나란히 두는 곳
+    ├─ KDailyUtil/
+    │   └─ KDailyUtil/       # ← 여기가 이 저장소 루트
+    ├─ KJangbu/
+    ├─ KLotto645/
+    ├─ k-series-config/
+    └─ KDailyUtil/korean_quiz_data/
+```
+
+> 폴더를 옮겨도 **문서·링크는 그대로 동작한다**(전부 상대경로). 고쳐야 하는 것은 `local.properties`의
+> `sdk.dir`와 `release.store.file` **두 줄뿐**이다.
+
+| 무엇 | 어디 | 역할 |
+|---|---|---|
+| **퀴즈 데이터** | [kitwlsh/korean_quiz_data](https://github.com/kitwlsh/korean_quiz_data) | 매일 자정 로봇이 문제를 생성해 커밋. 앱이 GitHub raw로 내려받는다. **「오늘의 퀴즈」가 이 공급에 의존한다.** 상태는 그 저장소 `last_run.json` 하나로 확인 |
+| **자매앱 레지스트리 · 방침 배포** | [kitwlsh/k-series-config](https://github.com/kitwlsh/k-series-config) | `family.json` — 자매앱 목록을 **앱 재배포 없이** 바꾼다. 🔴 최상위에 **비상 레버**(`aiModel` 등)가 얹히는 자리이기도 하다 |
+| **자매앱 — K장부** | [kitwlsh/KJangbu](https://github.com/kitwlsh/KJangbu) *(로컬: `../../KJangbu`)* | 가계부 앱. **AI 코드가 형제처럼 닮아 수정이 서로 오간다** |
+| **자매앱 — KLotto645** | [kitwlsh/KLotto645](https://github.com/kitwlsh/KLotto645) *(로컬: `../../KLotto645`)* | 로또 앱 |
+| **서명 키** | 저장소 밖 `_secrets/` | Git에 절대 넣지 않는다 |
+
+> 🔧 **비상 레버 2개** — 앱을 새로 내지 않고 고치는 수단. 상세 = [doc/NEXT_SESSION.md 부록 A §D](doc/NEXT_SESSION.md)
+> - `aiModel` (`k-series-config/family.json` 최상위) — AI 모델 교체. ⚠️ **K장부도 같이 읽는다**
+> - `QUIZ_MODEL` (`korean_quiz_data` 저장소 Variables) — 퀴즈 로봇 모델 교체
 
 ---
 
 ## 🗂️ 프로젝트 문서 인덱스 (Documentation Index)
-프로젝트의 아키텍처, 브랜딩, 배포 및 이슈 리포트 문서는 모두 [doc/](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/) 폴더 내에 체계적으로 격리 정리되어 있습니다. 아래의 링크를 통해 필요한 상세 문서를 즉시 열람하실 수 있습니다.
+프로젝트의 아키텍처, 브랜딩, 배포 및 이슈 리포트 문서는 모두 [doc/](doc/) 폴더 내에 체계적으로 격리 정리되어 있습니다. 아래의 링크를 통해 필요한 상세 문서를 즉시 열람하실 수 있습니다.
 
 > 📌 **문서 관리 규칙**: `doc/`에 **새 문서를 추가하거나 중요한 문서를 개정하면 반드시 이 표에 등록**한다. README만 읽으면 "어디에 어떤 문서가 있는지" 전부 파악되도록 유지하는 것이 원칙이다. (이 인덱스가 프로젝트 문서의 단일 진입점)
 
 | 문서 구분 | 상세 문서 링크 | 설명 |
 | :--- | :--- | :--- |
-| **⭐ 다음 세션 브리핑** | [NEXT_SESSION.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/NEXT_SESSION.md) | **신규 세션은 여기부터** — 지금 상황 요약(3앱 전부 라이브) + **✅08-25 503 대응 이식 완료·vc8 빌드 대기** + 남은 확인 3건 + 다음 작업 후보(AI 체험판)를 쉬운 말로 정리. 백로그·주의사항·읽을 순서 포함 |
-| **🔁 리텐션(매일 열게 하기) 검토** | [RETENTION_PLAN.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/RETENTION_PLAN.md) | **보상 없이 매일 재방문을 만드는 방안 검토(2026-09-04).** 🔴 **모닝 브리핑 알람이 일회성이라 하루만 울리고 죽는다**는 진단(코드 근거 포함) + 퀴즈 로봇이 하루 ~5문제씩 생산 중인데 앱이 안 알린다는 실측(500문항) + 레버 8종 평가(오늘의 퀴즈·스트릭·오답노트·위젯) + **하지 말 것**(현금보상·걸음수·다중푸시) + vc8/vc9 권고 순서 |
-| **개발자 가이드** | [DEVELOPER_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/DEVELOPER_GUIDE.md) | 프로젝트 아키텍처, 파일 구조, 개발 시 주의사항 총정리 |
-| **구글 플레이 가이드** | [GOOGLE_PLAY_RELEASE_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/GOOGLE_PLAY_RELEASE_GUIDE.md) | 구글 플레이 콘솔 업로드 및 릴리즈 빌드 전체 단계 안내 |
-| **🛡 Play 정책 준수(3앱 공용)** | [PLAY_POLICY_COMPLIANCE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/PLAY_POLICY_COMPLIANCE.md) | **K-시리즈 공통 기준.** Android 개발자 인증(2026-09-30 기한, ✅확인완료) · **데이터 보안 양식을 방침과 일치시키는 법**(AI 전송앱 판단 기준) · 미사용 앱 4건 방치 결정 · **✅ 3앱 전수 점검 결과(08-11)** — KDailyUtil·K장부는 어긋나 있어 고쳤고 KLotto645는 '수집 없음'이 정답 · 재발 방지 규칙 |
-| **릴리즈 노트 / 변경내역** | [RELEASE_NOTES.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/app/release/RELEASE_NOTES.md) | 버전별 Changelog + Google Play '출시 노트' 붙여넣기용 문구 (app/release/) |
-| **스토어 등록정보 (설명)** | [STORE_LISTING.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/STORE_LISTING.md) | Google Play 간단한 설명(≤80자)·자세한 설명(≤4000자) 최신본(버전별 갱신) |
-| **콘솔 기입 정보 엑셀** | [google_play_release_info.xlsx](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/google_play_release_info.xlsx) | 구글 플레이에 제출한 27개 질문과 상세 텍스트 기록 보관함 |
-| **디자인 & 브랜딩** | [BRANDING_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/BRANDING_GUIDE.md) | 로고 아이콘 규격, 색상 파레트 및 다크 테마 가이드라인 |
-| **K-시리즈 아이콘 표준** | [K_SERIES_ICON_RECIPE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/K_SERIES_ICON_RECIPE.md) | 형제 앱(KDailyUtil·KLotto645 등) 아이콘·스플래시·워터마크 패밀리 통일 규격 및 신규 앱 제작 절차(단일 기준 문서) |
-| **자매앱 상호연결 표준** | [KLOTTO_CONNECT_HANDOFF.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KLOTTO_CONNECT_HANDOFF.md) | K-시리즈 자매앱 상호 설치링크 표준 + 신규앱 편입 절차(§7 정적) + **동적 레지스트리(원격 구성) §8 — ✅ KDailyUtil 구현 완료(2026-07-29)**, 신규앱 JSON 편입(§8-9)·자매앱 이식 체크리스트(§8-10)·호스팅 절차(§8-11) + KLotto645↔KDailyUtil 핸드오프 |
-| **자매앱 레지스트리 정본** | [family_config/README.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/family_config/README.md) | 원격 `family.json` 정본 + 아이콘(384²) + `k-series-config` 레포 업로드·편집 가이드(앱 재배포 없이 자매앱 추가하는 절차) + **🔴 §3-1 최상위 레버 키 레지스트리**(`aiModel`·`aiTrial`·`fscApi` — 라이브를 덮어쓰기 전에 필히 확인, 안 하면 껐던 기능이 되살아난다) |
-| **AI 키 현황·남은 일** | [AI_KEY_NOTES.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/AI_KEY_NOTES.md) | 🔴 **모델 하드코딩 장애**(신규 사용자 AI 전면 실패)와 4중 방어·키 안내 개선 + **모델 실측표 2종**(§3 08-07 / **§3-1 08-25 — 503은 상시가 아니라 간헐적(21회 중 4회)이라는 실측, 무료 등급 분당 한도 실측**) + **남은 일**(✅v1.6.1 출시완료 / ⏳`aiModel` 레버 검증 · 체험/킬스위치 이식 시 주의). 정책 단일 기준은 `KJangbu/doc/AI_KEY_POLICY.md` |
-| **개인정보처리방침** | [privacy-kdailyutil.html](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/privacy-kdailyutil.html) | 이 앱의 방침 **원본**(마이크·카메라·음성입력(STT)·AI 제3자 처리 포함). 배포는 `k-series-config` GitHub Pages, 등록 URL·앱별 작성 규칙 = [KLOTTO_CONNECT_HANDOFF.md §9](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KLOTTO_CONNECT_HANDOFF.md). ⚠️ 권한을 바꾸면 이 문서도 같이 고칠 것 |
-| **뉴스 우회 보고서** | [Google_News_Redirect_Issue_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/Google_News_Redirect_Issue_Report.md) | 구글 뉴스 수집 시 발생하는 리디렉션 이슈 분석 및 해결책 |
-| **오디오 개선 보고서** | [20260422_Audio_System_Enhancement_Report.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/20260422_Audio_System_Enhancement_Report.md) | 미니 플레이어 및 오디오 수집 성능 최적화 개선 보고서 |
-| **공시 AI 요약 가이드** | [FEATURE_DART_AI_SUMMARY.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/FEATURE_DART_AI_SUMMARY.md) | Open DART API + Gemini 실적 공시 자동 요약 설계 가이드 |
-| **빠른 독서 훈련 설계** | [FEATURE_SPEED_READING.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/FEATURE_SPEED_READING.md) | 배움터 속독 훈련(드릴/OCR/AI 이해도/보관함) 기능 설계서 |
-| **뉴스 AI 대화창 설계** | [FEATURE_AI_NEWS_CHAT.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/FEATURE_AI_NEWS_CHAT.md) | 뉴스탭 'AI' 탭 멀티턴 대화(제목+스니펫 컨텍스트)+음성 STT/TTS 설계·구현서(구현 완료, 30일 보관 정책) |
-| **브랜드 가이드라인(KITWLSH)** | [KITWLSH_Brand_Guidelines.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/KITWLSH_Brand_Guidelines.md) | KITWLSH 제작사 브랜드 아이덴티티/가이드라인 |
-| **퀴즈 시스템 워크스루** | [walkthrough_quiz_system.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/walkthrough_quiz_system.md) | KuizGenius 퀴즈 시스템 동작 흐름 워크스루(개발 참고) |
-| **전체 구현 계획 / 작업 현황** | [implementation_plan.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/implementation_plan.md) · [task.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/task.md) | 초기 설계 계획서 및 단계별 작업 체크리스트 |
-| **신규 자매앱 기획 — K운복** | [SISTER_APP_KUNBOK_PLAN.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/SISTER_APP_KUNBOK_PLAN.md) | K-시리즈 3번째 자매앱(AI 운세 'K운복') 기획 초안 — 네이밍/기능/재사용/법적·정책/§7 편입(기획 단계, 코드 미착수) |
-| **신규 자매앱 아이디어 백로그** | [SISTER_APP_IDEAS_BACKLOG.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/SISTER_APP_IDEAS_BACKLOG.md) | 향후 자매앱 후보·타당성 검토 모음 — 교통 브리핑 앱(API), 인터넷 라디오, 실시간 위치 소셜앱(헤비·기록만), 블박 신고 도우미 + 우선순위(2026-08-07 갱신) |
-| **자매앱 검토 — 블박 신고 도우미** | [SISTER_APP_DASHCAM_REPORT_PLAN.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/SISTER_APP_DASHCAM_REPORT_PLAN.md) | 블랙박스 영상 → 증거 캡처·번호판 OCR → 안전신문고 신고 문안 작성 앱의 **타당성 검토**(⏸️ 착수 보류). 규제 실측 검증·출시 조건 7개·**AI 위반판별 배제 근거**·온디바이스 설계·미결사항 |
+| **⭐ 다음 세션 브리핑** | [NEXT_SESSION.md](doc/NEXT_SESSION.md) | **신규 세션은 여기부터** — 지금 상황·다음 행동·주의사항이 이 문서 하나에 있다. **🔴 vc8 미출시분 2건**(503 대응 + 리텐션 한 판) · **📎 부록 A = 실기기 확인 절차**(화면·버튼 단위, 알람 이틀 확인법·`aiModel` 레버 시험법·함정 2개) · 백로그·읽을 순서 포함 |
+| **🔁 리텐션(매일 열게 하기) 검토** | [RETENTION_PLAN.md](doc/RETENTION_PLAN.md) | **보상 없이 매일 재방문을 만드는 방안 검토(2026-09-04).** 🔴 **모닝 브리핑 알람이 일회성이라 하루만 울리고 죽는다**는 진단(코드 근거 포함) + 퀴즈 로봇이 하루 ~5문제씩 생산 중인데 앱이 안 알린다는 실측(500문항) + 레버 8종 평가(오늘의 퀴즈·스트릭·오답노트·위젯) + **하지 말 것**(현금보상·걸음수·다중푸시) + vc8/vc9 권고 순서 |
+| **개발자 가이드** | [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md) | 프로젝트 아키텍처, 파일 구조, 개발 시 주의사항 총정리 |
+| **구글 플레이 가이드** | [GOOGLE_PLAY_RELEASE_GUIDE.md](doc/GOOGLE_PLAY_RELEASE_GUIDE.md) | 구글 플레이 콘솔 업로드 및 릴리즈 빌드 전체 단계 안내 |
+| **🛡 Play 정책 준수(3앱 공용)** | [PLAY_POLICY_COMPLIANCE.md](doc/PLAY_POLICY_COMPLIANCE.md) | **K-시리즈 공통 기준.** Android 개발자 인증(2026-09-30 기한, ✅확인완료) · **데이터 보안 양식을 방침과 일치시키는 법**(AI 전송앱 판단 기준) · 미사용 앱 4건 방치 결정 · **✅ 3앱 전수 점검 결과(08-11)** — KDailyUtil·K장부는 어긋나 있어 고쳤고 KLotto645는 '수집 없음'이 정답 · 재발 방지 규칙 |
+| **릴리즈 노트 / 변경내역** | [RELEASE_NOTES.md](app/release/RELEASE_NOTES.md) | 버전별 Changelog + Google Play '출시 노트' 붙여넣기용 문구 (app/release/) |
+| **스토어 등록정보 (설명)** | [STORE_LISTING.md](doc/STORE_LISTING.md) | Google Play 간단한 설명(≤80자)·자세한 설명(≤4000자) 최신본(버전별 갱신) |
+| **콘솔 기입 정보 엑셀** | [google_play_release_info.xlsx](doc/google_play_release_info.xlsx) | 구글 플레이에 제출한 27개 질문과 상세 텍스트 기록 보관함 |
+| **디자인 & 브랜딩** | [BRANDING_GUIDE.md](doc/BRANDING_GUIDE.md) | 로고 아이콘 규격, 색상 파레트 및 다크 테마 가이드라인 |
+| **K-시리즈 아이콘 표준** | [K_SERIES_ICON_RECIPE.md](doc/K_SERIES_ICON_RECIPE.md) | 형제 앱(KDailyUtil·KLotto645 등) 아이콘·스플래시·워터마크 패밀리 통일 규격 및 신규 앱 제작 절차(단일 기준 문서) |
+| **자매앱 상호연결 표준** | [KLOTTO_CONNECT_HANDOFF.md](doc/KLOTTO_CONNECT_HANDOFF.md) | K-시리즈 자매앱 상호 설치링크 표준 + 신규앱 편입 절차(§7 정적) + **동적 레지스트리(원격 구성) §8 — ✅ KDailyUtil 구현 완료(2026-07-29)**, 신규앱 JSON 편입(§8-9)·자매앱 이식 체크리스트(§8-10)·호스팅 절차(§8-11) + KLotto645↔KDailyUtil 핸드오프 |
+| **자매앱 레지스트리 정본** | [family_config/README.md](doc/family_config/README.md) | 원격 `family.json` 정본 + 아이콘(384²) + `k-series-config` 레포 업로드·편집 가이드(앱 재배포 없이 자매앱 추가하는 절차) + **🔴 §3-1 최상위 레버 키 레지스트리**(`aiModel`·`aiTrial`·`fscApi` — 라이브를 덮어쓰기 전에 필히 확인, 안 하면 껐던 기능이 되살아난다) |
+| **AI 키 현황·남은 일** | [AI_KEY_NOTES.md](doc/AI_KEY_NOTES.md) | 🔴 **모델 하드코딩 장애**(신규 사용자 AI 전면 실패)와 4중 방어·키 안내 개선 + **모델 실측표 2종**(§3 08-07 / **§3-1 08-25 — 503은 상시가 아니라 간헐적(21회 중 4회)이라는 실측, 무료 등급 분당 한도 실측**) + **남은 일**(✅v1.6.1 출시완료 / ⏳`aiModel` 레버 검증 · 체험/킬스위치 이식 시 주의). 정책 단일 기준은 `KJangbu/doc/AI_KEY_POLICY.md` |
+| **개인정보처리방침** | [privacy-kdailyutil.html](doc/privacy-kdailyutil.html) | 이 앱의 방침 **원본**(마이크·카메라·음성입력(STT)·AI 제3자 처리 포함). 배포는 `k-series-config` GitHub Pages, 등록 URL·앱별 작성 규칙 = [KLOTTO_CONNECT_HANDOFF.md §9](doc/KLOTTO_CONNECT_HANDOFF.md). ⚠️ 권한을 바꾸면 이 문서도 같이 고칠 것 |
+| **뉴스 우회 보고서** | [Google_News_Redirect_Issue_Report.md](doc/Google_News_Redirect_Issue_Report.md) | 구글 뉴스 수집 시 발생하는 리디렉션 이슈 분석 및 해결책 |
+| **오디오 개선 보고서** | [20260422_Audio_System_Enhancement_Report.md](doc/20260422_Audio_System_Enhancement_Report.md) | 미니 플레이어 및 오디오 수집 성능 최적화 개선 보고서 |
+| **공시 AI 요약 가이드** | [FEATURE_DART_AI_SUMMARY.md](doc/FEATURE_DART_AI_SUMMARY.md) | Open DART API + Gemini 실적 공시 자동 요약 설계 가이드 |
+| **빠른 독서 훈련 설계** | [FEATURE_SPEED_READING.md](doc/FEATURE_SPEED_READING.md) | 배움터 속독 훈련(드릴/OCR/AI 이해도/보관함) 기능 설계서 |
+| **뉴스 AI 대화창 설계** | [FEATURE_AI_NEWS_CHAT.md](doc/FEATURE_AI_NEWS_CHAT.md) | 뉴스탭 'AI' 탭 멀티턴 대화(제목+스니펫 컨텍스트)+음성 STT/TTS 설계·구현서(구현 완료, 30일 보관 정책) |
+| **브랜드 가이드라인(KITWLSH)** | [KITWLSH_Brand_Guidelines.md](doc/KITWLSH_Brand_Guidelines.md) | KITWLSH 제작사 브랜드 아이덴티티/가이드라인 |
+| **퀴즈 시스템 워크스루** | [walkthrough_quiz_system.md](doc/walkthrough_quiz_system.md) | KuizGenius 퀴즈 시스템 동작 흐름 워크스루(개발 참고) |
+| **전체 구현 계획 / 작업 현황** | [implementation_plan.md](doc/implementation_plan.md) · [task.md](doc/task.md) | 초기 설계 계획서 및 단계별 작업 체크리스트 |
+| **신규 자매앱 기획 — K운복** | [SISTER_APP_KUNBOK_PLAN.md](doc/SISTER_APP_KUNBOK_PLAN.md) | K-시리즈 3번째 자매앱(AI 운세 'K운복') 기획 초안 — 네이밍/기능/재사용/법적·정책/§7 편입(기획 단계, 코드 미착수) |
+| **신규 자매앱 아이디어 백로그** | [SISTER_APP_IDEAS_BACKLOG.md](doc/SISTER_APP_IDEAS_BACKLOG.md) | 향후 자매앱 후보·타당성 검토 모음 — 교통 브리핑 앱(API), 인터넷 라디오, 실시간 위치 소셜앱(헤비·기록만), 블박 신고 도우미 + 우선순위(2026-08-07 갱신) |
+| **자매앱 검토 — 블박 신고 도우미** | [SISTER_APP_DASHCAM_REPORT_PLAN.md](doc/SISTER_APP_DASHCAM_REPORT_PLAN.md) | 블랙박스 영상 → 증거 캡처·번호판 OCR → 안전신문고 신고 문안 작성 앱의 **타당성 검토**(⏸️ 착수 보류). 규제 실측 검증·출시 조건 7개·**AI 위반판별 배제 근거**·온디바이스 설계·미결사항 |
 | _(개인 메모)_ | 동전주전략_claude/gpt/jemini.md | 앱과 무관한 개인 투자 전략 메모 — 참고용, 앱 문서 아님 |
 
 ---
@@ -89,35 +200,32 @@
 
 ---
 
-## 📂 프로젝트 문서 (Documentation)
 
-- [🛠 개발자 컨텍스트 가이드 (신규 세션 필독)](DEVELOPER_GUIDE.md) — 아키텍처, 파일 구조, 퀴즈 파이프라인, 주의사항 총정리
-- [📄 전체 구현 계획 및 설계](doc/implementation_plan.md)
-- [✅ 단계별 작업 현황](doc/task.md)
-- [📈 실적 공시 AI 요약 설계 가이드](doc/FEATURE_DART_AI_SUMMARY.md)
+## 🛠 최근 업데이트 및 작업 현황
 
----
+> 최신은 위쪽에 있다. 게시본은 **v1.6.1(vc7, 2026-08-12 라이브)** 이고, 아래 2026-08-25·09-04 작업은 **아직 스토어에 없다**(vc8 대기).
 
-## 🚀 시작하기
+### 🔁 매일 한 번은 들어오게 — 리텐션 한 판 (2026-09-04 · ⏳ vc8 대기)
 
-1. **저장소 클론**
-   ```bash
-   git clone https://github.com/your-repo/KDailyUtil.git
-   ```
+검토서 = [doc/RETENTION_PLAN.md](doc/RETENTION_PLAN.md)
 
-2. **환경 설정 (Gemini API)**
-   - [Google AI Studio](https://aistudio.google.com/app/apikey)에서 API 키를 발급받습니다. (키 형식은 발급 시기에 따라 다릅니다 — 복사한 키 전체를 붙여넣으면 됩니다)
-   - 앱 내 **설정 > AI·키** 화면에서 입력하고 **[연결 테스트]** 를 누르면 사용 가능한 모델까지 함께 확인됩니다.
-   - **키가 없어도 앱 대부분은 그대로 동작합니다** — 뉴스 읽기·증시 시세·DART 실적 조회(기본 공용 키 내장)·오디오 캡처·퀴즈 풀기·독서 훈련 드릴. AI 기능(13종)만 키가 필요하며, 첫 화면 안내 배너에서 바로 발급 안내를 볼 수 있습니다.
-   - ⚠️ **무료 등급 데이터 취급**: Google 약관상 무료 등급에서는 전송한 내용이 Google 제품 개선에 사용될 수 있고 사람이 검토할 수 있습니다(유료 등급은 해당 없음). 민감한 사진·문서는 AI 기능에 사용하지 마세요. 상세 = [개인정보처리방침 제8조](doc/privacy-kdailyutil.html).
+- 🔴 **모닝 브리핑 알람이 하루만 울리고 죽던 것을 고쳤다.** 단발 알람인데 울린 뒤 아무도 다음 날을 다시 걸지 않아 **켠 다음날 한 번 오고 끝**이었다. 재예약 경로가 «설정을 다시 만질 때»와 «재부팅»뿐이라, 개발자 기기에서는 계속 되살아나 **자기 폰으로는 안 보이는 실패**였다. 울린 뒤 재예약 + **앱을 켤 때 재무장**(이미 알람이 죽은 기존 사용자는 수신부만 고쳐서는 영영 닿지 않는다).
+- **알림 문구가 매일 달라진다** — 「새 문제 N개 · N일 연속 도전 중」. 고정 문구를 사흘 보면 알림을 끄고, **알림을 끄면 다시 데려올 수단이 영구히 사라진다.** 네트워크는 쓰지 않는다(알림 한 줄 때문에 알림 자체를 놓치면 안 된다).
+- **오늘의 퀴즈 5문제** — 날짜로 정해지는 고정 세트(같은 날은 같은 문제, 자정 넘으면 새 세트). 기존 랜덤 10문제는 **끝이 없어서** 「언제 해도 되니까」 안 하게 됐다.
+- **출석·연속(스트릭)** — 출석 = 오늘의 퀴즈를 끝까지 푼 것(앱 실행은 출석이 아니다). **관대 규칙**: 하루 빠져도 7일에 한 번 유예로 살린다. 끊김 알림은 만들지 않는다(죄책감 알림 = 앱 삭제).
+- **오답 노트 · 기록·배지 8종** — 통계는 이미 쌓여 있었는데 볼 곳이 없었다. 보상(포인트·현금)은 주지 않는다.
+- 새로 들어온 문항이 오늘 세트에 **최소 한 칸** 배정된다 — 로봇이 하루 ~5문제를 넣는데 사용자가 그걸 영영 못 보던 문제.
+- **덤**: 공급원인 퀴즈 로봇([korean_quiz_data](https://github.com/kitwlsh/korean_quiz_data))도 「조용히 죽지 않게」 고쳤다 — 모델 폴백 · 실패 시 이슈 자동 생성 · 매일 생존 신호 커밋(GitHub의 60일 무활동 예약 워크플로 자동 정지 회피).
+- 검증: 단위 테스트 **52건 통과**(신설 32건) · 뮤테이션 시험 통과 · `:app:compileReleaseKotlin` 성공. **실기기 확인은 남아 있다**(절차 = [doc/NEXT_SESSION.md 부록 A](doc/NEXT_SESSION.md)).
 
-3. **빌드 및 실행**
-   - Android Studio (Ladybug 이상)에서 프로젝트 오픈.
-   - `./gradlew assembleDebug` 코드로 빌드 후 실행.
+### 🔥 503(AI 서버 과부하) 대응 (2026-08-25 · ⏳ vc8 대기)
 
----
+- **503이 어느 그물에도 안 걸렸다** — 404 계열만 잡고 있어서 폴백도 재시도도 없이 실패했고, 영문 오류가 그대로 노출됐다. **13종 AI 전부 무방비.**
+- ⚠️ **429와 다르게 다뤄야 한다** — 429는 기다리면 풀리지만 **503은 그 모델이 붐비는 것이라 기다려도 안 풀린다** → 폴백이 정답.
+- 실측: 503은 상시가 아니라 **간헐적**(21회 중 4회, 약 19%). 그래서 넉 달 가까이 안 잡혔다 — 개발자가 시험하면 대개 통과한다.
+- 오류 안내를 `aiErrorMessage` 한 곳으로 모았다(14곳 전부). 그전에는 같은 사고를 화면 수만큼 다시 겪는 구조였다.
 
-## 🛠 최근 업데이트 및 작업 현황 (2026-08-12 · 게시본 **v1.6.1(vc7)** — 🎉 **2026-08-12 출시·라이브**)
+### 📦 이전 이력 (v1.6.1 · 2026-08-12 라이브)
 
 > 🎉 **K-시리즈 3개 앱 전부 라이브 + 전부 최신판**: KDailyUtil **v1.6.1** · KLotto645 **v1.0.3** · K장부 **v1.0.1**. 밀린 배포 없음. 다음 업로드는 **vc8**.
 > ⏱ 심사 실측: 업데이트는 **몇 시간~하루**(데이터 보안 양식을 함께 고쳐도 지연 없음), 신규 앱 첫 심사만 4일.
@@ -332,7 +440,9 @@
 
 ---
 
-## 📌 현재 상태 및 다음 과제
+## 📌 완료 이력 (기능 체크리스트)
+
+> 지금 상태는 문서 맨 위 **🚦 지금 상태**를 볼 것. 아래는 지금까지 끝낸 기능의 누적 목록이다.
 
 - **현재 상태**: 
     - [x] 사이드 탭 기반 통합 오디오 UI 및 전역 플레이어 상태 관리 구현 완료.
