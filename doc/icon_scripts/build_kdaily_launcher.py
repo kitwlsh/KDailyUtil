@@ -15,7 +15,9 @@ import os
 import numpy as np
 from PIL import Image, ImageDraw
 
-ROOT = r"d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil"
+# 경로는 «이 스크립트 위치»에서 계산한다 — 폴더를 옮겨도 그대로 돈다(절대경로 금지).
+#   이 파일 = <저장소 루트>/doc/icon_scripts/ → 두 단 위가 저장소 루트다.
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RES = os.path.join(ROOT, "app/src/main/res")
 PROJ = os.path.join(ROOT, "app/src/main")
 FAM = os.path.join(ROOT, "doc/family_icons")

@@ -4,12 +4,21 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import numpy as np
 import os
 
-SCRATCH = r"C:\Users\shlee16\AppData\Local\Temp\claude\d--DATA-20-Source-80-Git-HUB-KDailyUtil-KDailyUtil\c5517410-c134-4714-825a-554377416594\scratchpad"
-EMB = os.path.join(SCRATCH, "emblem_clean.png")
-ARIBLK = r"C:\Windows\Fonts\ariblk.ttf"
-PROJ = r"D:\DATA\20_Source\80_Git_HUB\KLotto645\app\src\main"
+# 경로는 «이 스크립트 위치»에서 계산한다 — 폴더를 옮겨도 그대로 돈다(절대경로 금지).
+#   이 파일 = <저장소 루트>/doc/icon_scripts/ → 두 단 위가 저장소 루트다.
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 중간 산출물 폴더(저장소에 안 남긴다). ICON_WORK 환경변수로 바꿀 수 있다.
+WORK = os.environ.get("ICON_WORK", os.path.join(ROOT, "build", "icon_work"))
+os.makedirs(WORK, exist_ok=True)
+SCRATCH = WORK
+EMB = os.path.join(SCRATCH, "emblem_clean.png")   # extract_emblem.py 산출물
+ARIBLK = os.path.join(os.environ.get("WINDIR", "C:/Windows"), "Fonts", "ariblk.ttf")  # OS 기본 폰트
+# 이 스크립트만 «다른 저장소»(KLotto645)에 쓴다. 배치 = <작업 폴더>/<프로젝트>/main
+# (폴더 규칙은 저장소 밖 공용 문서 저장소 루트 기준 ../../README.md 가 정본) → KLOTTO_ROOT 로 덮어쓸 수 있다.
+KLOTTO = os.environ.get("KLOTTO_ROOT",
+                        os.path.normpath(os.path.join(ROOT, "..", "..", "KLotto645", "main")))
+PROJ = os.path.join(KLOTTO, "app", "src", "main")
 RES = os.path.join(PROJ, "res")
-ROOT = r"D:\DATA\20_Source\80_Git_HUB\KLotto645"
 emblem = Image.open(EMB).convert("RGBA")
 
 def radial_bg(S, inner, outer):
@@ -108,7 +117,7 @@ for dens, sz in fg.items():
     master.resize((sz, sz), Image.LANCZOS).save(os.path.join(d, "ic_launcher_foreground.webp"), "WEBP", quality=95, method=6)
 
 # --- 스토어 업로드용 루트 아이콘 갱신 ---
-m512.convert("RGB").save(os.path.join(ROOT, "KLotto645_512.png"))
-master.convert("RGB").save(os.path.join(ROOT, "KLotto645icon.png"))  # 1024
+m512.convert("RGB").save(os.path.join(KLOTTO, "KLotto645_512.png"))
+master.convert("RGB").save(os.path.join(KLOTTO, "KLotto645icon.png"))  # 1024
 
 print("FINAL export done")

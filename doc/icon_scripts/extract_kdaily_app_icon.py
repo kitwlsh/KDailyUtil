@@ -4,9 +4,15 @@
 import numpy as np
 from PIL import Image, ImageFilter
 import os
-SRC=r"D:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil\app\src\main\res\drawable\ic_app_logo_full.png"
-DST=r"D:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil\app\src\main\res\drawable-nodpi\ic_k_app_icon.png"
-SC=r"C:\Users\shlee16\AppData\Local\Temp\claude\d--DATA-20-Source-80-Git-HUB-KDailyUtil-KDailyUtil\c5517410-c134-4714-825a-554377416594\scratchpad"
+# 경로는 «이 스크립트 위치»에서 계산한다 — 폴더를 옮겨도 그대로 돈다(절대경로 금지).
+#   이 파일 = <저장소 루트>/doc/icon_scripts/ → 두 단 위가 저장소 루트다.
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 중간 산출물 폴더(저장소에 안 남긴다). ICON_WORK 환경변수로 바꿀 수 있다.
+WORK = os.environ.get("ICON_WORK", os.path.join(ROOT, "build", "icon_work"))
+os.makedirs(WORK, exist_ok=True)
+SRC = os.path.join(ROOT, "app/src/main/res/drawable/ic_app_logo_full.png")
+DST = os.path.join(ROOT, "app/src/main/res/drawable-nodpi/ic_k_app_icon.png")
+SC = WORK
 
 im=Image.open(SRC).convert("RGB")
 print("source size",im.size)

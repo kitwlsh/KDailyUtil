@@ -28,7 +28,7 @@
 
 ## 4. 최종 리소스 경로
 생성된 고화질 브랜드 통합 아이콘은 다음 위치에서 확인 가능합니다:
-- **경로**: `C:\Users\shlee16\.gemini\antigravity\brain\95ed7f08-8b15-485c-a869-d4aa8021122d\k_dailyutil_exact_brand_icon_1778228832444.png`
+- **경로**: 저장소 안 사본 [`doc/newimg/k_dailyutil_exact_brand_icon_1778228832444.png`](newimg/k_dailyutil_exact_brand_icon_1778228832444.png) (생성 당시 원본은 저장소 밖 임시 폴더에 있었고, 이 사본이 정본이다)
 
 ---
 *본 가이드는 KDailyUtil의 브랜드 가치를 높이고 향후 패밀리 앱 확장을 위한 기준점이 됩니다.*

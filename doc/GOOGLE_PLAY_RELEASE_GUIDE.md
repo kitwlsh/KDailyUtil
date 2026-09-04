@@ -30,7 +30,7 @@ KDailyUtil 안드로이드 앱을 구글 플레이 스토어에 업로드하고 
 **⛔ 키 관리 정책 (필수)**
 - 키스토어(`.jks`/`.keystore`)와 비밀번호는 **절대 git에 커밋하지 않는다.** `.gitignore`에 `*.jks`·`*.keystore`·`keystore.properties` 규칙이 있다.
 - 키스토어 실물은 **저장소 밖** `_secrets/` 에 두고, 경로·비밀번호는 `local.properties`(VCS 제외)로만 주입한다.
-  - 위치는 기기마다 다를 수 있다. **저장소 루트 기준 `../../../_secrets/`** 가 표준 배치다(현재 개발 기기에서는 `d:/DATA/20_Source/_secrets/`). 폴더를 옮기면 `local.properties`의 `release.store.file`만 고치면 된다.
+  - 표준 배치는 **저장소 루트 기준 `../../_secrets/<앱>/`** 다(저장소 루트 = `<작업 폴더>/<앱>/main`, 규칙 정본 = 저장소 밖 `../../README.md`). `release.store.file`은 `rootProject.file()`로 풀리므로 **상대경로로 적으면 폴더를 옮겨도 안 깨진다**.
 - ⚠️ **과거 사고**: `user.keystore`가 이 저장소(공개)에 커밋돼 있었다. **업로드 키였고 두 앱 모두 Play 앱 서명에 등록**돼 있어 기기 서명은 Google 키이므로 사칭 설치·무단 배포 경로는 없었다(비밀번호는 공개되지 않음). 2026-07-29에 추적 해제 + `_secrets` 이전 + `.gitignore` 보강으로 정리했다.
 - 📌 **업로드 키 재설정은 하지 않기로 결정**(2026-07-29, 사장님 판단). 근거: 두 앱 모두 Play 앱 서명에 등록돼 기기 설치 서명은 Google 보관 키이고, 공개된 것은 **업로드 키 파일뿐(비밀번호 비공개)** 이라 실제 피해 경로가 없다. 필요해지면 언제든 Console > 앱 서명 > **업로드 키 재설정 요청**으로 교체할 수 있다(사용자 영향 0, 그때는 **앱별로 다른 키** 권장).
 - ⚠️ **그래서 더 중요해진 것 = 비밀번호 관리.** 키를 유지하는 선택이므로, 비밀번호가 다시 저장소에 들어가지 않도록 `.gitignore` 규칙(`*.jks`·`*.keystore`·`keystore.properties`)을 유지하고, **키 파일 + 비밀번호 + 별칭을 함께 백업**한다(아래 '백업' 참조).
@@ -39,7 +39,7 @@ KDailyUtil 안드로이드 앱을 구글 플레이 스토어에 업로드하고 
 
 | 항목 | 현재 위치 | 백업 필요 |
 |---|---|---|
-| 키스토어 파일 | `_secrets/kitwlsh-upload.jks` (K장부는 `kjangbu-upload.jks`) — 저장소 루트 기준 `../../../_secrets/` | ✅ |
+| 키스토어 파일 | `_secrets/KDailyUtil/kitwlsh-upload.jks` (K장부는 `_secrets/KJangbu/kjangbu-upload.jks`) — 저장소 루트 기준 `../../_secrets/<앱>/` | ✅ |
 | **스토어 비밀번호 / 키 비밀번호** | 각 앱 `local.properties` · KLotto645는 `keystore.properties` (모두 VCS 제외 = **어디에도 백업 안 됨**) | ✅ **반드시** |
 | **키 별칭(alias)** | 위 파일들의 `release.key.alias` / `keyAlias` | ✅ |
 
@@ -50,7 +50,7 @@ KDailyUtil 안드로이드 앱을 구글 플레이 스토어에 업로드하고 
 **신규 앱용 — 키스토어 새로 만들기**(CLI가 재현 가능해 권장. 저장 위치는 반드시 저장소 밖):
 ```bash
 keytool -genkeypair -v \
-  -keystore ../../../_secrets/<앱>-upload.jks \
+  -keystore ../../_secrets/<앱>/<앱>-upload.jks \
   -alias <앱> -keyalg RSA -keysize 4096 -validity 10000 \
   -dname "CN=KITWLSH, OU=Dev, O=KITWLSH, L=Seoul, C=KR"
 ```
@@ -63,7 +63,7 @@ Android Studio GUI로 비밀번호를 매번 입력하는 대신, `local.propert
 
 **`local.properties`에 필요한 4개 키** (이 파일은 `.gitignore` 처리됨):
 ```properties
-release.store.file=../../../_secrets/kitwlsh-upload.jks
+release.store.file=../../_secrets/KDailyUtil/kitwlsh-upload.jks
 release.store.password=<스토어 비밀번호>
 release.key.alias=<별칭>
 release.key.password=<키 비밀번호>

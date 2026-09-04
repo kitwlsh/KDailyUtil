@@ -30,7 +30,7 @@
 > - **🆕 자매앱 동적 레지스트리 (2026-07-29, 구현 완료·미배포)**: 자매앱 카드를 하드코딩에서 **원격 `family.json` 동적 렌더**로 전환 → **신규 자매앱 추가에 앱 재배포 불필요**. 구현: [`FamilyRepository`](../app/src/main/java/com/kitwlshcom/kdailyutil/data/repository/FamilyRepository.kt)(6h캐시→원격→last-good→번들 폴백, 화이트리스트 검증) · [`FamilyApp`](../app/src/main/java/com/kitwlshcom/kdailyutil/data/model/FamilyApp.kt) · `res/raw/family.json`(번들 기본값) · `AndroidManifest <queries>` 예약 패키지 8개 · `MorningBriefingSettingsScreen.SisterAppCard`(로딩/출시예정/설치배지 + 🔄 새로고침). 표준 = [doc/KLOTTO_CONNECT_HANDOFF.md](KLOTTO_CONNECT_HANDOFF.md) **§8**, 정본·업로드 = [doc/family_config/README.md](family_config/README.md). **진행**: ✅ 호스팅 레포 `kitwlsh/k-series-config` 생성·업로드 완료 ✅ **KLotto645·K장부 이식 완료(3개 앱 전부 동적)** ✅ **실기기 검증 10/10 통과(§8-12)** ✅ **v1.6 출시(2026-08-04)로 실사용 개시** — 08-10 K장부 출시 때 JSON 한 줄로 전 앱에 반영되는 것을 실제 확인했다(재배포 없음). 🔴 그 파일 최상위의 **비상 레버 키** 주의 = [family_config/README.md](family_config/README.md) §3-1.
 > - **다음 후보**: (① AI 포트폴리오 분석 = ✅ 2026-07-22 완료) 미배포분 전부 v1.5로 출시 완료(2026-07-23 게시). 남은 후보: (선택) '시세 및 차트' 관심종목 편집 UI 두-목록 안내. **✅ 2026-07-24 완료: AI 추세 코멘트 마크다운 렌더링 + AI 대화 히스토리 토큰 상한(§8-5).** **✅ 2026-07-29 완료: 자매앱 동적 레지스트리(위 항목).** 완료분(2026-07-21~22): 뉴스 AI 대화창·마크다운·핸즈프리·이미지 Base64·빠른독서 통계/난이도·**포트폴리오 종합 분석**.
 > - **AAB 재빌드 방법**: `./gradlew.bat :app:bundleRelease` (서명은 `local.properties`의 `release.*` 키로 자동 — VCS 제외). 산출물: `app/build/outputs/bundle/release/app-release.aab`.
-> - **🔐 서명 키 위치·정책 (2026-07-29 정리)**: 키스토어는 **저장소 밖** `_secrets/kitwlsh-upload.jks`(저장소 루트 기준 `../../../_secrets/` — 배치는 [README §🌐 이 저장소 밖에 있는 것들](../README.md)). 이 앱은 **Play 앱 서명 등록됨** → 로컬 키는 **업로드 키**이고 기기 설치 서명은 Google 보관 앱 서명 키다(유출돼도 사칭 설치 불가, Console에서 재설정 가능). 과거 `user.keystore`가 이 공개 저장소에 커밋돼 있던 것을 추적 해제하고 `.gitignore`(`*.jks`·`*.keystore`·`keystore.properties`)를 보강했다. **업로드 전 `keytool -printcert -jarfile <aab>`로 서명 확인**(업로드 키 SHA-256 = `61:12:DE:02:AD:DF:…:A5:12:99`). 지문·재설정 절차 = [doc/GOOGLE_PLAY_RELEASE_GUIDE.md](GOOGLE_PLAY_RELEASE_GUIDE.md) 1단계 ①. **📌 남은 조치 = 업로드 키 재설정(권장, 사용자 영향 0).**
+> - **🔐 서명 키 위치·정책 (2026-07-29 정리)**: 키스토어는 **저장소 밖** `_secrets/KDailyUtil/kitwlsh-upload.jks`(저장소 루트 기준 `../../_secrets/KDailyUtil/` — 배치는 [README §🌐 이 저장소 밖에 있는 것들](../README.md)). 이 앱은 **Play 앱 서명 등록됨** → 로컬 키는 **업로드 키**이고 기기 설치 서명은 Google 보관 앱 서명 키다(유출돼도 사칭 설치 불가, Console에서 재설정 가능). 과거 `user.keystore`가 이 공개 저장소에 커밋돼 있던 것을 추적 해제하고 `.gitignore`(`*.jks`·`*.keystore`·`keystore.properties`)를 보강했다. **업로드 전 `keytool -printcert -jarfile <aab>`로 서명 확인**(업로드 키 SHA-256 = `61:12:DE:02:AD:DF:…:A5:12:99`). 지문·재설정 절차 = [doc/GOOGLE_PLAY_RELEASE_GUIDE.md](GOOGLE_PLAY_RELEASE_GUIDE.md) 1단계 ①. **📌 남은 조치 = 업로드 키 재설정(권장, 사용자 영향 0).**
 
 ---
 
@@ -43,8 +43,8 @@
 - **버전**: 소스 = versionCode 7 / versionName **1.6.1** = **현재 게시본(2026-08-12 출시)**. 스킴 = 유의적 버전(아래 § 참고, `versionCode`와 분리). 다음 업로드는 **vc8**.
 - **빌드 도구**: AGP 8.13.2, Kotlin 2.0.21
 - **GitHub**: `kitwlsh/KDailyUtil`
-- **로컬 경로**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\KDailyUtil`
-- **원격 퀴즈 데이터**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\korean_quiz_data\`
+- **로컬 경로**: 저장소 루트 = `<작업 폴더>/KDailyUtil/main` (배치도 = [README §🌐 이 저장소 밖에 있는 것들](../README.md) · 폴더 규칙 정본 = 저장소 밖 `../../README.md`)
+- **원격 퀴즈 데이터**: 형제 저장소 `../../korean_quiz_data/main/` ([kitwlsh/korean_quiz_data](https://github.com/kitwlsh/korean_quiz_data))
 
 ---
 
@@ -340,7 +340,7 @@ val DeepCharcoal = Color(0xFF121212) // 다크 배경
   - `travel.json` → 세계 여행
   - `quiz_updates.json` → **빈 배열(미러 폐지)**. 과거 이중기록이 ID 충돌·중복 출제를 유발해 폐지. 각 문제는 카테고리 파일 1곳에만 존재.
 
-- **Python 업데이트 스크립트**: `d:\DATA\20_Source\80_Git_HUB\KDailyUtil\korean_quiz_data\update_quiz.py`
+- **Python 업데이트 스크립트**: 형제 저장소 `../../korean_quiz_data/main/update_quiz.py`
   - 매일 워크플로(`daily_update_.yml`, cron KST 9시)로 5문항 추가. **전역 유니크 ID** 부여 + **중복 가드**(① 질문 ② 정답 ③ 트렌드 신조어 개념). 기존 정답·신조어 목록을 프롬프트에 주입해 같은 답 재생성 차단.
   - **유효성 가드(2026-07-07)**: 저장 전 `type`이 규격(MULTIPLE_CHOICE/SUBJECTIVE)이고 객관식은 보기 4개일 때만 저장(AI 오타 문항 skip).
   - 데이터는 (카테고리,정답)/(카테고리,질문)/신조어 개념 기준으로 정리됨(약 216문항).

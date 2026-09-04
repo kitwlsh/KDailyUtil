@@ -181,7 +181,8 @@ K장부는 429에 지수 백오프 재시도를 붙였지만(`f005780`), KDailyU
 
 > 💡 **다음 업로드는 vc8이다. `build.gradle.kts`는 아직 `versionCode = 7` / `versionName = "1.6.1"`이다** — 09-04에 **사용자가 「버전코드는 아직 올리지 말라 · release는 다음에」라고 지시**해서 일부러 그대로 뒀다. 빌드에 착수할 때 **vc를 8로 올리는 것부터** 하면 된다(버전명은 버그수정이므로 `1.6.2` 제안).
 > 빌드 **전에** 서명 준비 확인(`local.properties`의 `release.*` 4개 + 키스토어) — `hasReleaseSigning`이 false면 **경고 한 줄 없이 서명 없는 AAB**가 나온다. ✅ 09-04 확인: `local.properties`에 `release.*` **4개 존재**. 업로드 전 `keytool -printcert -jarfile <aab>`로 서명 재확인.
-> 🔴 로컬 마지막 산출물 = `app/build/outputs/bundle/release/app-release.aab` — **09-04에도 여전히 08-11 11:32짜리 = vc7, 이미 출시된 것.** 새로 빌드하지 않고 올리면 반려된다
+> 🔴 **업로드할 AAB는 반드시 새로 빌드한 것이어야 한다.** 09-04 폴더 이전 뒤 이 클론에는 `app/build/outputs/`가 아예 없다
+> (이전 폴더에 남아 있던 마지막 산출물은 08-11 11:32짜리 = **이미 출시된 vc7**이었다. 그런 것을 올리면 반려된다).
 
 ---
 
@@ -237,12 +238,12 @@ K장부에는 **이미 만들어져 돌아가고 있다**(체험 20회 + 킬스�
 - **KJangbu·KLotto645 저장소는 다른 세션이 작업 중이다.** 건드리기 전에 `git status`·`git log`부터. **그 앱 관련 결정은 그 세션이 단일 기준**
 - **날짜를 추측하지 말 것.** 커밋 타임스탬프(`git log --date=format:...`)로 확인한다
 - **`versionCode`는 업로드마다 +1, 반려에도 소모, 되돌릴 수 없다.** 현재: KDailyUtil vc7 · K장부 vc3 · KLotto645 vc13
-- **`family.json`은 네 곳을 맞춘다** — 정본 `KDailyUtil/doc/family_config/family.json` + 번들 `res/raw/family.json` + 라이브 `k-series-config`(로컬 = `../../k-series-config/k-series-config`) + K장부 사본
+- **`family.json`은 네 곳을 맞춘다** — 정본 `doc/family_config/family.json` + 번들 `app/src/main/res/raw/family.json` + 라이브 `k-series-config`(로컬 = `../../k-series-config/main`) + K장부 사본(`../../KJangbu/main`)
   - 🔴 **라이브를 덮어쓰기 전에 최상위 레버 키를 먼저 확인** → [`family_config/README.md`](family_config/README.md) §3-1
 - **방침을 바꾸면 세 곳이 한 세트** — 원본 `doc/privacy-*.html` → 배포본 `k-series-config` → **Play Console '데이터 보안' 양식**. AI 전송앱 정답 = `공유됨`✅ / `임시 처리`❌ / `선택` / 목적 `앱 기능`
   - 배포본 복사는 줄바꿈 멱등 형태로: `sed 's/\r$//; s/$/\r/' <원본> > <배포본>` · 확인은 `diff --strip-trailing-cr`
 - **새 문서를 만들면 README '문서 인덱스' 표에 등록**한다(K-시리즈 규칙)
-- 서명 키는 저장소 밖 `_secrets/`(저장소 루트 기준 `../../../_secrets/`). **업로드 전 서명 확인 필수**
+- 서명 키는 저장소 밖 `_secrets/`(저장소 루트 기준 `../../_secrets/KDailyUtil/`). **업로드 전 서명 확인 필수**
 - 🔴 **세션을 끝낼 때 `git status -sb`로 `ahead N`을 확인한다.** 08-25 세션이 커밋만 하고 푸시를 잊어 **503 수정이 열흘간 이 기기 안에만 있었다**(09-04 발견). 커밋은 저장이 아니다
 
 ---

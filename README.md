@@ -26,10 +26,11 @@
 
 ## 🧭 처음 왔다면 — 읽는 순서
 
-1. 🔴 **[doc/NEXT_SESSION.md](doc/NEXT_SESSION.md)** — **여기부터.** 지금 상황·다음에 할 일·주의사항이 전부 이 문서 하나에 있다.
+1. 🔵 **[CLAUDE.md](CLAUDE.md)** — 프로젝트 진입점(신규 세션 필독). 이 앱의 규칙·명령·주의사항이 짧게 모여 있다.
+2. 🔴 **[doc/NEXT_SESSION.md](doc/NEXT_SESSION.md)** — **작업은 여기부터.** 지금 상황·다음에 할 일·주의사항이 전부 이 문서 하나에 있다.
    맨 아래 **부록 A**에 실기기 확인 절차가 화면·버튼 단위로 적혀 있다.
-2. [doc/DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md) — 아키텍처·파일 구조·개발 시 주의사항
-3. 아래 **문서 인덱스** — 필요한 주제만 골라 읽는다
+3. [doc/DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md) — 아키텍처·파일 구조·개발 시 주의사항
+4. 아래 **문서 인덱스** — 필요한 주제만 골라 읽는다
 
 ---
 
@@ -50,7 +51,7 @@ sdk.dir=C\:\\Users\\<사용자>\\AppData\\Local\\Android\\Sdk
 dart.default.key=<Open DART에서 발급받은 키>
 
 # 릴리즈 서명 — 4개가 모두 있어야 서명된 AAB가 나온다
-release.store.file=<키스토어 경로 (예: ../../_secrets/user.keystore)>
+release.store.file=<키스토어 경로. 저장소 루트 기준 상대경로 권장 (예: ../../_secrets/KDailyUtil/kitwlsh-upload.jks)>
 release.store.password=<비밀번호>
 release.key.alias=<별칭>
 release.key.password=<비밀번호>
@@ -87,27 +88,30 @@ release.key.password=<비밀번호>
 ### 폴더 배치 (문서의 상대경로는 이 배치를 전제로 한다)
 
 ```
-<작업 폴더>/
-├─ _secrets/                 # 🔑 서명 키 (Git 아님, 백업 필수)
-│   └─ kitwlsh-upload.jks
-└─ 80_Git_HUB/               # 저장소들을 나란히 두는 곳
-    ├─ KDailyUtil/
-    │   └─ KDailyUtil/       # ← 여기가 이 저장소 루트
-    ├─ KJangbu/
-    ├─ KLotto645/
-    ├─ k-series-config/
-    └─ KDailyUtil/korean_quiz_data/
+<작업 폴더>/                      # 이 기기 = D:/PERSONAL/20_GitHub
+├─ README.md                     # 📐 폴더·서명키 규칙의 «정본». 저장소 밖(= ../../README.md)
+├─ _secrets/                     # 🔑 서명 키 (Git 아님, 백업 필수)
+│   └─ KDailyUtil/
+│       └─ kitwlsh-upload.jks    # 저장소 루트 기준 ../../_secrets/KDailyUtil/
+├─ KDailyUtil/
+│   ├─ main/                     # ← 여기가 이 저장소 루트. 작업은 항상 여기서만
+│   └─ _ref/                     # 원본 비교용 클론. 🔴 수정 금지
+├─ KJangbu/main/
+├─ KLotto645/main/
+├─ k-series-config/main/
+└─ korean_quiz_data/main/
 ```
 
-> 폴더를 옮겨도 **문서·링크는 그대로 동작한다**(전부 상대경로). 고쳐야 하는 것은 `local.properties`의
-> `sdk.dir`와 `release.store.file` **두 줄뿐**이다.
+> 폴더를 옮겨도 **문서·링크는 그대로 동작한다**(전부 상대경로 — 스크립트도 자기 위치에서 경로를 계산한다).
+> 고쳐야 하는 것은 `local.properties`의 **`sdk.dir` 한 줄뿐**이다 — `release.store.file`도 위 배치대로
+> `../../_secrets/KDailyUtil/kitwlsh-upload.jks` 처럼 **상대경로로 적으면**(저장소 루트 기준으로 풀린다) 이사에 안 깨진다.
 
 | 무엇 | 어디 | 역할 |
 |---|---|---|
 | **퀴즈 데이터** | [kitwlsh/korean_quiz_data](https://github.com/kitwlsh/korean_quiz_data) | 매일 자정 로봇이 문제를 생성해 커밋. 앱이 GitHub raw로 내려받는다. **「오늘의 퀴즈」가 이 공급에 의존한다.** 상태는 그 저장소 `last_run.json` 하나로 확인 |
 | **자매앱 레지스트리 · 방침 배포** | [kitwlsh/k-series-config](https://github.com/kitwlsh/k-series-config) | `family.json` — 자매앱 목록을 **앱 재배포 없이** 바꾼다. 🔴 최상위에 **비상 레버**(`aiModel` 등)가 얹히는 자리이기도 하다 |
-| **자매앱 — K장부** | [kitwlsh/KJangbu](https://github.com/kitwlsh/KJangbu) *(로컬: `../../KJangbu`)* | 가계부 앱. **AI 코드가 형제처럼 닮아 수정이 서로 오간다** |
-| **자매앱 — KLotto645** | [kitwlsh/KLotto645](https://github.com/kitwlsh/KLotto645) *(로컬: `../../KLotto645`)* | 로또 앱 |
+| **자매앱 — K장부** | [kitwlsh/KJangbu](https://github.com/kitwlsh/KJangbu) *(로컬: `../../KJangbu/main`)* | 가계부 앱. **AI 코드가 형제처럼 닮아 수정이 서로 오간다** |
+| **자매앱 — KLotto645** | [kitwlsh/KLotto645](https://github.com/kitwlsh/KLotto645) *(로컬: `../../KLotto645/main`)* | 로또 앱 |
 | **서명 키** | 저장소 밖 `_secrets/` | Git에 절대 넣지 않는다 |
 
 > 🔧 **비상 레버 2개** — 앱을 새로 내지 않고 고치는 수단. 상세 = [doc/NEXT_SESSION.md 부록 A §D](doc/NEXT_SESSION.md)
