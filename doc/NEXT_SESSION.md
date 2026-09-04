@@ -226,7 +226,7 @@ K장부에는 **이미 만들어져 돌아가고 있다**(체험 20회 + 킬스�
 | **블박 신고 도우미 앱** | ⏸️ 보류. 번호판 인식 로컬 검증이 먼저 → [`SISTER_APP_DASHCAM_REPORT_PLAN.md`](SISTER_APP_DASHCAM_REPORT_PLAN.md) |
 | **출근길 교통 브리핑 앱** | 다음 신규 앱 후보 중 가장 안전·저렴 → [`SISTER_APP_IDEAS_BACKLOG.md`](SISTER_APP_IDEAS_BACKLOG.md) 아이디어 A |
 | **K운복(AI 운세)** | ⏸️ 보류(08-04 사용자 지시) |
-| 죽은 코드 정리 | `GeminiManager.summarizeNews()` · `extractArticleContent()` 는 호출부 0. 삭제해도 무방 |
+| ~~죽은 코드 정리~~ | ✅ **완료(2026-09-04)** — `GeminiManager.summarizeNews()`·`extractArticleContent()` 삭제(호출부 0). 되살릴 일이 생기면 git 이력에서 꺼낸다 |
 
 ---
 

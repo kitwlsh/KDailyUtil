@@ -474,7 +474,7 @@ com.kitwlshcom.kfamily1 ~ kfamily5   (여유 5개)
   - `quiz_wrong.mp3` - 오답 효과음
   - `quiz_finish.mp3` - 완료 효과음
 - **초기화**: `QuizViewModel.init { }` 블록에서 SoundPool 생성 및 로드
-- **백업 파일**: `backup_audio/` 폴더 (git 추적되지 않음)
+- **백업 파일**: `backup_audio/` 폴더 — 채택 안 된 후보음(`_alt`)과 이전 wav(`_old`) 8개. **git에 추적된다**(2.3MB · 09-04 확인). 「추적되지 않음」이라고 적혀 있었으나 사실이 아니었다
 
 ---
 

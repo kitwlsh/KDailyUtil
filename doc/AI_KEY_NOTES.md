@@ -180,4 +180,4 @@ K장부에 **구현·검증 완료**돼 있다(`core/ai/AiKeyProvider.kt` · `Pr
 > 현재 KDailyUtil에는 `gemini.default.key` 배선이 **없다** — 넣을 자리가 없는 게 정상 상태다.
 
 ### 4-4. 정리해도 되는 것 (기능 영향 없음)
-`GeminiManager.summarizeNews()` · `extractArticleContent()` 는 **호출부가 0인 죽은 코드**다(저작권 보수화로 스니펫 낭독·아웃링크로 바뀔 때 남은 잔재). README가 안내하던 "키 없으면 제목만 나열하는 데모 모드"가 실제로는 동작하지 않던 이유이며, README 서술은 이미 정정했다. **데모 모드를 되살릴 계획이 없으면 삭제해도 된다.**
+~~`GeminiManager.summarizeNews()` · `extractArticleContent()`~~ → **2026-09-04에 삭제했다.** 호출부가 0인 죽은 코드였다(저작권 보수화로 스니펫 낭독·아웃링크로 바뀔 때 남은 잔재). README가 안내하던 "키 없으면 제목만 나열하는 데모 모드"가 실제로는 동작하지 않던 이유이며, README 서술도 이미 정정됐다. **데모 모드를 되살리려면 git 이력에서 꺼내면 된다.**

@@ -17,3 +17,6 @@ local.properties
 *.jks
 *.keystore
 keystore.properties
+
+# 임시 실험 스크립트 — 저장소에 남기지 않는다 (2026-09-04)
+/scratch/

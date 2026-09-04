@@ -127,6 +127,7 @@ release.key.password=<비밀번호>
 
 | 문서 구분 | 상세 문서 링크 | 설명 |
 | :--- | :--- | :--- |
+| **🔵 프로젝트 진입점** | [CLAUDE.md](CLAUDE.md) | **신규 세션 필독**(저장소 루트) — 지금 할 일·자주 쓰는 명령·사고 방지 규칙·읽을 순서. 폴더·서명키 공용 규칙은 저장소 밖 `../../README.md`가 정본 |
 | **⭐ 다음 세션 브리핑** | [NEXT_SESSION.md](doc/NEXT_SESSION.md) | **신규 세션은 여기부터** — 지금 상황·다음 행동·주의사항이 이 문서 하나에 있다. **🔴 vc8 미출시분 2건**(503 대응 + 리텐션 한 판) · **📎 부록 A = 실기기 확인 절차**(화면·버튼 단위, 알람 이틀 확인법·`aiModel` 레버 시험법·함정 2개) · 백로그·읽을 순서 포함 |
 | **🔁 리텐션(매일 열게 하기) 검토** | [RETENTION_PLAN.md](doc/RETENTION_PLAN.md) | **보상 없이 매일 재방문을 만드는 방안 검토(2026-09-04).** 🔴 **모닝 브리핑 알람이 일회성이라 하루만 울리고 죽는다**는 진단(코드 근거 포함) + 퀴즈 로봇이 하루 ~5문제씩 생산 중인데 앱이 안 알린다는 실측(500문항) + 레버 8종 평가(오늘의 퀴즈·스트릭·오답노트·위젯) + **하지 말 것**(현금보상·걸음수·다중푸시) + vc8/vc9 권고 순서 |
 | **개발자 가이드** | [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md) | 프로젝트 아키텍처, 파일 구조, 개발 시 주의사항 총정리 |
@@ -140,7 +141,7 @@ release.key.password=<비밀번호>
 | **자매앱 상호연결 표준** | [KLOTTO_CONNECT_HANDOFF.md](doc/KLOTTO_CONNECT_HANDOFF.md) | K-시리즈 자매앱 상호 설치링크 표준 + 신규앱 편입 절차(§7 정적) + **동적 레지스트리(원격 구성) §8 — ✅ KDailyUtil 구현 완료(2026-07-29)**, 신규앱 JSON 편입(§8-9)·자매앱 이식 체크리스트(§8-10)·호스팅 절차(§8-11) + KLotto645↔KDailyUtil 핸드오프 |
 | **자매앱 레지스트리 정본** | [family_config/README.md](doc/family_config/README.md) | 원격 `family.json` 정본 + 아이콘(384²) + `k-series-config` 레포 업로드·편집 가이드(앱 재배포 없이 자매앱 추가하는 절차) + **🔴 §3-1 최상위 레버 키 레지스트리**(`aiModel`·`aiTrial`·`fscApi` — 라이브를 덮어쓰기 전에 필히 확인, 안 하면 껐던 기능이 되살아난다) |
 | **AI 키 현황·남은 일** | [AI_KEY_NOTES.md](doc/AI_KEY_NOTES.md) | 🔴 **모델 하드코딩 장애**(신규 사용자 AI 전면 실패)와 4중 방어·키 안내 개선 + **모델 실측표 2종**(§3 08-07 / **§3-1 08-25 — 503은 상시가 아니라 간헐적(21회 중 4회)이라는 실측, 무료 등급 분당 한도 실측**) + **남은 일**(✅v1.6.1 출시완료 / ⏳`aiModel` 레버 검증 · 체험/킬스위치 이식 시 주의). 정책 단일 기준은 `KJangbu/doc/AI_KEY_POLICY.md` |
-| **개인정보처리방침** | [privacy-kdailyutil.html](doc/privacy-kdailyutil.html) | 이 앱의 방침 **원본**(마이크·카메라·음성입력(STT)·AI 제3자 처리 포함). 배포는 `k-series-config` GitHub Pages, 등록 URL·앱별 작성 규칙 = [KLOTTO_CONNECT_HANDOFF.md §9](doc/KLOTTO_CONNECT_HANDOFF.md). ⚠️ 권한을 바꾸면 이 문서도 같이 고칠 것 |
+| **개인정보처리방침** | [privacy-kdailyutil.html](doc/privacy-kdailyutil.html) | 이 앱의 방침 **원본**(마이크·카메라·음성입력(STT)·AI 제3자 처리 포함). 배포는 `k-series-config` GitHub Pages, 등록 URL·앱별 작성 규칙 = [KLOTTO_CONNECT_HANDOFF.md §9](doc/KLOTTO_CONNECT_HANDOFF.md). ⚠️ 권한을 바꾸면 이 문서도 같이 고칠 것. 🔴 **원본은 이 파일 하나다** — 같은 방침의 08-03 구버전 사본이 `doc/index.html`로 남아 있어 2026-09-04에 삭제했다(라이브 배포본은 원본과 일치 확인). |
 | **뉴스 우회 보고서** | [Google_News_Redirect_Issue_Report.md](doc/Google_News_Redirect_Issue_Report.md) | 구글 뉴스 수집 시 발생하는 리디렉션 이슈 분석 및 해결책 |
 | **오디오 개선 보고서** | [20260422_Audio_System_Enhancement_Report.md](doc/20260422_Audio_System_Enhancement_Report.md) | 미니 플레이어 및 오디오 수집 성능 최적화 개선 보고서 |
 | **공시 AI 요약 가이드** | [FEATURE_DART_AI_SUMMARY.md](doc/FEATURE_DART_AI_SUMMARY.md) | Open DART API + Gemini 실적 공시 자동 요약 설계 가이드 |
