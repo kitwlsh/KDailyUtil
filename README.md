@@ -13,6 +13,7 @@
 | 문서 구분 | 상세 문서 링크 | 설명 |
 | :--- | :--- | :--- |
 | **⭐ 다음 세션 브리핑** | [NEXT_SESSION.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/NEXT_SESSION.md) | **신규 세션은 여기부터** — 지금 상황 요약(3앱 전부 라이브) + **✅08-25 503 대응 이식 완료·vc8 빌드 대기** + 남은 확인 3건 + 다음 작업 후보(AI 체험판)를 쉬운 말로 정리. 백로그·주의사항·읽을 순서 포함 |
+| **🔁 리텐션(매일 열게 하기) 검토** | [RETENTION_PLAN.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/RETENTION_PLAN.md) | **보상 없이 매일 재방문을 만드는 방안 검토(2026-09-04).** 🔴 **모닝 브리핑 알람이 일회성이라 하루만 울리고 죽는다**는 진단(코드 근거 포함) + 퀴즈 로봇이 하루 ~5문제씩 생산 중인데 앱이 안 알린다는 실측(500문항) + 레버 8종 평가(오늘의 퀴즈·스트릭·오답노트·위젯) + **하지 말 것**(현금보상·걸음수·다중푸시) + vc8/vc9 권고 순서 |
 | **개발자 가이드** | [DEVELOPER_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/DEVELOPER_GUIDE.md) | 프로젝트 아키텍처, 파일 구조, 개발 시 주의사항 총정리 |
 | **구글 플레이 가이드** | [GOOGLE_PLAY_RELEASE_GUIDE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/GOOGLE_PLAY_RELEASE_GUIDE.md) | 구글 플레이 콘솔 업로드 및 릴리즈 빌드 전체 단계 안내 |
 | **🛡 Play 정책 준수(3앱 공용)** | [PLAY_POLICY_COMPLIANCE.md](file:///d:/DATA/20_Source/80_Git_HUB/KDailyUtil/KDailyUtil/doc/PLAY_POLICY_COMPLIANCE.md) | **K-시리즈 공통 기준.** Android 개발자 인증(2026-09-30 기한, ✅확인완료) · **데이터 보안 양식을 방침과 일치시키는 법**(AI 전송앱 판단 기준) · 미사용 앱 4건 방치 결정 · **✅ 3앱 전수 점검 결과(08-11)** — KDailyUtil·K장부는 어긋나 있어 고쳤고 KLotto645는 '수집 없음'이 정답 · 재발 방지 규칙 |
