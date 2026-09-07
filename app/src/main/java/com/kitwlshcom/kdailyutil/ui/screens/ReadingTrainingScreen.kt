@@ -119,6 +119,19 @@ private fun randomPassageExcept(current: String, extra: List<String> = emptyList
     return next
 }
 
+/**
+ * 「지문 고르기」가 한 번에 그리는 편수.
+ *
+ * 🔴 상한이 필요한 이유: 허브는 `Column + verticalScroll`이라 목록을 `forEach`로 그린다.
+ * 로봇이 하루 1편을 넣으므로 1년이면 365편이 되고, 상한이 없으면 **펼치는 순간 365장을
+ * 한꺼번에 구성**한다(LazyColumn과 달리 화면 밖도 다 만든다).
+ *
+ * ⚠️ 그렇다고 여기에 LazyColumn을 쓰면 안 된다 — 스크롤되는 Column 안의 LazyColumn은
+ * «무한 높이»로 측정돼 터진다. 높이를 고정하면 피할 수 있지만, 그러면 목록 안에 또 다른
+ * 스크롤이 생겨 손가락이 어느 쪽을 움직이는지 알 수 없게 된다. 그래서 «조금씩 더 보기»로 간다.
+ */
+private const val PASSAGE_PICKER_PAGE = 20
+
 private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, CHUNK, EYE, RESULT, COMPREHENSION, STATS }
 
 @Composable
@@ -526,12 +539,20 @@ private fun ReadingHub(
                         Text(if (showPicker) "접기 ▲" else "펼치기 ▼", fontSize = 12.sp, color = Gold24K)
                     }
 
-                    if (showPicker) {
+                    // 정렬은 목록이 바뀔 때만 한다(recomposition마다 다시 정렬하면 스크롤이 버벅인다).
+                    val sortedRemote = remember(allRemote) {
                         allRemote.sortedWith(
                             compareByDescending<com.kitwlshcom.kdailyutil.data.repository.RemotePassage> {
                                 it.createdAt ?: java.time.LocalDate.MIN
                             }.thenByDescending { it.id }
-                        ).forEach { item ->
+                        )
+                    }
+                    var visibleCount by remember { mutableStateOf(PASSAGE_PICKER_PAGE) }
+                    // 접으면 다음에 펼칠 때 다시 처음부터 — 접힌 상태에서 수백 장을 들고 있을 이유가 없다.
+                    LaunchedEffect(showPicker) { if (!showPicker) visibleCount = PASSAGE_PICKER_PAGE }
+
+                    if (showPicker) {
+                        sortedRemote.take(visibleCount).forEach { item ->
                             val selected = item.text.trim() == passage.trim()
                             Card(
                                 modifier = Modifier.fillMaxWidth().clickable {
@@ -574,6 +595,20 @@ private fun ReadingHub(
                                         fontSize = 11.sp, color = Color.White.copy(0.6f), lineHeight = 16.sp
                                     )
                                 }
+                            }
+                        }
+                        if (sortedRemote.size > visibleCount) {
+                            OutlinedButton(
+                                onClick = {
+                                    visibleCount = (visibleCount + PASSAGE_PICKER_PAGE)
+                                        .coerceAtMost(sortedRemote.size)
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    "더 보기 (${sortedRemote.size - visibleCount}편 남음)",
+                                    color = Gold24K, fontSize = 12.sp
+                                )
                             }
                         }
                         Text(

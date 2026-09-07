@@ -16,7 +16,11 @@
 ✅ **자매앱(K장부·KLotto645) 관련 대기 항목은 0건이다**(2026-09-07 완결).
 다른 저장소를 열어 볼 일도, 회신을 기다리는 것도 없다 — **이제 이 앱 안의 일만 하면 된다.**
 
-**코드 작업 대기 항목은 없다.** 남은 것은 **vc8 출하**이고, 그 앞에 **실기기 확인**이 걸려 있다.
+**코드도, 빌드도 끝났다.** 🔴 남은 것은 **실기기 확인 → Play Console 업로드** 둘뿐이다.
+
+> **릴리즈 산출물(2026-09-07)**: [`app/release/kdailyutil-v1.7.0.aab`](app/release/kdailyutil-v1.7.0.aab)
+> · `versionCode 8` / `versionName 1.7.0` (AAB 내부에서 확인) · 서명 SHA-256 `61:12:DE:…:A5:12:99` 확인 완료
+> · 붙여넣기용 출시 노트 = [`app/release/RELEASE_NOTES.md`](app/release/RELEASE_NOTES.md) §v1.7.0
 
 0. ✅ **완료(2026-09-07) — vc8 범위가 두 번 늘었고 둘 다 코드가 끝났다**
    - **퀴즈 카운터 상한 + 복귀 사면**: `QUIZ_NEW_CAP = 20` · `RETURN_AMNESTY_DAYS = 7`을
@@ -27,11 +31,10 @@
      지문이 실제로 오려면 `korean_quiz_data`를 **푸시**해야 한다
 1. 🔴 **실기기·브라우저 확인** — 절차는 [doc/NEXT_SESSION.md 부록 A](doc/NEXT_SESSION.md)에 화면·버튼 단위로 있다
    (퀴즈 로봇 수동 1회 실행 · `aiModel` 비상 레버 첫 검증 · 알람이 **이틀 연속** 오는지 · **알림 문구 = 상한·복귀 사면**)
-2. `versionCode` **7 → 8** · `versionName` `1.6.1` → `1.6.2` 제안
-3. `./gradlew :app:bundleRelease` → **`keytool -printcert -jarfile <aab>`로 서명 확인** → 업로드
-
-> 🔴 **`versionCode`가 7 그대로인 것은 실수가 아니라 사용자 지시다**(2026-09-04: 「버전코드는 아직 올리지 말고, release는 다음에」).
-> 올리기 전에 사용자에게 확인할 것.
+2. ✅ `versionCode` **7 → 8** · `versionName` **1.6.1 → 1.7.0** — 완료(2026-09-07, 사용자 지시로 상향)
+   - 🔴 문서에 오래 적혀 있던 «1.6.2»가 아니다. 그때는 vc8이 버그 수정뿐이었고,
+     **지문 공급(기능 추가)이 들어오면서 스킴 규칙(`기능추가 → MINOR`)대로 1.7.0**이 됐다
+3. ✅ `bundleRelease` → `keytool -printcert -jarfile`로 서명 확인 — 완료. **남은 것은 업로드뿐이다**
 
 ---
 
@@ -39,9 +42,9 @@
 
 | 항목 | 값 |
 |---|---|
-| 스토어 게시본 | **v1.6.1 (vc7)** · 2026-08-12 라이브 |
+| 스토어 게시본 | **v1.6.1 (vc7)** · 2026-08-12 라이브 — 🔴 **업로드 대기본 = v1.7.0(vc8)** |
 | 저장소 | 스토어보다 앞섬 — **vc8 분량이 코드에 있고 아직 안 올라갔다**(503 대응 + 리텐션 한 판) |
-| 소스 버전 | `versionCode = 7` / `versionName = "1.6.1"` — 마지막 앱 코드 변경 = **09-07 카운터 상한·복귀 사면 + 지문 공급** |
+| 소스 버전 | `versionCode = 8` / `versionName = "1.7.0"` — 09-07 상향. AAB 빌드·서명 확인 완료 |
 | 단위 테스트 | **73건 통과** — AiErrorMessage 10 · BriefingScheduler 7 · DailyRecord 46 · GeminiFallback 9 · Example 1 |
 | 서명 | `local.properties` `release.*` 4개 + 키스토어 실물 확인. 업로드 키 SHA-256 `61:12:DE:…:A5:12:99` |
 | `family.json` 최상위 | 비상 레버 키(`aiModel`·`aiTrial`·`fscApi`) **0개 = 전부 기본값** · 앱 목록은 4곳 동일 |
@@ -54,6 +57,7 @@
 
 ```bash
 ./gradlew :app:testDebugUnitTest      # 단위 테스트 73건 (기기 불필요)
+./gradlew :app:assembleDebug          # 실기기 확인용 디버그 APK
 ./gradlew :app:assembleDebug          # 디버그 APK
 ./gradlew :app:signingReport          # 🔑 서명 설정이 실제로 어느 키스토어를 잡는지 확인
 ./gradlew :app:bundleRelease          # 업로드용 AAB

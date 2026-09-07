@@ -7,16 +7,19 @@
 > ✅ **자매앱(K장부·KLotto645) 관련 대기 항목은 0건이다**(2026-09-07 완결 · §미결 참조).
 > 다른 저장소를 열어 볼 일도, 회신을 기다리는 것도 없다. **KDailyUtil 안의 일만 하면 된다.**
 >
-> **순서 — 코드는 끝났다. 남은 것은 확인과 출하 둘뿐이다.**
+> **순서 — 코드도 빌드도 끝났다. 🔴 남은 것은 «실기기 확인 → 업로드» 둘뿐이다.**
 > 1. ✅ **코드 — 2026-09-07에 두 건 완료**: 퀴즈 카운터 상한·복귀 사면 + 📖 **매일 새 지문 공급**(§할 일 0의 3·4번)
 >    🔴 **지문이 실제로 오려면 `korean_quiz_data`를 푸시해야 한다** — 안 하면 앱은 내장 19편으로만 돈다(폴백은 정상 동작)
 > 2. 🔴 **실기기·브라우저 확인** — [부록 A] 그대로. 1번이 들어갔으니 **알림 문구 확인이 하나 늘었다**(C-5 마지막 단계)
-> 3. **`versionCode` 7 → 8 · `versionName` 1.6.2 → `bundleRelease` → `keytool`로 서명 확인 → 업로드**
+> 3. ✅ **버전 상향·빌드·서명 확인 완료(09-07)** — `versionCode 8` / `versionName 1.7.0` ·
+>    산출물 [`app/release/kdailyutil-v1.7.0.aab`](../app/release/kdailyutil-v1.7.0.aab) (11,328,399 bytes) ·
+>    서명 SHA-256 `61:12:DE:…:A5:12:99` 확인 · 출시 노트 문구 = [`RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md) §v1.7.0
+> 4. 🔴 **Play Console 업로드** — 실기기 확인이 끝난 뒤에 한다. `versionCode`는 반려에도 소모되고 되돌릴 수 없다
 >
-> 🔴 **`versionCode`가 7 그대로인 것은 실수가 아니라 사용자 지시다**(09-04: 「버전코드는 아직 올리지 말고, release는 다음에」). 올리기 전에 확인할 것.
->
-> **상태(2026-09-07 2차 세션 실측)**: 단위 테스트 **73건 전부 통과**(신설 21건) · `:app:compileReleaseKotlin` 성공
-> · `versionCode = 7` / `versionName = "1.6.1"`(지시대로 미상향) · 마지막 앱 코드 변경 = **카운터 상한·복귀 사면 + 지문 공급**.
+> **상태(2026-09-07 2차 세션 실측)**: 단위 테스트 **73건 전부 통과**(신설 21건) ·
+> `:app:bundleRelease`·`:app:assembleDebug` 성공 · `versionCode = 8` / `versionName = "1.7.0"`.
+> 🔴 **왜 1.6.2가 아닌가**: 문서에 오래 적혀 있던 1.6.2는 vc8이 «버그 수정 + 리텐션»뿐일 때의 값이다.
+> 지문 공급(기능 추가)이 들어오면서 스킴 규칙(`기능추가 → MINOR`)대로 **1.7.0**이 됐다.
 
 ---
 
@@ -138,7 +141,9 @@ vc8에는 **네 덩어리**가 들어간다. **넷 다 코드가 끝났다** —
 - [ ] 🔴 **알림 문구**(3번을 넣었으니 **필수**) — 부록 A **C-5 마지막 단계** 참조. 「새 문제 N개」가 **「20개+」**로 잘리는지,
       7일 이상 비운 상태로 만들면 숫자 없이 **「그동안 새 문제가 쌓였어요 — 오늘 한 판부터 다시 시작해요」**가 뜨는지
       (허브 카드에도 같은 문구가 🌱로 뜬다). 규칙 자체는 단위 테스트로 고정돼 있으니 **기기에서는 «문구가 실제로 그렇게 보이는지»만** 본다
-- [ ] 그다음 **버전 상향(vc 7→8, 버전명 `1.6.2` 제안) → 서명 확인 → 빌드 → 업로드**
+- [x] ✅ **버전 상향(vc 7→8 · `1.7.0`) → 빌드 → 서명 확인** — 09-07 완료
+- [ ] 🔴 **Play Console 업로드** — 위 확인이 끝난 뒤. 올릴 파일 = `app/release/kdailyutil-v1.7.0.aab`
+      (🔴 **`app/build/`의 산출물이 아니라 이 파일을 올린다** — 재빌드하면 build 폴더가 갈아치워진다)
 
 > ✅ **확인해서 «할 일 없음»으로 끝난 것**(2026-09-04): Android 개발자 인증(9/30 기한, 7개 앱 전부 등록 완료) · 개인정보 방침·데이터 보안 양식(이번 변경은 새 권한 0개·외부 전송 0개) · targetSdk 36(최신).
 
@@ -233,10 +238,13 @@ K장부는 429에 지수 백오프 재시도를 붙였지만(`f005780`), KDailyU
    - ✅ **테스트 기반은 08-25에 생겼다** — `AiErrorMessageTest` 10건이 돌고 있다(순수 함수라 `libs.json`·`isReturnDefaultValues` 없이 통과). 다만 `family.json` 파싱 테스트는 org.json이 필요하고, 그 함정 2개는 K장부가 이미 풀어놨다(`testImplementation(libs.json)`으로 android.jar의 org.json 스텁 우회 + `unitTests.isReturnDefaultValues`로 `android.util.Log` 예외 방지) → `KJangbu/doc/OPERATIONS.md` §1-1·§3-4
 3. **깨끗한 계정으로 신규 설치 확인** — 08-12 장애가 *새 계정에서만* 터지던 것이라 **기존 기기 테스트로는 검증되지 않는다**(그래서 넉 달을 몰랐다)
 
-> 💡 **다음 업로드는 vc8이다. `build.gradle.kts`는 아직 `versionCode = 7` / `versionName = "1.6.1"`이다** — 09-04에 **사용자가 「버전코드는 아직 올리지 말라 · release는 다음에」라고 지시**해서 일부러 그대로 뒀다. 빌드에 착수할 때 **vc를 8로 올리는 것부터** 하면 된다(버전명은 버그수정이므로 `1.6.2` 제안).
-> 빌드 **전에** 서명 준비 확인(`local.properties`의 `release.*` 4개 + 키스토어) — `hasReleaseSigning`이 false면 **경고 한 줄 없이 서명 없는 AAB**가 나온다. ✅ 09-04 확인: `local.properties`에 `release.*` **4개 존재**. 업로드 전 `keytool -printcert -jarfile <aab>`로 서명 재확인.
-> 🔴 **업로드할 AAB는 반드시 새로 빌드한 것이어야 한다.** 09-04 폴더 이전 뒤 이 클론에는 `app/build/outputs/`가 아예 없다
-> (이전 폴더에 남아 있던 마지막 산출물은 08-11 11:32짜리 = **이미 출시된 vc7**이었다. 그런 것을 올리면 반려된다).
+> ✅ **여기까지 09-07에 끝났다** — `versionCode = 8` / `versionName = "1.7.0"` 상향 · `signingReport`로 키스토어 확인
+> (`_secrets/KDailyUtil/kitwlsh-upload.jks` · alias `kitwlshcom`) · `bundleRelease` · `keytool -printcert -jarfile`로 서명 확인
+> (SHA-256 `61:12:DE:…:A5:12:99`) · **AAB 내부 버전까지 대조**(병합 매니페스트 `versionCode=8`/`versionName=1.7.0`, 1.6.1 잔재 0건).
+> 산출물을 관례대로 [`app/release/kdailyutil-v1.7.0.aab`](../app/release/kdailyutil-v1.7.0.aab)에 두었다.
+> 🔴 **올릴 파일은 `app/release/`의 그것이다** — `app/build/outputs/`는 다음 빌드에 갈아치워지고,
+> 09-04에 «이미 출시된 vc7을 올릴 뻔한» 경로가 바로 그것이었다.
+> ⚠️ `hasReleaseSigning`이 false면 **경고 한 줄 없이 서명 없는 AAB**가 나온다 — 다음에 재빌드할 때도 `signingReport`를 먼저 볼 것.
 
 ---
 
@@ -299,6 +307,7 @@ KDailyUtil이 K장부에서 받아 온 마지막 산출물은 **08-25의 503 대
 | **블박 신고 도우미 앱** | ⏸️ 보류. 번호판 인식 로컬 검증이 먼저 → [`SISTER_APP_DASHCAM_REPORT_PLAN.md`](SISTER_APP_DASHCAM_REPORT_PLAN.md) |
 | **출근길 교통 브리핑 앱** | 다음 신규 앱 후보 중 가장 안전·저렴 → [`SISTER_APP_IDEAS_BACKLOG.md`](SISTER_APP_IDEAS_BACKLOG.md) 아이디어 A |
 | **K운복(AI 운세)** | ⏸️ 보류(08-04 사용자 지시) |
+| **보관함 목록도 표시 상한** | 🟡 미착수(작다) — 「지문 고르기」는 09-07에 20편씩으로 잘랐는데, **「📚 내 지문 보관함」은 여전히 `forEach`로 전부 그린다**. 사용자가 직접 넣는 것이라 수백 개가 되기는 어렵지만 같은 종류의 문제다(허브가 `Column + verticalScroll`이라 화면 밖도 다 구성된다). ⚠️ **LazyColumn으로 바꾸지 말 것** — 스크롤 Column 안의 LazyColumn은 무한 높이로 터진다 |
 | ~~죽은 코드 정리~~ | ✅ **완료(2026-09-04)** — `GeminiManager.summarizeNews()`·`extractArticleContent()` 삭제(호출부 0). 되살릴 일이 생기면 git 이력에서 꺼낸다 |
 
 ---
@@ -310,7 +319,7 @@ KDailyUtil이 K장부에서 받아 온 마지막 산출물은 **08-25의 503 대
 - **개발자 기기에서만 테스트하면 안 보이는 장애가 있다** — 08-12 장애(신규 계정 404)가 그랬다. 깨끗한 계정 확인이 필요한 이유
 - **KJangbu·KLotto645 저장소는 다른 세션이 작업 중이다.** 건드리기 전에 `git status`·`git log`부터. **그 앱 관련 결정은 그 세션이 단일 기준**
 - **날짜를 추측하지 말 것.** 커밋 타임스탬프(`git log --date=format:...`)로 확인한다
-- **`versionCode`는 업로드마다 +1, 반려에도 소모, 되돌릴 수 없다.** 현재: KDailyUtil vc7 · K장부 vc3 · KLotto645 vc13
+- **`versionCode`는 업로드마다 +1, 반려에도 소모되며 되돌릴 수 없다.** 현재 스토어: KDailyUtil **vc7**(업로드 대기 vc8) · K장부 vc3 · KLotto645 vc13
 - **`family.json`은 네 곳을 맞춘다** — 정본 `doc/family_config/family.json` + 번들 `app/src/main/res/raw/family.json` + 라이브 `k-series-config`(로컬 = `../../k-series-config/main`) + K장부 사본(`../../KJangbu/main`)
   - 🔴 **라이브를 덮어쓰기 전에 최상위 레버 키를 먼저 확인** → [`family_config/README.md`](family_config/README.md) §3-1
 - **방침을 바꾸면 세 곳이 한 세트** — 원본 `doc/privacy-*.html` → 배포본 `k-series-config` → **Play Console '데이터 보안' 양식**. AI 전송앱 정답 = `공유됨`✅ / `임시 처리`❌ / `선택` / 목적 `앱 기능`
