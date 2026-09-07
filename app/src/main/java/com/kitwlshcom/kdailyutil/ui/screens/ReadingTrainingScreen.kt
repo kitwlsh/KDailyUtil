@@ -110,8 +110,11 @@ private val PRACTICE_PASSAGES = listOf(
  *
  * [extra]에 서버 지문을 넣어 함께 뽑는다 — 2026-09-07까지는 내장 19편에서만 뽑아서,
  * 로봇이 매일 넣는 지문이 「랜덤 지문」 버튼에는 영영 나오지 않았다.
+ *
+ * ⚠️ [extra]에 기본값을 두지 않는다. 기본값이 있으면 «서버 지문을 넘기는 것을 잊은» 호출이
+ * 조용히 예전 동작(내장 19편만)으로 돌아가는데, 그것이 방금 고친 그 버그다.
  */
-private fun randomPassageExcept(current: String, extra: List<String> = emptyList()): String {
+private fun randomPassageExcept(current: String, extra: List<String>): String {
     val pool = (extra + PRACTICE_PASSAGES).distinct()
     if (pool.size <= 1) return pool.firstOrNull() ?: PRACTICE_PASSAGES.first()
     var next = pool.random()

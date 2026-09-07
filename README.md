@@ -13,11 +13,11 @@
 | 항목 | 값 |
 |---|---|
 | **스토어 게시본** | **v1.6.1 (versionCode 7)** — 2026-08-12 출시·라이브 |
-| 🆕 **업로드 대기본** | **v1.7.0 (versionCode 8)** — [`app/release/kdailyutil-v1.7.0.aab`](app/release/kdailyutil-v1.7.0.aab) (11,328,399 bytes) · 서명 SHA-256 `61:12:DE:…:A5:12:99` 확인 완료 |
+| 🕐 **업로드 완료 · 검토 중** | **v1.7.0 (versionCode 8)** — 2026-09-07 업로드. [`app/release/kdailyutil-v1.7.0.aab`](app/release/kdailyutil-v1.7.0.aab) (11,328,399 bytes) · 서명 SHA-256 `61:12:DE:…:A5:12:99` 확인 완료. 🔴 **다음 업로드는 vc9** |
 | 빌드 상태 | 단위 테스트 **73건 통과** · `:app:bundleRelease`·`:app:assembleDebug` 성공 |
-| 남은 일 | 🔴 **실기기 확인 → Play Console 업로드** (절차 = [doc/NEXT_SESSION.md 부록 A](doc/NEXT_SESSION.md)) |
+| 남은 일 | 🔴 **심사 결과 확인 → 실기기 확인**(알람 이틀 연속 · 오늘의 지문 · edge-to-edge · `aiModel` 레버) — [doc/NEXT_SESSION.md §업로드 직후](doc/NEXT_SESSION.md) |
 
-**v1.7.0(vc8)에 들어 있는 것 — 아직 스토어에 없다**
+**v1.7.0(vc8)에 들어 있는 것 — 09-07 업로드, 심사 통과 전까지는 스토어에 안 보인다**
 1. 📖 **매일 새 지문 공급** — 로봇이 하루 1편을 만들고 앱이 받아 **「오늘의 지문」**으로 준다.
    그전까지 지문은 **앱에 하드코딩된 19편**이라 앱을 새로 내지 않으면 늘지 않았다(2026-09-07)
 2. 🔴 **「새 문제 N개」 상한 + 복귀 사면** — 상한이 없어 두 달 비운 사용자에게 「새 문제 300개」가 나갔다(2026-09-07)
