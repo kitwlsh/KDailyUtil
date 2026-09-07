@@ -11,12 +11,16 @@
 
 ---
 
-## 🎬 지금 할 일 (2026-09-04 기준)
+## 🎬 지금 할 일 (2026-09-07 갱신)
 
-**코드 작업 대기 항목은 없다.** 남은 것은 **vc8 출하** 하나이고, 그 앞에 **실기기 확인**이 걸려 있다.
+남은 것은 **vc8 출하**이고, 그 앞에 **실기기 확인**이 걸려 있다.
+🔴 **09-07에 코드 작업이 하나 붙었다** — 아래 0번(사용자 결정).
 
+0. 🔴 **퀴즈 「새 문제 N개」 카운터 상한 + 복귀 사면** — **vc8에 포함하기로 결정**(2026-09-07).
+   지금은 상한이 없어 **두 달 비운 사용자에게 「새 문제 300개」**가 나간다([`BriefingReceiver.kt:127`](app/src/main/java/com/kitwlshcom/kdailyutil/receiver/BriefingReceiver.kt#L127)).
+   설계·수치 = [doc/FEATURE_DAILY_PASSAGES.md §6](doc/FEATURE_DAILY_PASSAGES.md)
 1. 🔴 **실기기·브라우저 확인** — 절차는 [doc/NEXT_SESSION.md 부록 A](doc/NEXT_SESSION.md)에 화면·버튼 단위로 있다
-   (퀴즈 로봇 수동 1회 실행 · `aiModel` 비상 레버 첫 검증 · 알람이 **이틀 연속** 오는지)
+   (퀴즈 로봇 수동 1회 실행 · `aiModel` 비상 레버 첫 검증 · 알람이 **이틀 연속** 오는지 · **0번을 넣었다면 알림 문구도**)
 2. `versionCode` **7 → 8** · `versionName` `1.6.1` → `1.6.2` 제안
 3. `./gradlew :app:bundleRelease` → **`keytool -printcert -jarfile <aab>`로 서명 확인** → 업로드
 
