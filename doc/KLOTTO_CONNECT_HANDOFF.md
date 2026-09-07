@@ -6,7 +6,7 @@
 > 🔁 **양쪽 저장소 동기화 문서**: 이 파일은 **`KDailyUtil/doc/`와 `KLotto645/doc/`에 동일 사본**으로 유지한다.
 > 한쪽에서 §5~§7(교환 현황·회신·표준)을 갱신하면 **반대쪽 사본도 같은 내용으로 맞춘다.** (각 앱 세션은 자기 폴더의 사본을 진입점으로 삼음)
 > ⚠️ 그러므로 **파일 참조는 상대경로 마크다운 링크가 아니라 저장소 접두 평문 경로**(`` `KLotto645/app/src/...` ``)로 쓴다.
-> 두 사본의 깊이는 이제 같지만(`KDailyUtil/main/doc` vs `KLotto645/main/doc`) **접두 평문 경로 규칙은 유지한다** — 배치가 또 바뀌어도 안 깨진다. 폴더 규칙 정본 = 저장소 밖 `../../README.md`.
+> 사본들의 깊이는 이제 같지만(`KLotto645/main/doc` · `KDailyUtil/main/doc` · `KJangbu/main/doc`) **접두 평문 경로 규칙은 유지한다** — 배치가 또 바뀌어도 안 깨진다. 폴더 규칙 정본 = 저장소들의 **상위 폴더에 있는 `README.md`**(각 저장소 기준 `../../../README.md`).
 
 ---
 
@@ -122,7 +122,7 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 | KDailyUtil → KLotto | `ic_k_app_icon.png` · `KDailyUtil/app/src/main/res/drawable-nodpi/` | `ic_kdailyutil.png` · `KLotto645/app/src/main/res/drawable-nodpi/` | ✅ 완료 |
 | KDailyUtil → KLotto (패밀리 메인로고) | `ic_k_logo_3d.png` · `KDailyUtil/app/src/main/res/drawable/` | `ic_k_logo_3d.png` · `KLotto645/app/src/main/res/drawable-nodpi/` | ✅ 완료 |
 
-> 형제 저장소들은 **같은 상위 폴더**에 나란히 둔다 — 이 저장소 기준 `../../<프로젝트>/main`. 배치·GitHub 주소 = [README §🌐 이 저장소 밖에 있는 것들](../README.md).
+> 로컬 배치: 형제 저장소는 **같은 상위 폴더에 나란히** 둔다 — `<루트>/<프로젝트>/main`(`KLotto645/main` · `KDailyUtil/main` · `KJangbu/main` · 정본 `k-series-config/main`), 키·비밀은 `<루트>/_secrets/<프로젝트>/`. **절대경로는 적지 않는다**(또 옮기면 이 문서부터 거짓이 된다).
 > **패밀리 메인로고 `ic_k_logo_3d.png`**(K-Brand 3D Hexagon Emblem)는 앱별 아이콘과 별개로 **모든 자매앱이 공유하는 공통 브랜드 자산**이다. 각 앱의 '브랜드 & 자매앱' 최상단 카드로 동일하게 노출한다(파일명도 동일 유지).
 
 ## 6. KDailyUtil 세션이 확정할 결정사항

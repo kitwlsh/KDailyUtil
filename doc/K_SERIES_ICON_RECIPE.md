@@ -9,7 +9,7 @@ K로 시작하는 형제 앱(**KDailyUtil · KLotto645** · 향후 K-DiviTrack, 
 >
 > 🔁 **양쪽 저장소 동기화 문서**: 이 파일은 **`KDailyUtil/doc/`와 `KLotto645/doc/`에 동일 사본**으로 유지한다.
 > ⚠️ 그러므로 **파일 참조는 상대경로 마크다운 링크가 아니라 저장소 접두 평문 경로**(`` `KLotto645/app/src/...` ``)로 쓴다.
-> 두 사본의 깊이는 이제 같지만(`KDailyUtil/main/doc` vs `KLotto645/main/doc`) **접두 평문 경로 규칙은 유지한다** — 배치가 또 바뀌어도 안 깨진다. 폴더 규칙 정본 = 저장소 밖 `../../README.md`.
+> 사본들의 깊이는 이제 같지만(`KLotto645/main/doc` · `KDailyUtil/main/doc` · `KJangbu/main/doc`) **접두 평문 경로 규칙은 유지한다** — 배치가 또 바뀌어도 안 깨진다. 폴더 규칙 정본 = 저장소들의 **상위 폴더에 있는 `README.md`**(각 저장소 기준 `../../../README.md`).
 
 ---
 
