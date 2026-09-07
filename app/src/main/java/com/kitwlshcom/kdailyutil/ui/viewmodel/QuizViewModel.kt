@@ -122,9 +122,16 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         com.kitwlshcom.kdailyutil.data.repository.SettingsRepository.DailyStatus()
     )
 
-    /** 마지막으로 본 뒤로 새로 들어온 문제 수. 0이면 배지를 숨긴다. */
-    private val _newQuizCount = MutableStateFlow(0)
-    val newQuizCount: StateFlow<Int> = _newQuizCount.asStateFlow()
+    /**
+     * 마지막으로 본 뒤로 새로 들어온 문제를 «어떻게 말할지».
+     *
+     * 날숫자가 아니라 [com.kitwlshcom.kdailyutil.data.DailyRecord.NewQuizNotice]인 이유:
+     * 상한(20개+)과 복귀 사면(숫자를 아예 말하지 않음) 판정이 함께 와야 화면이 다시 계산하지 않는다.
+     */
+    private val _newQuizNotice =
+        MutableStateFlow(com.kitwlshcom.kdailyutil.data.DailyRecord.NewQuizNotice())
+    val newQuizNotice: StateFlow<com.kitwlshcom.kdailyutil.data.DailyRecord.NewQuizNotice> =
+        _newQuizNotice.asStateFlow()
 
     /** 아직 한 번도 못 맞힌 문제 수(오답 노트 배지). */
     private val _wrongToReviewCount = MutableStateFlow(0)
@@ -162,14 +169,22 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val context = getApplication<Application>().applicationContext
                 val total = repository.countAll(context)
-                val seen = settingsRepository.dailyStatusFlow.first().seenQuizCount
-                // 처음 실행(기준값 0)이면 «500개가 새로 왔다»가 되어 버린다 → 조용히 기준만 잡는다.
-                if (seen == 0) {
+                val status = settingsRepository.dailyStatusFlow.first()
+                val notice = com.kitwlshcom.kdailyutil.data.DailyRecord.newQuizNotice(
+                    today = java.time.LocalDate.now(),
+                    lastDone = status.lastDone,
+                    total = total,
+                    seenCount = status.seenQuizCount
+                )
+
+                // 기준점을 지금으로 옮겨야 하는 두 경우.
+                //   · 처음 실행(기준값 0) — 놔두면 «500개가 새로 왔다»가 된다
+                //   · 복귀 사면 — 기준을 리셋해야 「밀린 것」이 다음 날에도 되살아나지 않는다
+                if (status.seenQuizCount == 0 || notice.amnesty) {
                     settingsRepository.updateSeenQuizCount(total)
-                    _newQuizCount.value = 0
-                } else {
-                    _newQuizCount.value = (total - seen).coerceAtLeast(0)
                 }
+                _newQuizNotice.value = notice
+
                 _wrongToReviewCount.value = com.kitwlshcom.kdailyutil.data.QuizStatsManager
                     .getInstance(context).getUnresolvedWrongCount()
             } catch (e: Exception) {
@@ -184,7 +199,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val total = repository.countAll(getApplication<Application>().applicationContext)
                 settingsRepository.updateSeenQuizCount(total)
-                _newQuizCount.value = 0
+                _newQuizNotice.value = com.kitwlshcom.kdailyutil.data.DailyRecord.NewQuizNotice()
             } catch (e: Exception) {
                 Log.e("QuizViewModel", "새 문제 기준점 갱신 실패: ${e.message}")
             }

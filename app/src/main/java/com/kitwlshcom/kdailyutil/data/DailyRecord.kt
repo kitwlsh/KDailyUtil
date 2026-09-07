@@ -160,6 +160,77 @@ object DailyRecord {
     const val FRESH_SLOTS = 1
 
     // ──────────────────────────────────────────────────────────────
+    // 2-1. 「새 문제 N개」 — 표시 상한과 복귀 사면 (2026-09-07)
+    //
+    // 하루 5문항이 계속 들어오는데 «마지막으로 본 뒤 늘어난 수»를 그대로 말하면,
+    // 두 달 비운 사용자에게 「새 문제 300개」가 나간다. 그건 초대가 아니라 **청구서**다.
+    // 오래 비운 사람일수록 큰 숫자를 받는 구조 = 돌아오기 가장 어려운 사람에게 가장 큰 벽.
+    //
+    // → 실제로 해야 하는 일은 어느 쪽이든 **오늘 5문제 한 판**이다. 바뀌는 건 숫자를 보여 주는 방식뿐이다.
+    //   설계 근거는 doc/FEATURE_DAILY_PASSAGES.md §6.
+    // ──────────────────────────────────────────────────────────────
+
+    /** 「새 문제 N개」의 표시 상한. 넘으면 「20개+」로 자른다 — 세 자리 숫자를 내보내지 않는다. */
+    const val QUIZ_NEW_CAP = 20
+
+    /** 이 일수 이상 비웠다 돌아오면 밀린 숫자를 **아예 말하지 않는다**(복귀 사면). */
+    const val RETURN_AMNESTY_DAYS = 7L
+
+    /**
+     * 오래 비운 뒤 돌아온 상태인가.
+     *
+     * ⚠️ 한 번도 푼 적 없는 사람은 «복귀»가 아니다(첫 방문). 사면은 **돌아온 사람에게만** 준다.
+     */
+    fun isReturningAfterBreak(
+        today: LocalDate,
+        lastDone: LocalDate?,
+        amnestyDays: Long = RETURN_AMNESTY_DAYS
+    ): Boolean {
+        if (lastDone == null) return false
+        if (lastDone.isAfter(today)) return false // 미래 날짜(기기 시간 변경) — 사면을 걸지 않는다
+        return today.toEpochDay() - lastDone.toEpochDay() >= amnestyDays
+    }
+
+    /**
+     * 「새 문제」를 사용자에게 어떻게 말할지.
+     *
+     * @param amnesty true면 **숫자를 말하지 않고** 「다시 시작」으로 맞이한다([count]는 0).
+     * @param capped  실제 값이 상한을 넘어 잘렸다 → 「20개+」로 표시한다.
+     */
+    data class NewQuizNotice(
+        val count: Int = 0,
+        val capped: Boolean = false,
+        val amnesty: Boolean = false
+    ) {
+        /** 숫자를 말해도 되는가. 사면 중이거나 셀 것이 없으면 말하지 않는다. */
+        val hasNumber: Boolean get() = !amnesty && count > 0
+
+        /** 사용자에게 보이는 수량 표기. 상한에서 잘렸으면 「20개+」. */
+        val text: String get() = if (capped) "${count}개+" else "${count}개"
+    }
+
+    /**
+     * @param total     지금 기기에 있는 전체 문항 수
+     * @param seenCount 사용자가 마지막으로 인지한 전체 문항 수(기준점). 0 = 아직 기준이 없다
+     */
+    fun newQuizNotice(
+        today: LocalDate,
+        lastDone: LocalDate?,
+        total: Int,
+        seenCount: Int,
+        cap: Int = QUIZ_NEW_CAP
+    ): NewQuizNotice {
+        // 복귀 사면이 가장 강하다 — 「밀린 것」 개념 자체를 지운다.
+        if (isReturningAfterBreak(today, lastDone)) return NewQuizNotice(amnesty = true)
+
+        // 기준점이 없으면 «전 문항이 새로 왔다»가 되어 버린다 → 아무 숫자도 말하지 않는다.
+        if (seenCount <= 0) return NewQuizNotice()
+
+        val raw = (total - seenCount).coerceAtLeast(0)
+        return NewQuizNotice(count = minOf(raw, cap), capped = raw > cap)
+    }
+
+    // ──────────────────────────────────────────────────────────────
     // 3. 기록(최근 N일) 직렬화 — DataStore에 문자열 한 줄로 넣기 위한 것
     // ──────────────────────────────────────────────────────────────
 

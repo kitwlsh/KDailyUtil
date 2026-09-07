@@ -192,6 +192,92 @@ class DailyRecordTest {
         assertEquals(4, worse.first().correct)
     }
 
+
+    // ── 「새 문제 N개」 상한·복귀 사면 ───────────────────────────
+    //
+    // 여기서 지키는 것은 문구가 아니라 **«오래 비운 사람에게 큰 숫자를 보내지 않는다»** 는 규칙이다.
+    // 상한이 없던 시절에는 두 달 비운 사용자에게 「새 문제 300개」가 나갔다(doc/FEATURE_DAILY_PASSAGES.md §6).
+
+    @Test
+    fun `새 문제 수는 마지막으로 본 뒤 늘어난 만큼이다`() {
+        val n = DailyRecord.newQuizNotice(today, lastDone = today.minusDays(1), total = 515, seenCount = 508)
+        assertEquals(7, n.count)
+        assertFalse(n.capped)
+        assertFalse(n.amnesty)
+        assertTrue(n.hasNumber)
+        assertEquals("7개", n.text)
+    }
+
+    @Test
+    fun `상한을 넘으면 잘라서 20개+로 말한다`() {
+        // 하루 5문항이 들어오므로 상한이 없으면 세 자리 숫자가 알림으로 나간다
+        val n = DailyRecord.newQuizNotice(today, lastDone = today.minusDays(1), total = 815, seenCount = 515)
+        assertEquals(DailyRecord.QUIZ_NEW_CAP, n.count)
+        assertTrue(n.capped)
+        assertEquals("20개+", n.text)
+    }
+
+    @Test
+    fun `상한과 같은 값은 자르지 않는다`() {
+        val n = DailyRecord.newQuizNotice(
+            today, lastDone = today.minusDays(1),
+            total = 500 + DailyRecord.QUIZ_NEW_CAP, seenCount = 500
+        )
+        assertEquals(DailyRecord.QUIZ_NEW_CAP, n.count)
+        assertFalse(n.capped)
+        assertEquals("20개", n.text)
+    }
+
+    @Test
+    fun `7일 이상 비웠다 돌아오면 숫자를 아예 말하지 않는다`() {
+        val n = DailyRecord.newQuizNotice(today, lastDone = today.minusDays(60), total = 815, seenCount = 515)
+        assertTrue(n.amnesty)
+        assertEquals(0, n.count)
+        assertFalse(n.hasNumber)   // 「놓친 300개」는 초대가 아니라 청구서다
+    }
+
+    @Test
+    fun `사면 경계는 7일이다`() {
+        // 6일 = 아직 사면이 아니다(숫자를 보여 준다) / 7일 = 사면
+        val six = DailyRecord.newQuizNotice(today, lastDone = today.minusDays(6), total = 520, seenCount = 515)
+        assertFalse(six.amnesty)
+        assertEquals(5, six.count)
+
+        val seven = DailyRecord.newQuizNotice(today, lastDone = today.minusDays(7), total = 520, seenCount = 515)
+        assertTrue(seven.amnesty)
+    }
+
+    @Test
+    fun `한 번도 푼 적 없는 사람은 사면 대상이 아니다`() {
+        // 첫 방문은 «복귀»가 아니다. 사면을 걸면 첫 사용자에게 「다시 시작해요」가 나간다
+        assertFalse(DailyRecord.isReturningAfterBreak(today, lastDone = null))
+
+        val n = DailyRecord.newQuizNotice(today, lastDone = null, total = 515, seenCount = 0)
+        assertFalse(n.amnesty)
+        assertFalse(n.hasNumber)   // 기준점이 없으니 숫자도 말하지 않는다(전 문항이 새것이 되어 버린다)
+    }
+
+    @Test
+    fun `기준점이 없으면 전 문항을 새 문제라고 하지 않는다`() {
+        val n = DailyRecord.newQuizNotice(today, lastDone = today.minusDays(1), total = 515, seenCount = 0)
+        assertEquals(0, n.count)
+        assertFalse(n.hasNumber)
+    }
+
+    @Test
+    fun `기준점이 전체보다 크면 음수가 되지 않는다`() {
+        // 문항이 줄어드는 일(원격 파일 교체)이 있어도 「새 문제 -3개」가 나가면 안 된다
+        val n = DailyRecord.newQuizNotice(today, lastDone = today.minusDays(1), total = 500, seenCount = 515)
+        assertEquals(0, n.count)
+        assertFalse(n.hasNumber)
+    }
+
+    @Test
+    fun `미래 날짜가 저장돼 있으면 사면을 걸지 않는다`() {
+        // 기기 시간을 앞당겼다 되돌린 경우. 이상 상태에서 사면까지 주면 이유 없이 문구가 바뀐다
+        assertFalse(DailyRecord.isReturningAfterBreak(today, lastDone = today.plusDays(30)))
+    }
+
     // ── 배지 ────────────────────────────────────────────────
 
     @Test

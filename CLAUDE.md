@@ -16,13 +16,13 @@
 ✅ **자매앱(K장부·KLotto645) 관련 대기 항목은 0건이다**(2026-09-07 완결).
 다른 저장소를 열어 볼 일도, 회신을 기다리는 것도 없다 — **이제 이 앱 안의 일만 하면 된다.**
 
-남은 것은 **vc8 출하**이고, 그 앞에 **미착수 코드 1건 + 실기기 확인**이 걸려 있다.
+**코드 작업 대기 항목은 없다.** 남은 것은 **vc8 출하**이고, 그 앞에 **실기기 확인**이 걸려 있다.
 
-0. 🔴 **퀴즈 「새 문제 N개」 카운터 상한 + 복귀 사면** — **vc8에 포함하기로 결정**(2026-09-07).
-   지금은 상한이 없어 **두 달 비운 사용자에게 「새 문제 300개」**가 나간다([`BriefingReceiver.kt:127`](app/src/main/java/com/kitwlshcom/kdailyutil/receiver/BriefingReceiver.kt#L127)).
-   설계·수치 = [doc/FEATURE_DAILY_PASSAGES.md §6](doc/FEATURE_DAILY_PASSAGES.md)
+0. ✅ **퀴즈 「새 문제 N개」 카운터 상한 + 복귀 사면 — 완료(2026-09-07)**.
+   상한(`QUIZ_NEW_CAP = 20`)·복귀 사면(`RETURN_AMNESTY_DAYS = 7`)을 [`DailyRecord`](app/src/main/java/com/kitwlshcom/kdailyutil/data/DailyRecord.kt)에 두고
+   알림([`BriefingReceiver`](app/src/main/java/com/kitwlshcom/kdailyutil/receiver/BriefingReceiver.kt))·허브 카드 두 곳에 적용했다. 회귀 테스트 9건 신설(총 61건)
 1. 🔴 **실기기·브라우저 확인** — 절차는 [doc/NEXT_SESSION.md 부록 A](doc/NEXT_SESSION.md)에 화면·버튼 단위로 있다
-   (퀴즈 로봇 수동 1회 실행 · `aiModel` 비상 레버 첫 검증 · 알람이 **이틀 연속** 오는지 · **0번을 넣었다면 알림 문구도**)
+   (퀴즈 로봇 수동 1회 실행 · `aiModel` 비상 레버 첫 검증 · 알람이 **이틀 연속** 오는지 · **알림 문구 = 상한·복귀 사면**)
 2. `versionCode` **7 → 8** · `versionName` `1.6.1` → `1.6.2` 제안
 3. `./gradlew :app:bundleRelease` → **`keytool -printcert -jarfile <aab>`로 서명 확인** → 업로드
 
@@ -37,8 +37,8 @@
 |---|---|
 | 스토어 게시본 | **v1.6.1 (vc7)** · 2026-08-12 라이브 |
 | 저장소 | 스토어보다 앞섬 — **vc8 분량이 코드에 있고 아직 안 올라갔다**(503 대응 + 리텐션 한 판) |
-| 소스 버전 | `versionCode = 7` / `versionName = "1.6.1"` — 09-04 이후 **앱 코드 변경 없음**(그 뒤는 전부 문서) |
-| 단위 테스트 | **52건 통과** — AiErrorMessage 10 · BriefingScheduler 7 · DailyRecord 25 · GeminiFallback 9 · Example 1 |
+| 소스 버전 | `versionCode = 7` / `versionName = "1.6.1"` — 마지막 앱 코드 변경 = **09-07 카운터 상한·복귀 사면** |
+| 단위 테스트 | **61건 통과** — AiErrorMessage 10 · BriefingScheduler 7 · DailyRecord 34 · GeminiFallback 9 · Example 1 |
 | 서명 | `local.properties` `release.*` 4개 + 키스토어 실물 확인. 업로드 키 SHA-256 `61:12:DE:…:A5:12:99` |
 | `family.json` 최상위 | 비상 레버 키(`aiModel`·`aiTrial`·`fscApi`) **0개 = 전부 기본값** · 앱 목록은 4곳 동일 |
 | 자매앱 동기화 | ✅ 3벌 문서(핸드오프·아이콘 레시피)가 세 저장소에서 **0줄 차이** · 세 저장소 모두 원격과 동기 |
@@ -49,7 +49,7 @@
 ## 🔧 자주 쓰는 명령
 
 ```bash
-./gradlew :app:testDebugUnitTest      # 단위 테스트 52건 (기기 불필요)
+./gradlew :app:testDebugUnitTest      # 단위 테스트 61건 (기기 불필요)
 ./gradlew :app:assembleDebug          # 디버그 APK
 ./gradlew :app:signingReport          # 🔑 서명 설정이 실제로 어느 키스토어를 잡는지 확인
 ./gradlew :app:bundleRelease          # 업로드용 AAB

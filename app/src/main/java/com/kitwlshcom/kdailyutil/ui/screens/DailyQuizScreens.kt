@@ -46,7 +46,7 @@ import java.time.LocalDate
 @Composable
 fun DailyQuizHomeCard(viewModel: QuizViewModel) {
     val status by viewModel.dailyStatus.collectAsState()
-    val newCount by viewModel.newQuizCount.collectAsState()
+    val newNotice by viewModel.newQuizNotice.collectAsState()
     val wrongCount by viewModel.wrongToReviewCount.collectAsState()
 
     // 화면이 떠 있는 동안 날짜가 바뀔 수 있다(자정을 넘겨 쓰는 사람이 있다).
@@ -111,10 +111,16 @@ fun DailyQuizHomeCard(viewModel: QuizViewModel) {
                 lineHeight = 20.sp
             )
 
-            if (newCount > 0) {
+            // 🔴 오래 비운 사용자에게는 숫자를 말하지 않는다(복귀 사면).
+            // 「놓친 300개」는 초대가 아니라 청구서이고, 실제로 해야 하는 일은 어느 쪽이든 오늘 한 판이다.
+            if (newNotice.amnesty || newNotice.hasNumber) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "🆕 새 문제 ${newCount}개가 들어왔어요",
+                    text = if (newNotice.amnesty) {
+                        "🌱 그동안 새 문제가 쌓였어요 — 오늘 한 판부터 다시 시작해요"
+                    } else {
+                        "🆕 새 문제 ${newNotice.text}가 들어왔어요"
+                    },
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Gold24K.copy(alpha = 0.9f)

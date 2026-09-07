@@ -10,6 +10,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.kitwlshcom.kdailyutil.MainActivity
+import com.kitwlshcom.kdailyutil.data.DailyRecord
 import com.kitwlshcom.kdailyutil.data.repository.QuizRepository
 import com.kitwlshcom.kdailyutil.data.repository.SettingsRepository
 import com.kitwlshcom.kdailyutil.scheduler.BriefingScheduler
@@ -118,17 +119,22 @@ class BriefingReceiver : BroadcastReceiver() {
      */
     private suspend fun buildBriefingMessage(context: Context): String {
         val parts = mutableListOf<String>()
+        var amnesty = false
 
         try {
             val settingsRepo = SettingsRepository(context)
             val status = settingsRepo.dailyStatusFlow.first()
             val total = QuizRepository().countAll(context)
+            val today = java.time.LocalDate.now()
 
-            val newCount = if (status.seenQuizCount > 0) (total - status.seenQuizCount).coerceAtLeast(0) else 0
-            if (newCount > 0) parts.add("새 문제 ${newCount}개")
+            // 🔴 «늘어난 수»를 그대로 말하면 오래 비운 사용자에게 「새 문제 300개」가 나간다.
+            // 상한·복귀 사면 규칙은 DailyRecord에 있다(테스트로 고정) — 여기서는 판정을 쓰기만 한다.
+            val notice = DailyRecord.newQuizNotice(today, status.lastDone, total, status.seenQuizCount)
+            amnesty = notice.amnesty
+            if (notice.hasNumber) parts.add("새 문제 ${notice.text}")
 
-            val streak = status.displayStreak()
-            if (streak > 0) {
+            val streak = status.displayStreak(today)
+            if (!amnesty && streak > 0) {
                 // 「끊겼다」고 말하지 않는다. 죄책감 알림은 앱 삭제로 직행한다.
                 parts.add("${streak}일 연속 도전 중")
             }
@@ -136,11 +142,14 @@ class BriefingReceiver : BroadcastReceiver() {
             Log.w(TAG, "알림 문구 구성 실패(기본 문구로 대체): ${e.message}")
         }
 
-        // 무엇도 못 만들었으면 원래 문구로 돌아간다. 빈 알림은 안 보내느니만 못하다.
-        return if (parts.isEmpty()) {
-            "터치하여 오늘의 뉴스와 AI 맞춤 분석을 들어보세요."
-        } else {
-            parts.joinToString(" · ") + " — 오늘의 뉴스와 퀴즈가 기다립니다."
+        return when {
+            // 복귀 사면 중에는 숫자를 하나도 말하지 않는다. 「놓친 N개」는 초대가 아니라 청구서다.
+            amnesty -> "그동안 새 문제가 쌓였어요 — 오늘 한 판부터 다시 시작해요."
+
+            // 무엇도 못 만들었으면 원래 문구로 돌아간다. 빈 알림은 안 보내느니만 못하다.
+            parts.isEmpty() -> "터치하여 오늘의 뉴스와 AI 맞춤 분석을 들어보세요."
+
+            else -> parts.joinToString(" · ") + " — 오늘의 뉴스와 퀴즈가 기다립니다."
         }
     }
 
