@@ -94,6 +94,14 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
 
     private val _remotePassages = MutableStateFlow<List<RemotePassage>>(emptyList())
 
+    /**
+     * 받아 둔 원격 지문 **전체**(치운 것 제외). 「지문 고르기」 목록이 쓴다.
+     *
+     * 🔴 여기에 «안 읽음 배지»나 «진행률»을 붙이지 말 것 — 그 순간 고르는 목록이 아니라
+     * 밀린 것을 세는 목록이 된다(doc/FEATURE_DAILY_PASSAGES.md §6-6에서 하지 말 것으로 정한 항목).
+     */
+    val allRemotePassages: StateFlow<List<RemotePassage>> = _remotePassages.asStateFlow()
+
     /** 오늘의 지문 1편. 원격 지문이 하나도 없으면 null → 화면은 내장 지문으로 떨어진다(§8). */
     private val _todayPassage = MutableStateFlow<RemotePassage?>(null)
     val todayPassage: StateFlow<RemotePassage?> = _todayPassage.asStateFlow()
