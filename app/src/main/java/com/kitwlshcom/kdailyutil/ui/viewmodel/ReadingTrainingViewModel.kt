@@ -5,8 +5,10 @@ import android.graphics.Bitmap
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kitwlshcom.kdailyutil.data.DailyRecord
 import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
 import com.kitwlshcom.kdailyutil.data.repository.ReadingTrainingRepository
+import com.kitwlshcom.kdailyutil.data.repository.RemotePassage
 import com.kitwlshcom.kdailyutil.data.repository.SavedPassage
 import com.kitwlshcom.kdailyutil.data.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +35,19 @@ data class ComprehensionQuestion(
 
 class ReadingTrainingViewModel(application: Application) : AndroidViewModel(application) {
 
-    companion object { private const val TAG = "ReadingTrainingVM" }
+    companion object {
+        private const val TAG = "ReadingTrainingVM"
+
+        /**
+         * 지문 동기화 최소 간격. 탭을 여닫을 때마다 통신하면 데이터만 쓰고 얻는 것이 없다
+         * (로봇은 **하루 1편**만 넣는다). 자매앱 목록이 쓰는 6시간과 같은 값으로 맞췄다.
+         *
+         * 프로세스가 사는 동안만 유지되는 값이다 — 앱을 완전히 껐다 켜면 한 번 더 받는다.
+         * 영속 저장까지 할 만한 무게가 아니고, 그렇게 두면 «받아 봐도 소용없는 상태»를 만들 수 있다.
+         */
+        private const val SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000L
+        private var lastSyncAtMs = 0L
+    }
 
     private val repo = ReadingTrainingRepository(application)
     private val settingsRepository = SettingsRepository(application)
@@ -72,7 +86,136 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     private val _savedPassages = MutableStateFlow<List<SavedPassage>>(emptyList())
     val savedPassages: StateFlow<List<SavedPassage>> = _savedPassages.asStateFlow()
 
-    init { refreshPassages(); refreshWpmHistory() }
+    // ── 오늘의 지문 · 새 지문 (2026-09-07) ──────────────────────
+    //
+    // 지문이 앱에 하드코딩된 19편뿐이라 매일 하면 19일에 한 바퀴가 돌았다.
+    // 로봇이 하루 1편을 넣고, 앱은 그것을 받아 «오늘의 지문»으로 한 편만 정해 준다.
+    // 규칙(오늘의 세트·새것 배정·상한·복귀 사면)은 전부 DailyRecord에 있다.
+
+    private val _remotePassages = MutableStateFlow<List<RemotePassage>>(emptyList())
+
+    /** 오늘의 지문 1편. 원격 지문이 하나도 없으면 null → 화면은 내장 지문으로 떨어진다(§8). */
+    private val _todayPassage = MutableStateFlow<RemotePassage?>(null)
+    val todayPassage: StateFlow<RemotePassage?> = _todayPassage.asStateFlow()
+
+    /** 최근 7일에 도착한 지문(최신순, 최대 [DailyRecord.NEW_LIST_MAX]편). 나머지는 «지난 지문»으로 내린다. */
+    private val _newPassages = MutableStateFlow<List<RemotePassage>>(emptyList())
+    val newPassages: StateFlow<List<RemotePassage>> = _newPassages.asStateFlow()
+
+    /** 「새 지문 N편」을 어떻게 말할지(상한·복귀 사면 포함). */
+    private val _newPassageNotice = MutableStateFlow(DailyRecord.NewItemNotice(unit = "편"))
+    val newPassageNotice: StateFlow<DailyRecord.NewItemNotice> = _newPassageNotice.asStateFlow()
+
+    init { refreshPassages(); refreshWpmHistory(); loadRemotePassages(); syncRemotePassages() }
+
+    /** 기기에 있는 것만 먼저 그린다 — 통신을 기다리는 동안 화면이 비어 있으면 안 된다. */
+    private fun loadRemotePassages() {
+        viewModelScope.launch {
+            val list = withContext(Dispatchers.IO) { repo.loadRemotePassages() }
+            val hidden = repo.hiddenRemoteIdsFlow.first()
+            _remotePassages.value = list.filter { it.id.toString() !in hidden }
+            recomputePassageState()
+        }
+    }
+
+    /**
+     * 로봇이 올린 지문을 받아 온다. 실패해도 조용히 지나간다 —
+     * 못 받으면 저장소가 기존 캐시를 그대로 두고, 화면은 이미 그려져 있다.
+     */
+    fun syncRemotePassages(force: Boolean = false) {
+        val now = System.currentTimeMillis()
+        if (!force && now - lastSyncAtMs < SYNC_INTERVAL_MS) return
+        lastSyncAtMs = now
+        viewModelScope.launch {
+            try {
+                repo.syncRemotePassages()
+            } catch (e: Exception) {
+                Log.e(TAG, "지문 동기화 실패(캐시로 계속): ${e.message}")
+            }
+            loadRemotePassages()
+        }
+    }
+
+    private suspend fun recomputePassageState() {
+        val pool = _remotePassages.value
+        val today = java.time.LocalDate.now()
+        val seen = repo.seenPassageCountFlow.first()
+
+        val notice = DailyRecord.newPassageNotice(
+            today = today,
+            lastTrained = parseCompactDate(repo.lastTrainedDateFlow.first()),
+            createdDates = pool.mapNotNull { it.createdAt },
+            total = pool.size,
+            seenCount = seen
+        )
+
+        // 기준점을 지금으로 옮겨야 하는 두 경우 — 퀴즈와 같은 규칙이다.
+        //   · 첫 실행(기준값 0) — 놔두면 «지문 수십 편이 새로 왔다»가 된다
+        //   · 복귀 사면 — 기준을 리셋해야 「밀린 것」이 다음 날에도 되살아나지 않는다
+        if (seen == 0 || notice.amnesty) repo.updateSeenPassageCount(pool.size)
+
+        _newPassageNotice.value = notice
+        _newPassages.value = pool
+            .filter { d -> d.createdAt?.let { !it.isAfter(today) && today.toEpochDay() - it.toEpochDay() < DailyRecord.FRESH_WINDOW_DAYS } == true }
+            .sortedByDescending { it.createdAt }
+            .take(DailyRecord.NEW_LIST_MAX)
+
+        _todayPassage.value = pickTodayPassage(pool, today)
+    }
+
+    /**
+     * 오늘의 지문 = **날짜로 정해지는 1편**. 같은 날은 몇 번 열어도 같고, 자정을 넘기면 바뀐다.
+     *
+     * 새로 들어온 것이 있으면 그쪽에서 뽑는다([DailyRecord.pickDailyIndices]의 `freshFrom`) —
+     * 로봇이 매일 넣는데 사용자가 그걸 영영 못 보는 일이 없게 하는 배려다.
+     */
+    private fun pickTodayPassage(pool: List<RemotePassage>, today: java.time.LocalDate): RemotePassage? {
+        if (pool.isEmpty()) return null
+        val ordered = pool.sortedBy { it.createdAt ?: java.time.LocalDate.MIN }
+        val freshFrom = ordered.indexOfFirst { p ->
+            p.createdAt?.let { today.toEpochDay() - it.toEpochDay() < DailyRecord.FRESH_WINDOW_DAYS } == true
+        }
+        val index = DailyRecord.pickDailyIndices(
+            date = today,
+            total = ordered.size,
+            count = 1,
+            freshFrom = if (freshFrom > 0) freshFrom else 0
+        ).firstOrNull() ?: return null
+        return ordered.getOrNull(index)
+    }
+
+    /** 사용자가 새 지문을 확인했다 → 기준점을 지금으로 옮긴다(퀴즈의 markNewQuizzesSeen과 같은 문법). */
+    fun markPassagesSeen() {
+        viewModelScope.launch {
+            repo.updateSeenPassageCount(_remotePassages.value.size)
+            recomputePassageState()
+        }
+    }
+
+    /** 로봇 지문을 «내 것으로» 보관함에 복사한다. 원본은 그대로 둔다(사용자 소유가 되는 사본). */
+    fun copyRemoteToLibrary(passage: RemotePassage) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { repo.addPassage(passage.text, null, System.currentTimeMillis()) }
+            refreshPassages()
+        }
+    }
+
+    /** 목록에서 치운다. 🔴 삭제가 아니다 — 원본은 남고, 사용자에게만 안 보인다. */
+    fun hideRemotePassage(passage: RemotePassage) {
+        viewModelScope.launch {
+            repo.hideRemotePassage(passage.id)
+            loadRemotePassages()
+        }
+    }
+
+    /** 훈련 기록이 쓰는 yyyyMMdd. 깨져 있으면 null(사면 판정을 하지 않는다). */
+    private fun parseCompactDate(raw: String?): java.time.LocalDate? = try {
+        if (raw.isNullOrBlank()) null
+        else java.time.LocalDate.parse(raw, java.time.format.DateTimeFormatter.BASIC_ISO_DATE)
+    } catch (e: Exception) {
+        null
+    }
+
 
     fun refreshPassages() {
         viewModelScope.launch { _savedPassages.value = withContext(Dispatchers.IO) { repo.loadPassages() } }

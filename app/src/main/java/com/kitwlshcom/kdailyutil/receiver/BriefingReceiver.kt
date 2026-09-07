@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import com.kitwlshcom.kdailyutil.MainActivity
 import com.kitwlshcom.kdailyutil.data.DailyRecord
 import com.kitwlshcom.kdailyutil.data.repository.QuizRepository
+import com.kitwlshcom.kdailyutil.data.repository.ReadingTrainingRepository
 import com.kitwlshcom.kdailyutil.data.repository.SettingsRepository
 import com.kitwlshcom.kdailyutil.scheduler.BriefingScheduler
 import kotlinx.coroutines.CoroutineScope
@@ -118,39 +119,45 @@ class BriefingReceiver : BroadcastReceiver() {
      * 그래서 **이미 기기에 있는 것**(내려받아 둔 문제 수, 출석 기록)만 본다.
      */
     private suspend fun buildBriefingMessage(context: Context): String {
-        val parts = mutableListOf<String>()
-        var amnesty = false
-
-        try {
+        return try {
+            val today = java.time.LocalDate.now()
             val settingsRepo = SettingsRepository(context)
             val status = settingsRepo.dailyStatusFlow.first()
-            val total = QuizRepository().countAll(context)
-            val today = java.time.LocalDate.now()
 
             // 🔴 «늘어난 수»를 그대로 말하면 오래 비운 사용자에게 「새 문제 300개」가 나간다.
-            // 상한·복귀 사면 규칙은 DailyRecord에 있다(테스트로 고정) — 여기서는 판정을 쓰기만 한다.
-            val notice = DailyRecord.newQuizNotice(today, status.lastDone, total, status.seenQuizCount)
-            amnesty = notice.amnesty
-            if (notice.hasNumber) parts.add("새 문제 ${notice.text}")
+            // 상한·복귀 사면·문구 조립 규칙은 전부 DailyRecord에 있다(테스트로 고정) —
+            // 여기서는 기기에 있는 값을 모아 넘기기만 한다.
+            val quizNotice = DailyRecord.newQuizNotice(
+                today = today,
+                lastDone = status.lastDone,
+                total = QuizRepository().countAll(context),
+                seenCount = status.seenQuizCount
+            )
 
-            val streak = status.displayStreak(today)
-            if (!amnesty && streak > 0) {
-                // 「끊겼다」고 말하지 않는다. 죄책감 알림은 앱 삭제로 직행한다.
-                parts.add("${streak}일 연속 도전 중")
-            }
+            val readingRepo = ReadingTrainingRepository(context)
+            val passages = readingRepo.loadRemotePassages()
+            val passageNotice = DailyRecord.newPassageNotice(
+                today = today,
+                lastTrained = parseCompactDate(readingRepo.lastTrainedDateFlow.first()),
+                createdDates = passages.mapNotNull { it.createdAt },
+                total = passages.size,
+                seenCount = readingRepo.seenPassageCountFlow.first()
+            )
+
+            DailyRecord.briefingMessage(passageNotice, quizNotice, status.displayStreak(today))
         } catch (e: Exception) {
+            // 문구를 못 만들었다고 알림을 포기하지 않는다 — 기본 문구로라도 나간다.
             Log.w(TAG, "알림 문구 구성 실패(기본 문구로 대체): ${e.message}")
+            DailyRecord.BRIEFING_FALLBACK
         }
+    }
 
-        return when {
-            // 복귀 사면 중에는 숫자를 하나도 말하지 않는다. 「놓친 N개」는 초대가 아니라 청구서다.
-            amnesty -> "그동안 새 문제가 쌓였어요 — 오늘 한 판부터 다시 시작해요."
-
-            // 무엇도 못 만들었으면 원래 문구로 돌아간다. 빈 알림은 안 보내느니만 못하다.
-            parts.isEmpty() -> "터치하여 오늘의 뉴스와 AI 맞춤 분석을 들어보세요."
-
-            else -> parts.joinToString(" · ") + " — 오늘의 뉴스와 퀴즈가 기다립니다."
-        }
+    /** 훈련 기록이 쓰는 yyyyMMdd 형식. 깨져 있으면 null(그러면 사면 판정을 하지 않는다). */
+    private fun parseCompactDate(raw: String?): java.time.LocalDate? = try {
+        if (raw.isNullOrBlank()) null
+        else java.time.LocalDate.parse(raw, java.time.format.DateTimeFormatter.BASIC_ISO_DATE)
+    } catch (e: Exception) {
+        null
     }
 
     private fun showNotification(context: Context, contentText: String) {

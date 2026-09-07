@@ -125,12 +125,12 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * 마지막으로 본 뒤로 새로 들어온 문제를 «어떻게 말할지».
      *
-     * 날숫자가 아니라 [com.kitwlshcom.kdailyutil.data.DailyRecord.NewQuizNotice]인 이유:
+     * 날숫자가 아니라 [com.kitwlshcom.kdailyutil.data.DailyRecord.NewItemNotice]인 이유:
      * 상한(20개+)과 복귀 사면(숫자를 아예 말하지 않음) 판정이 함께 와야 화면이 다시 계산하지 않는다.
      */
     private val _newQuizNotice =
-        MutableStateFlow(com.kitwlshcom.kdailyutil.data.DailyRecord.NewQuizNotice())
-    val newQuizNotice: StateFlow<com.kitwlshcom.kdailyutil.data.DailyRecord.NewQuizNotice> =
+        MutableStateFlow(com.kitwlshcom.kdailyutil.data.DailyRecord.NewItemNotice())
+    val newQuizNotice: StateFlow<com.kitwlshcom.kdailyutil.data.DailyRecord.NewItemNotice> =
         _newQuizNotice.asStateFlow()
 
     /** 아직 한 번도 못 맞힌 문제 수(오답 노트 배지). */
@@ -199,7 +199,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val total = repository.countAll(getApplication<Application>().applicationContext)
                 settingsRepository.updateSeenQuizCount(total)
-                _newQuizNotice.value = com.kitwlshcom.kdailyutil.data.DailyRecord.NewQuizNotice()
+                _newQuizNotice.value = com.kitwlshcom.kdailyutil.data.DailyRecord.NewItemNotice()
             } catch (e: Exception) {
                 Log.e("QuizViewModel", "새 문제 기준점 갱신 실패: ${e.message}")
             }

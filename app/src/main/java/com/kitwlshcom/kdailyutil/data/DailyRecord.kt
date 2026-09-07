@@ -192,24 +192,28 @@ object DailyRecord {
     }
 
     /**
-     * 「새 문제」를 사용자에게 어떻게 말할지.
+     * 「새로 온 것」을 사용자에게 어떻게 말할지. **퀴즈(개)와 지문(편)이 같은 규칙을 쓴다.**
      *
      * @param amnesty true면 **숫자를 말하지 않고** 「다시 시작」으로 맞이한다([count]는 0).
      * @param capped  실제 값이 상한을 넘어 잘렸다 → 「20개+」로 표시한다.
+     * @param unit    사용자에게 보이는 단위. 퀴즈는 "개", 지문은 "편".
      */
-    data class NewQuizNotice(
+    data class NewItemNotice(
         val count: Int = 0,
         val capped: Boolean = false,
-        val amnesty: Boolean = false
+        val amnesty: Boolean = false,
+        val unit: String = "개"
     ) {
         /** 숫자를 말해도 되는가. 사면 중이거나 셀 것이 없으면 말하지 않는다. */
         val hasNumber: Boolean get() = !amnesty && count > 0
 
         /** 사용자에게 보이는 수량 표기. 상한에서 잘렸으면 「20개+」. */
-        val text: String get() = if (capped) "${count}개+" else "${count}개"
+        val text: String get() = if (capped) "$count$unit+" else "$count$unit"
     }
 
     /**
+     * 퀴즈 「새 문제 N개」.
+     *
      * @param total     지금 기기에 있는 전체 문항 수
      * @param seenCount 사용자가 마지막으로 인지한 전체 문항 수(기준점). 0 = 아직 기준이 없다
      */
@@ -219,15 +223,106 @@ object DailyRecord {
         total: Int,
         seenCount: Int,
         cap: Int = QUIZ_NEW_CAP
-    ): NewQuizNotice {
+    ): NewItemNotice {
         // 복귀 사면이 가장 강하다 — 「밀린 것」 개념 자체를 지운다.
-        if (isReturningAfterBreak(today, lastDone)) return NewQuizNotice(amnesty = true)
+        if (isReturningAfterBreak(today, lastDone)) return NewItemNotice(amnesty = true, unit = "개")
 
         // 기준점이 없으면 «전 문항이 새로 왔다»가 되어 버린다 → 아무 숫자도 말하지 않는다.
-        if (seenCount <= 0) return NewQuizNotice()
+        if (seenCount <= 0) return NewItemNotice(unit = "개")
 
         val raw = (total - seenCount).coerceAtLeast(0)
-        return NewQuizNotice(count = minOf(raw, cap), capped = raw > cap)
+        return NewItemNotice(count = minOf(raw, cap), capped = raw > cap, unit = "개")
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // 2-2. 읽기 지문 — 「새 지문 N편」 (2026-09-07)
+    //
+    // 지문에는 퀴즈에 없는 것이 있다: **도착일(createdAt)**. 그래서 §6-2 ①(신규 창)을 쓸 수 있고,
+    // 그것이 ②(표시 상한)보다 낫다 — 카운터가 «구조적으로» [FRESH_WINDOW_DAYS]를 넘지 못한다.
+    // 하루 1편이 들어오므로 신규 창 7일 = 최대 7편이고, 세 자리 숫자가 나올 길이 아예 없다.
+    // ──────────────────────────────────────────────────────────────
+
+    /** 이 기간 안에 도착한 것만 «새것»으로 센다(§6-2 ①). 주 1회 사용자까지 담는 값이 7일이다. */
+    const val FRESH_WINDOW_DAYS = 7L
+
+    /** 「새 지문」 섹션에 한 번에 보여 줄 최대 편수(§6-2 ④). 나머지는 «지난 지문»으로 조용히 내린다. */
+    const val NEW_LIST_MAX = 5
+
+    /**
+     * 「새 지문 N편」.
+     *
+     * @param createdDates 지금 가진 원격 지문들의 도착일(파싱 실패한 것은 호출자가 걸러 넣는다)
+     * @param total        지금 가진 전체 편수
+     * @param seenCount    사용자가 마지막으로 인지한 전체 편수(기준점)
+     * @param lastTrained  마지막으로 훈련한 날. 사면 판정에 쓴다(퀴즈 출석과 별개다)
+     */
+    fun newPassageNotice(
+        today: LocalDate,
+        lastTrained: LocalDate?,
+        createdDates: List<LocalDate>,
+        total: Int,
+        seenCount: Int
+    ): NewItemNotice {
+        if (isReturningAfterBreak(today, lastTrained)) return NewItemNotice(amnesty = true, unit = "편")
+        if (seenCount <= 0) return NewItemNotice(unit = "편")
+
+        val arrivedRecently = createdDates.count { d ->
+            !d.isAfter(today) && today.toEpochDay() - d.toEpochDay() < FRESH_WINDOW_DAYS
+        }
+        // 「기준점 이후 늘어난 수」와 「최근 7일에 도착한 수」 중 **작은 쪽**.
+        // 앞의 것만 쓰면 오래 비운 사람에게 숫자가 끝없이 커지고,
+        // 뒤의 것만 쓰면 어제 다 본 지문을 오늘도 «새것»이라고 말한다.
+        val unseen = (total - seenCount).coerceAtLeast(0)
+        return NewItemNotice(count = minOf(unseen, arrivedRecently), unit = "편")
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // 2-3. 알림 한 줄 조립 — 순수 함수로 뺀 이유는 «테스트로 고정»하기 위해서다
+    //
+    // 이 문구는 앱을 다시 데려오는 마지막 수단이다. 한 번 「알림 끄기」를 누르면
+    // 그 사용자에게 닿을 길이 영구히 사라지므로, 규칙을 기기 없이 검증할 수 있어야 한다.
+    // ──────────────────────────────────────────────────────────────
+
+    /** 🔴 알림 한 줄에 넣는 최대 파트 수. 길어지면 뒤가 잘려 **아무것도** 전달되지 않는다. */
+    const val BRIEFING_MAX_PARTS = 2
+
+    /** 파트가 하나도 없을 때의 기본 문구. */
+    const val BRIEFING_FALLBACK = "터치하여 오늘의 뉴스와 AI 맞춤 분석을 들어보세요."
+
+    /**
+     * 우선순위 = **새 지문 → 새 문제 → 연속일**([BRIEFING_MAX_PARTS]개까지).
+     * 지문을 앞에 두는 이유: 하루 1편이라 «새로움»이 더 또렷하다.
+     *
+     * 🔴 복귀 사면 중인 항목은 숫자를 만들지 않고, 말할 숫자가 하나도 없으면 «다시 시작» 문구로 간다.
+     * 「놓친 N개」·「끊겼습니다」는 쓰지 않는다 — 죄책감 알림은 알림 해제로, 알림 해제는 영구 이탈로 이어진다.
+     */
+    fun briefingMessage(
+        passages: NewItemNotice,
+        quizzes: NewItemNotice,
+        streak: Int
+    ): String {
+        val parts = mutableListOf<String>()
+        if (passages.hasNumber) parts.add("새 지문 ${passages.text}")
+        if (quizzes.hasNumber) parts.add("새 문제 ${quizzes.text}")
+
+        val amnesty = passages.amnesty || quizzes.amnesty
+        // 사면 중에는 연속일도 말하지 않는다(대개 이미 0이지만, 규칙으로 못 박아 둔다).
+        if (!amnesty && streak > 0 && parts.size < BRIEFING_MAX_PARTS) {
+            parts.add("${streak}일 연속 도전 중")
+        }
+
+        val trimmed = parts.take(BRIEFING_MAX_PARTS)
+        return when {
+            trimmed.isNotEmpty() -> trimmed.joinToString(" · ") + " — 오늘의 뉴스와 퀴즈가 기다립니다."
+
+            // 말할 숫자가 없는 사면 = 오래 비운 사람. 무엇이 쌓였는지에 따라 문구가 갈린다.
+            passages.amnesty && quizzes.amnesty ->
+                "그동안 새 지문과 새 문제가 쌓였어요 — 오늘 한 편부터 다시 시작해요."
+            passages.amnesty -> "그동안 새 지문이 쌓였어요 — 오늘 한 편부터 다시 시작해요."
+            quizzes.amnesty -> "그동안 새 문제가 쌓였어요 — 오늘 한 판부터 다시 시작해요."
+
+            else -> BRIEFING_FALLBACK
+        }
     }
 
     // ──────────────────────────────────────────────────────────────

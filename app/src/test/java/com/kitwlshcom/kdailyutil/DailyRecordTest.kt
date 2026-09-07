@@ -278,6 +278,142 @@ class DailyRecordTest {
         assertFalse(DailyRecord.isReturningAfterBreak(today, lastDone = today.plusDays(30)))
     }
 
+
+    // ── 「새 지문 N편」 (2026-09-07) ─────────────────────────────
+    //
+    // 지문에는 도착일이 있어서 «신규 창»(7일)을 쓸 수 있다. 그 덕에 카운터가 구조적으로
+    // 7을 넘지 못한다 — 「새 지문 60편」이 나올 길이 아예 없다.
+
+    @Test
+    fun `새 지문은 최근 7일에 도착한 것만 센다`() {
+        val dates = listOf(
+            today.minusDays(1), today.minusDays(2), today.minusDays(3),  // 창 안 = 3편
+            today.minusDays(20), today.minusDays(40)                     // 창 밖 = 세지 않는다
+        )
+        val n = DailyRecord.newPassageNotice(
+            today, lastTrained = today.minusDays(1),
+            createdDates = dates, total = 5, seenCount = 1  // 기준점 = 1편까지 봤다
+        )
+        assertEquals(3, n.count)
+        assertEquals("3편", n.text)
+    }
+
+    @Test
+    fun `새 지문은 기준점 이후 늘어난 수를 넘지 않는다`() {
+        // 최근 7일에 5편이 왔지만 사용자가 이미 3편까지 봤다면 새것은 2편이다.
+        // (창만 보면 어제 다 본 지문을 오늘도 «새것»이라고 말하게 된다)
+        val dates = (1..5).map { today.minusDays(it.toLong()) }
+        val n = DailyRecord.newPassageNotice(
+            today, lastTrained = today.minusDays(1),
+            createdDates = dates, total = 5, seenCount = 3
+        )
+        assertEquals(2, n.count)
+    }
+
+    @Test
+    fun `지문도 7일 이상 비우면 숫자를 말하지 않는다`() {
+        val dates = (1..7).map { today.minusDays(it.toLong()) }
+        val n = DailyRecord.newPassageNotice(
+            today, lastTrained = today.minusDays(30),
+            createdDates = dates, total = 40, seenCount = 5
+        )
+        assertTrue(n.amnesty)
+        assertFalse(n.hasNumber)
+    }
+
+    @Test
+    fun `지문 기준점이 없으면 숫자를 말하지 않는다`() {
+        // 첫 설치 직후. 놔두면 「새 지문 40편」이 되어 버린다
+        val n = DailyRecord.newPassageNotice(
+            today, lastTrained = today.minusDays(1),
+            createdDates = (1..7).map { today.minusDays(it.toLong()) }, total = 40, seenCount = 0
+        )
+        assertFalse(n.hasNumber)
+        assertFalse(n.amnesty)
+    }
+
+    @Test
+    fun `미래 날짜로 도착한 지문은 새것으로 세지 않는다`() {
+        // 기기 시간을 앞당겼다 되돌린 경우. 「새 지문」이 유령처럼 남으면 안 된다
+        val n = DailyRecord.newPassageNotice(
+            today, lastTrained = today.minusDays(1),
+            createdDates = listOf(today.plusDays(3)), total = 10, seenCount = 9
+        )
+        assertEquals(0, n.count)
+    }
+
+    // ── 알림 한 줄 조립 (2026-09-07) ────────────────────────────
+    //
+    // 이 문구는 사용자를 다시 데려오는 마지막 수단이다. 한 번 「알림 끄기」를 누르면
+    // 그 사용자에게 닿을 길이 영구히 사라지므로, 규칙을 기기 없이 고정해 둔다.
+
+    private fun passages(count: Int, amnesty: Boolean = false) =
+        DailyRecord.NewItemNotice(count = count, amnesty = amnesty, unit = "편")
+
+    private fun quizzes(count: Int, capped: Boolean = false, amnesty: Boolean = false) =
+        DailyRecord.NewItemNotice(count = count, capped = capped, amnesty = amnesty, unit = "개")
+
+    @Test
+    fun `알림 우선순위는 새 지문 새 문제 연속일 순이다`() {
+        val msg = DailyRecord.briefingMessage(passages(1), quizzes(5), streak = 12)
+        assertTrue(msg.startsWith("새 지문 1편 · 새 문제 5개"))
+        // 🔴 파트가 셋 다 들어가면 알림이 잘려 아무것도 전달되지 않는다 → 연속일이 밀린다
+        assertFalse(msg.contains("12일 연속"))
+    }
+
+    @Test
+    fun `알림 파트는 두 개를 넘지 않는다`() {
+        val msg = DailyRecord.briefingMessage(passages(2), quizzes(5), streak = 3)
+        assertEquals(2, msg.substringBefore(" — ").split(" · ").size)
+    }
+
+    @Test
+    fun `말할 것이 적으면 연속일이 들어온다`() {
+        val msg = DailyRecord.briefingMessage(passages(0), quizzes(0), streak = 4)
+        assertTrue(msg.contains("4일 연속 도전 중"))
+    }
+
+    @Test
+    fun `퀴즈 상한은 알림 문구에도 20개+로 나온다`() {
+        val msg = DailyRecord.briefingMessage(passages(0), quizzes(20, capped = true), streak = 0)
+        assertTrue(msg.contains("새 문제 20개+"))
+    }
+
+    @Test
+    fun `복귀 사면 중에는 숫자도 연속일도 말하지 않는다`() {
+        val both = DailyRecord.briefingMessage(
+            passages(0, amnesty = true), quizzes(0, amnesty = true), streak = 9
+        )
+        assertEquals("그동안 새 지문과 새 문제가 쌓였어요 — 오늘 한 편부터 다시 시작해요.", both)
+
+        val onlyPassage = DailyRecord.briefingMessage(passages(0, amnesty = true), quizzes(0), streak = 0)
+        assertTrue(onlyPassage.contains("새 지문이 쌓였어요"))
+
+        val onlyQuiz = DailyRecord.briefingMessage(passages(0), quizzes(0, amnesty = true), streak = 0)
+        assertTrue(onlyQuiz.contains("새 문제가 쌓였어요"))
+
+        // 「놓쳤다」·「끊겼다」는 어떤 경우에도 쓰지 않는다 — 죄책감 알림은 알림 해제로 직행한다
+        listOf(both, onlyPassage, onlyQuiz).forEach {
+            assertFalse(it.contains("놓친"))
+            assertFalse(it.contains("끊겼"))
+            assertFalse(it.contains("밀린"))
+        }
+    }
+
+    @Test
+    fun `한쪽만 사면이면 다른 쪽 숫자는 그대로 말한다`() {
+        // 퀴즈는 두 달 안 풀었지만 독서 훈련은 어제도 했다 → 지문 숫자는 살아 있다
+        val msg = DailyRecord.briefingMessage(passages(2), quizzes(0, amnesty = true), streak = 0)
+        assertTrue(msg.contains("새 지문 2편"))
+        assertFalse(msg.contains("쌓였어요"))
+    }
+
+    @Test
+    fun `말할 것이 하나도 없으면 기본 문구로 간다`() {
+        val msg = DailyRecord.briefingMessage(passages(0), quizzes(0), streak = 0)
+        assertEquals(DailyRecord.BRIEFING_FALLBACK, msg)
+    }
+
     // ── 배지 ────────────────────────────────────────────────
 
     @Test

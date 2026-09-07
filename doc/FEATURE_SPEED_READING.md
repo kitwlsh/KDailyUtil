@@ -52,7 +52,9 @@
 지문 소스: 내장 공개 텍스트 / 사용자 붙여넣기 / AI 생성.
 
 > 📖 **지문을 매일 새로 공급하는 방안은 별도 검토서에 있다** → [FEATURE_DAILY_PASSAGES.md](FEATURE_DAILY_PASSAGES.md) (2026-09-07).
-> 현재 내장 지문은 **19편 고정**(`ReadingTrainingScreen.kt`)이라 앱을 새로 내지 않으면 늘지 않는다.
+> ~~현재 내장 지문은 **19편 고정**(`ReadingTrainingScreen.kt`)이라 앱을 새로 내지 않으면 늘지 않는다.~~
+> ✅ **2026-09-07(vc8)부터 로봇이 하루 1편씩 원격 공급한다** — 내장 19편은 **오프라인 폴백으로 남겼다**(지우지 말 것).
+> 「오늘의 지문」은 날짜로 정해지는 1편이고, 새로 온 것이 있으면 그쪽에서 뽑는다 → [FEATURE_DAILY_PASSAGES.md](FEATURE_DAILY_PASSAGES.md)
 
 ---
 

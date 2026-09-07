@@ -18,9 +18,13 @@
 
 **코드 작업 대기 항목은 없다.** 남은 것은 **vc8 출하**이고, 그 앞에 **실기기 확인**이 걸려 있다.
 
-0. ✅ **퀴즈 「새 문제 N개」 카운터 상한 + 복귀 사면 — 완료(2026-09-07)**.
-   상한(`QUIZ_NEW_CAP = 20`)·복귀 사면(`RETURN_AMNESTY_DAYS = 7`)을 [`DailyRecord`](app/src/main/java/com/kitwlshcom/kdailyutil/data/DailyRecord.kt)에 두고
-   알림([`BriefingReceiver`](app/src/main/java/com/kitwlshcom/kdailyutil/receiver/BriefingReceiver.kt))·허브 카드 두 곳에 적용했다. 회귀 테스트 9건 신설(총 61건)
+0. ✅ **완료(2026-09-07) — vc8 범위가 두 번 늘었고 둘 다 코드가 끝났다**
+   - **퀴즈 카운터 상한 + 복귀 사면**: `QUIZ_NEW_CAP = 20` · `RETURN_AMNESTY_DAYS = 7`을
+     [`DailyRecord`](app/src/main/java/com/kitwlshcom/kdailyutil/data/DailyRecord.kt)에 두고 알림·허브 카드에 적용
+   - 📖 **매일 새 지문 공급**: 로봇이 하루 1편을 만들고([`korean_quiz_data/update_passages.py`](../../korean_quiz_data/main/update_passages.py)),
+     앱이 그것을 받아 **「오늘의 지문」**(날짜로 정해지는 1편)으로 준다. 내장 19편은 **오프라인 폴백으로 남겼다**
+   - 🔴 **지문 로봇이 아직 원격에 없으면** 앱은 404를 받고 조용히 내장 19편으로 떨어진다(설계된 폴백).
+     지문이 실제로 오려면 `korean_quiz_data`를 **푸시**해야 한다
 1. 🔴 **실기기·브라우저 확인** — 절차는 [doc/NEXT_SESSION.md 부록 A](doc/NEXT_SESSION.md)에 화면·버튼 단위로 있다
    (퀴즈 로봇 수동 1회 실행 · `aiModel` 비상 레버 첫 검증 · 알람이 **이틀 연속** 오는지 · **알림 문구 = 상한·복귀 사면**)
 2. `versionCode` **7 → 8** · `versionName` `1.6.1` → `1.6.2` 제안
@@ -37,8 +41,8 @@
 |---|---|
 | 스토어 게시본 | **v1.6.1 (vc7)** · 2026-08-12 라이브 |
 | 저장소 | 스토어보다 앞섬 — **vc8 분량이 코드에 있고 아직 안 올라갔다**(503 대응 + 리텐션 한 판) |
-| 소스 버전 | `versionCode = 7` / `versionName = "1.6.1"` — 마지막 앱 코드 변경 = **09-07 카운터 상한·복귀 사면** |
-| 단위 테스트 | **61건 통과** — AiErrorMessage 10 · BriefingScheduler 7 · DailyRecord 34 · GeminiFallback 9 · Example 1 |
+| 소스 버전 | `versionCode = 7` / `versionName = "1.6.1"` — 마지막 앱 코드 변경 = **09-07 카운터 상한·복귀 사면 + 지문 공급** |
+| 단위 테스트 | **73건 통과** — AiErrorMessage 10 · BriefingScheduler 7 · DailyRecord 46 · GeminiFallback 9 · Example 1 |
 | 서명 | `local.properties` `release.*` 4개 + 키스토어 실물 확인. 업로드 키 SHA-256 `61:12:DE:…:A5:12:99` |
 | `family.json` 최상위 | 비상 레버 키(`aiModel`·`aiTrial`·`fscApi`) **0개 = 전부 기본값** · 앱 목록은 4곳 동일 |
 | 자매앱 동기화 | ✅ 3벌 문서(핸드오프·아이콘 레시피)가 세 저장소에서 **0줄 차이** · 세 저장소 모두 원격과 동기 |
@@ -49,7 +53,7 @@
 ## 🔧 자주 쓰는 명령
 
 ```bash
-./gradlew :app:testDebugUnitTest      # 단위 테스트 61건 (기기 불필요)
+./gradlew :app:testDebugUnitTest      # 단위 테스트 73건 (기기 불필요)
 ./gradlew :app:assembleDebug          # 디버그 APK
 ./gradlew :app:signingReport          # 🔑 서명 설정이 실제로 어느 키스토어를 잡는지 확인
 ./gradlew :app:bundleRelease          # 업로드용 AAB
@@ -71,6 +75,8 @@ keytool -printcert -jarfile app/build/outputs/bundle/release/app-release.aab   #
   + 라이브 `../../k-series-config/main` + K장부 사본(`../../KJangbu/main`).
   🔴 라이브를 덮어쓰기 전에 **최상위 비상 레버 키부터 확인**한다 → [doc/family_config/README.md](doc/family_config/README.md) §3-1
 - 🔴 **`aiModel` 레버는 KDailyUtil과 K장부에 동시에 적용된다.** 한 앱만 구할 수 없다
+- 📖 **지문·퀴즈는 같은 저장소(`korean_quiz_data`)가 공급하고, 스크립트·생존 신호 블록은 따로다.**
+  퀴즈가 실패해도 지문은 저장되고 그 반대도 된다 — 한 스크립트로 합치지 말 것
 - **모델 이름을 버전으로 박지 말 것** + **폴백 후보에 실재하지 않는 모델을 두지 말 것.** 후보 추가는 **실제 호출로 확인**한다
 - **새 문서를 만들면 [README.md](README.md) '문서 인덱스' 표에 등록**한다(K-시리즈 규칙)
 - **날짜를 추측하지 말 것** — `git log --date=…`로 확인한다

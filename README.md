@@ -108,7 +108,7 @@ release.key.password=<비밀번호>
 
 | 무엇 | 어디 | 역할 |
 |---|---|---|
-| **퀴즈 데이터** | [kitwlsh/korean_quiz_data](https://github.com/kitwlsh/korean_quiz_data) | 매일 자정 로봇이 문제를 생성해 커밋. 앱이 GitHub raw로 내려받는다. **「오늘의 퀴즈」가 이 공급에 의존한다.** 상태는 그 저장소 `last_run.json` 하나로 확인 |
+| **퀴즈·지문 데이터** | [kitwlsh/korean_quiz_data](https://github.com/kitwlsh/korean_quiz_data) | 매일 자정 로봇이 **퀴즈 5문항 + 읽기 지문 1편**을 생성해 커밋. 앱이 GitHub raw로 내려받는다. **「오늘의 퀴즈」·「오늘의 지문」이 이 공급에 의존한다.** 상태는 그 저장소 `last_run.json` 하나로 확인(퀴즈 블록 + `passages` 블록) |
 | **자매앱 레지스트리 · 방침 배포** | [kitwlsh/k-series-config](https://github.com/kitwlsh/k-series-config) | `family.json` — 자매앱 목록을 **앱 재배포 없이** 바꾼다. 🔴 최상위에 **비상 레버**(`aiModel` 등)가 얹히는 자리이기도 하다 |
 | **자매앱 — K장부** | [kitwlsh/KJangbu](https://github.com/kitwlsh/KJangbu) *(로컬: `../../KJangbu/main`)* | 가계부 앱. **AI 코드가 형제처럼 닮아 수정이 서로 오간다** |
 | **자매앱 — KLotto645** | [kitwlsh/KLotto645](https://github.com/kitwlsh/KLotto645) *(로컬: `../../KLotto645/main`)* | 로또 앱 |
@@ -145,8 +145,8 @@ release.key.password=<비밀번호>
 | **뉴스 우회 보고서** | [Google_News_Redirect_Issue_Report.md](doc/Google_News_Redirect_Issue_Report.md) | 구글 뉴스 수집 시 발생하는 리디렉션 이슈 분석 및 해결책 |
 | **오디오 개선 보고서** | [20260422_Audio_System_Enhancement_Report.md](doc/20260422_Audio_System_Enhancement_Report.md) | 미니 플레이어 및 오디오 수집 성능 최적화 개선 보고서 |
 | **공시 AI 요약 가이드** | [FEATURE_DART_AI_SUMMARY.md](doc/FEATURE_DART_AI_SUMMARY.md) | Open DART API + Gemini 실적 공시 자동 요약 설계 가이드 |
-| **빠른 독서 훈련 설계** | [FEATURE_SPEED_READING.md](doc/FEATURE_SPEED_READING.md) | 배움터 속독 훈련(드릴/OCR/AI 이해도/보관함) 기능 설계서 |
-| **📖 매일 새 지문 공급 검토** | [FEATURE_DAILY_PASSAGES.md](doc/FEATURE_DAILY_PASSAGES.md) | **지문을 퀴즈처럼 매일 공급하는 방안 검토(2026-09-07).** 🔴 지금은 **앱에 하드코딩된 19편**이라 재배포 없이는 안 늘어난다는 진단 + **어디에 저장할지 후보 4개 비교**(권고 = `korean_quiz_data`에 연도별 `passages_*.json`) + 로봇 생존 실측(09-05·09-06 정상) + **로봇 지문과 사용자 보관함을 다른 파일로 두는 이유** + 저작권 가드·작업 순서. 🔴 **§6 = 밀림 대책**(신규 창 7일·복귀 사면·목록 상한) — **지금 퀴즈 카운터에 상한이 없어 두 달 비우면 「새 문제 300개」가 나간다**(vc8 미출시 = 고칠 수 있는 마지막 시점) |
+| **빠른 독서 훈련 설계** | [FEATURE_SPEED_READING.md](doc/FEATURE_SPEED_READING.md) | 배움터 속독 훈련(드릴/OCR/AI 이해도/보관함) 기능 설계서. 지문 공급은 아래 검토서가 정본 |
+| **📖 매일 새 지문 공급** | [FEATURE_DAILY_PASSAGES.md](doc/FEATURE_DAILY_PASSAGES.md) | **지문을 퀴즈처럼 매일 공급하는 설계 + ✅ 구현 결과(2026-09-07 · vc8).** 하드코딩 19편이 «19일에 한 바퀴 → 재독 → WPM 그래프 왜곡»을 만든다는 진단 + 저장 위치 후보 4개 비교(채택 = `korean_quiz_data`에 연도별 `passages_*.json`) + **로봇 지문과 사용자 보관함을 다른 파일로 두는 이유**(섞으면 동기화 버그 한 번에 사용자 촬영 지문이 날아간다) + 저작권 가드. 🔴 **§6 = 밀림 대책**(신규 창 7일·복귀 사면·목록 상한·퀴즈 카운터 상한) — 상한이 없으면 두 달 비운 사용자에게 「새 문제 300개」가 나간다. §10 표에 무엇을 넣고 무엇을 **일부러 안 만들었는지**(「지난 지문」 목록 = 빚 상환 화면) 적혀 있다 |
 | **뉴스 AI 대화창 설계** | [FEATURE_AI_NEWS_CHAT.md](doc/FEATURE_AI_NEWS_CHAT.md) | 뉴스탭 'AI' 탭 멀티턴 대화(제목+스니펫 컨텍스트)+음성 STT/TTS 설계·구현서(구현 완료, 30일 보관 정책) |
 | **브랜드 가이드라인(KITWLSH)** | [KITWLSH_Brand_Guidelines.md](doc/KITWLSH_Brand_Guidelines.md) | KITWLSH 제작사 브랜드 아이덴티티/가이드라인 |
 | **퀴즈 시스템 워크스루** | [walkthrough_quiz_system.md](doc/walkthrough_quiz_system.md) | KuizGenius 퀴즈 시스템 동작 흐름 워크스루(개발 참고) |
