@@ -76,6 +76,10 @@ keytool -printcert -jarfile app/build/outputs/bundle/release/app-release.aab   #
   - ⚠️ [doc/KLOTTO_CONNECT_HANDOFF.md](doc/KLOTTO_CONNECT_HANDOFF.md)·[doc/K_SERIES_ICON_RECIPE.md](doc/K_SERIES_ICON_RECIPE.md)는
     **KLotto645·K장부와 동일 사본**으로 유지하는 문서다(2026-09-07부터 **사본이 3벌**). 한쪽을 고치면 다른 세션에 알린다
     - 확인법: `diff --strip-trailing-cr doc/<파일> ../../KLotto645/main/doc/<파일>` → **0줄이어야 한다**
+    - 🔴 **md5·파일 크기로 대조하지 말 것** — 세 저장소 모두 `core.autocrlf=true`라 작업 트리 줄바꿈이
+      기기·세션마다 CRLF/LF로 갈린다. **내용이 같아도 해시가 다르다**(09-07에 실제로 셋 다 달랐다).
+      커밋본끼리는 `git show HEAD:<경로>` 비교가 정확하다
+    - 🔴 **우리 저장소에만 있는 «예외 한 줄»을 남기지 말 것**(3벌 규칙). 우리에게만 의미 있는 메모는 우리 문서에 둔다
     - 🔴 이 문서들의 **본문은 우리가 정본이지만, 우리가 항상 최신인 것은 아니다** — 09-07에 폴더 이전 문구가
       KLotto645·K장부 사본에서 먼저 갱신돼 **정본이 뒤처져 있었다**(K장부 세션이 발견해 알려 왔고, 받아서 맞췄다)
 
