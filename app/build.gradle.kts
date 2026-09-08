@@ -26,8 +26,11 @@ android {
         //   versionCode = Play가 보는 정수(업로드마다 증가, 사용자에게 안 보임)
         //   versionName = 사람이 보는 문자열. 버그수정→PATCH / 기능추가→MINOR / 호환깨짐→MAJOR
         // 상세·전환 배경 = doc/DEVELOPER_GUIDE.md '버전 스킴'
-        versionCode = 8
-        versionName = "1.7.0"
+        // ⚠️ 1.7.1은 스킴상 PATCH지만 이번 판에는 기능 추가(지문 카드 시작 버튼 ·
+        //    마지막 훈련 기억 · 결과 화면 「다시·다음」)가 섞여 있다. 규칙대로면 1.8.0인데
+        //    **사용자가 1.7.1로 하기로 결정했다**(2026-09-08). 스킴이 바뀐 것은 아니다.
+        versionCode = 9
+        versionName = "1.7.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
