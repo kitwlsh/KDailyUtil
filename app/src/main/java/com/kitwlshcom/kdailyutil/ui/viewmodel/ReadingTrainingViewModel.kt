@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitwlshcom.kdailyutil.data.DailyRecord
+import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
 import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
 import com.kitwlshcom.kdailyutil.data.repository.ReadingTrainingRepository
 import com.kitwlshcom.kdailyutil.data.repository.RemotePassage
@@ -57,6 +58,18 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     val totalSessions: StateFlow<Int> = repo.totalSessionsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val bestComprehension: StateFlow<Int> = repo.bestComprehensionFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val trainedDates: StateFlow<Set<String>> = repo.trainedDatesFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    /**
+     * 마지막으로 한 지문 훈련. **null이면 «아직 고른 적 없음»**이고, 그때 시작 버튼은
+     * 몰래 시작하지 않고 훈련 고르기를 먼저 띄운다(§2026-09-08 결정).
+     */
+    val lastModule: StateFlow<ReadingTrainingModule?> =
+        repo.lastModuleFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** 훈련을 실제로 시작한 순간에 부른다 — 고르기만 한 시점이 아니다. */
+    fun rememberLastModule(module: ReadingTrainingModule) {
+        viewModelScope.launch { repo.setLastModule(module) }
+    }
 
     private val _wpmHistory = MutableStateFlow<List<Int>>(emptyList())
     val wpmHistory: StateFlow<List<Int>> = _wpmHistory.asStateFlow()

@@ -17,6 +17,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +30,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
 import com.kitwlshcom.kdailyutil.data.repository.SavedPassage
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -135,6 +137,16 @@ private fun randomPassageExcept(current: String, extra: List<String>): String {
  */
 private const val PASSAGE_PICKER_PAGE = 20
 
+/**
+ * 「📚 내 지문 보관함」 한 번에 보여 주는 편수 (2026-09-08).
+ *
+ * 🔴 「지문 고르기」만 자르고 보관함을 안 잘라 두었던 것이 이번 스크롤 문제의 절반이었다.
+ * 허브는 `Column + verticalScroll`이라 `forEach`가 **화면 밖까지 전부 구성**하므로,
+ * 보관함이 늘어난 만큼 아래쪽 훈련 목록이 그대로 멀어졌다.
+ * ⚠️ LazyColumn으로 바꾸는 것이 답이 아니다 — 스크롤되는 Column 안의 LazyColumn은 무한 높이로 터진다.
+ */
+private const val LIBRARY_PAGE = 20
+
 private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, CHUNK, EYE, RESULT, COMPREHENSION, STATS }
 
 @Composable
@@ -145,6 +157,27 @@ fun ReadingTrainingScreen(
     var module by remember { mutableStateOf(ReadingModule.HUB) }
     var passage by remember { mutableStateOf(PRACTICE_PASSAGES.random()) }
     var lastWpm by remember { mutableStateOf(0) }
+
+    // 🔴 허브의 스크롤 위치는 **여기서** 기억한다(2026-09-08).
+    //    ReadingHub 안에 두면 훈련에 들어가는 순간 when 분기가 허브를 컴포지션에서 들어내
+    //    위치가 버려지고, 돌아올 때마다 맨 위부터 다시 내려가야 했다.
+    //    이 앱의 다른 탭은 이미 「돌아오면 그 자리」다(MainScreen의 saveState/restoreState).
+    val hubScrollState = rememberScrollState()
+
+    // 방금 한 훈련 — 결과 화면의 「다시」·「다음」이 **이름을 말하려면** 무엇을 했는지 알아야 한다.
+    var ranModule by remember { mutableStateOf(ReadingTrainingModule.DEFAULT) }
+
+    // 훈련 시작의 단일 통로. 지문 카드·훈련 목록·결과 화면이 모두 여기를 지난다
+    // → «마지막 훈련 기록»을 한 곳에서만 한다(빠뜨리는 자리가 생기지 않게).
+    fun startTraining(target: ReadingTrainingModule) {
+        ranModule = target
+        viewModel.rememberLastModule(target)
+        module = when (target) {
+            ReadingTrainingModule.PACER -> ReadingModule.PACER
+            ReadingTrainingModule.RSVP -> ReadingModule.RSVP
+            ReadingTrainingModule.CHUNK -> ReadingModule.CHUNK
+        }
+    }
 
     // 오늘의 지문(원격)이 들어오면 그것으로 시작한다. 없으면 내장 19편 중 하나(§8 폴백).
     // 🔴 사용자가 직접 고른 뒤에는 덮지 않는다 — 고른 지문이 동기화 한 번에 바뀌면
@@ -168,12 +201,18 @@ fun ReadingTrainingScreen(
             ReadingModule.HUB -> ReadingHub(
                 viewModel = viewModel,
                 passage = passage,
+                scrollState = hubScrollState,
                 onUseRandom = {
                     userPickedPassage = true
                     // 서버 지문 + 내장 19편을 합친 풀에서 뽑는다.
                     passage = randomPassageExcept(passage, remotePool.map { it.text })
                 },
                 onUseCustom = { userPickedPassage = true; passage = it },
+                onStartTraining = { text, target ->
+                    // 지문을 고른 그 자리에서 곧장 시작한다 — 목록 끝까지 내려가지 않아도 되게.
+                    if (text != null) { userPickedPassage = true; passage = text }
+                    startTraining(target)
+                },
                 onSelect = { module = it },
                 onShadow = onShadow
             )
@@ -205,7 +244,10 @@ fun ReadingTrainingScreen(
             )
             ReadingModule.RESULT -> ResultModule(
                 wpm = lastWpm,
+                ran = ranModule,
                 onQuiz = { module = ReadingModule.COMPREHENSION },
+                onAgain = { startTraining(ranModule) },
+                onNext = { startTraining(ReadingTrainingModule.next(ranModule)) },
                 onDone = { module = ReadingModule.HUB }
             )
             ReadingModule.COMPREHENSION -> ComprehensionModule(
@@ -228,8 +270,11 @@ fun ReadingTrainingScreen(
 private fun ReadingHub(
     viewModel: ReadingTrainingViewModel,
     passage: String,
+    scrollState: ScrollState,
     onUseRandom: () -> Unit,
     onUseCustom: (String) -> Unit,
+    /** 지문(null이면 지금 선택된 것 그대로)으로 해당 훈련을 **즉시 시작**한다. */
+    onStartTraining: (String?, ReadingTrainingModule) -> Unit,
     onSelect: (ReadingModule) -> Unit,
     onShadow: (String) -> Unit = {}
 ) {
@@ -246,6 +291,37 @@ private fun ReadingHub(
     var showCustomInput by remember { mutableStateOf(false) }
     // 보관함 지문 제목 편집 대상(null이면 다이얼로그 닫힘)
     var editingPassage by remember { mutableStateOf<SavedPassage?>(null) }
+
+    // ── 훈련 시작 (2026-09-08) ────────────────────────────────
+    //
+    // 지문을 고른 «그 자리»에서 시작할 수 있어야 한다. 예전에는 지문을 고른 뒤
+    // 훈련 목록까지 화면 두세 장을 내려가야 했고, 보관함이 늘수록 그 거리가 길어졌다.
+    //
+    // 🔴 **확인 대화창은 두지 않는다.** 지문 훈련 3종은 전부 «정지 상태»로 열려서
+    //    사용자가 재생을 눌러야 시작한다 — 재생 버튼이 이미 한 번 더 묻는 자리다.
+    //    대신 **버튼 이름에 훈련 이름을 적어** 무엇이 열리는지 미리 알린다.
+    val lastModule by viewModel.lastModule.collectAsState()
+    // null이 아니면 훈련 고르기 창이 떠 있다는 뜻. 값은 «고른 뒤 쓸 지문»(null이면 현재 지문).
+    var pickerPassage by remember { mutableStateOf<String?>(null) }
+    var pickerOpen by remember { mutableStateOf(false) }
+
+    /** 시작 버튼 공통 동작 — 고른 적이 없으면 먼저 고르게 하고, 있으면 그것으로 곧장 시작한다. */
+    fun beginTraining(text: String?) {
+        val remembered = lastModule
+        if (remembered == null) {
+            // 처음 쓰는 사람에게 기본값으로 몰래 시작하지 않는다 — 무엇이 시작됐는지 모르게 된다.
+            pickerPassage = text
+            pickerOpen = true
+        } else {
+            onStartTraining(text, remembered)
+        }
+    }
+
+    /** 「▾」 — 이번만 다른 훈련으로 하고 싶을 때. */
+    fun openPicker(text: String?) {
+        pickerPassage = text
+        pickerOpen = true
+    }
 
     // 책 페이지 촬영/업로드 → OCR
     val context = LocalContext.current
@@ -287,10 +363,59 @@ private fun ReadingHub(
         }
     }
 
+    // 훈련 고르기 창 — 확인 대화창이 아니라 **선택창**이다(무엇으로 시작할지 정하는 자리).
+    if (pickerOpen) {
+        val pending = pickerPassage
+        AlertDialog(
+            onDismissRequest = { pickerOpen = false },
+            title = { Text("어떤 훈련으로 할까요?", color = Gold24K, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ReadingTrainingModule.entries.forEach { m ->
+                        val current = m == lastModule
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                pickerOpen = false
+                                onStartTraining(pending, m)
+                            },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (current) Gold24K.copy(0.14f) else DeepCharcoal.copy(0.6f)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                if (current) 1.5.dp else 0.5.dp,
+                                Gold24K.copy(if (current) 0.7f else 0.12f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(m.display, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Spacer(Modifier.weight(1f))
+                                if (current) Text("최근", fontSize = 10.sp, color = Gold24K)
+                                Spacer(Modifier.width(6.dp))
+                                Text("▶", color = Gold24K)
+                            }
+                        }
+                    }
+                    Text(
+                        "고른 훈련은 다음부터 시작 버튼에 그대로 뜹니다. 화면이 열려도 바로 흐르지 않으니 준비되면 재생을 누르세요.",
+                        fontSize = 11.sp, color = Color.White.copy(0.5f), lineHeight = 16.sp
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { pickerOpen = false }) { Text("취소", color = Color.White.copy(0.7f)) }
+            },
+            containerColor = DeepCharcoal
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(16.dp)
             .padding(bottom = 80.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -447,25 +572,20 @@ private fun ReadingHub(
                         )
                     }
 
-                    Button(
-                        onClick = {
-                            onUseCustom(today.text)
+                    // 완료한 뒤에도 막지 않는다 — 더 읽고 싶은 사람을 세거나 목표를 붙이지만 않으면
+                    // 자발적 소비는 부담이 되지 않는다(§6-5).
+                    StartTrainingRow(
+                        label = startLabel(lastModule, again = doneToday),
+                        emphasized = !doneToday,
+                        onStart = {
                             viewModel.markPassagesSeen()
+                            beginTraining(today.text)
                         },
-                        modifier = Modifier.fillMaxWidth().height(44.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (doneToday) Color.White.copy(alpha = 0.14f) else Gold24K,
-                            contentColor = if (doneToday) Color.White else Color.Black
-                        )
-                    ) {
-                        // 완료한 뒤에도 막지 않는다 — 더 읽고 싶은 사람을 세거나 목표를 붙이지만 않으면
-                        // 자발적 소비는 부담이 되지 않는다(§6-5).
-                        Text(
-                            if (doneToday) "한 번 더 읽기" else "이 지문으로 훈련하기",
-                            fontWeight = FontWeight.Bold, fontSize = 14.sp
-                        )
-                    }
+                        onPick = {
+                            viewModel.markPassagesSeen()
+                            openPicker(today.text)
+                        }
+                    )
                 }
             }
 
@@ -495,10 +615,17 @@ private fun ReadingHub(
                                     fontSize = 11.sp, color = Color.White.copy(0.6f), lineHeight = 16.sp
                                 )
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    // 「이 지문으로」는 지문만 바꾸고 끝나서, 누른 뒤 훈련 목록까지
+                                    // 다시 내려가야 했다. 이제 그 자리에서 시작한다.
                                     OutlinedButton(onClick = {
-                                        onUseCustom(item.text)
                                         viewModel.markPassagesSeen()
-                                    }) { Text("이 지문으로", color = Gold24K, fontSize = 11.sp) }
+                                        beginTraining(item.text)
+                                    }) {
+                                        Text(
+                                            lastModule?.let { "▶ ${it.label}" } ?: "▶ 훈련 고르기",
+                                            color = Gold24K, fontSize = 11.sp, maxLines = 1
+                                        )
+                                    }
                                     OutlinedButton(onClick = {
                                         viewModel.copyRemoteToLibrary(item)
                                         Toast.makeText(context, "보관함에 저장했어요!", Toast.LENGTH_SHORT).show()
@@ -597,6 +724,17 @@ private fun ReadingHub(
                                         item.text.take(48) + if (item.text.length > 48) "…" else "",
                                         fontSize = 11.sp, color = Color.White.copy(0.6f), lineHeight = 16.sp
                                     )
+                                    // 🔴 시작 버튼은 **고른 한 줄에만** 붙인다. 모든 줄에 붙이면
+                                    //    목록 높이가 배로 늘어 이번에 줄이려는 스크롤이 도로 길어진다.
+                                    if (selected) {
+                                        Spacer(Modifier.height(2.dp))
+                                        StartTrainingRow(
+                                            label = startLabel(lastModule),
+                                            emphasized = false,
+                                            onStart = { beginTraining(item.text) },
+                                            onPick = { openPicker(item.text) }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -634,6 +772,13 @@ private fun ReadingHub(
                 Text(
                     passage.take(60) + if (passage.length > 60) "…" else "",
                     fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
+                )
+                // 지금 선택된 지문으로 바로 시작 — 어디서 골랐든 이 카드에 항상 있다.
+                StartTrainingRow(
+                    label = startLabel(lastModule),
+                    emphasized = true,
+                    onStart = { beginTraining(null) },
+                    onPick = { openPicker(null) }
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = onUseRandom) { Text("랜덤 지문", color = Gold24K, fontSize = 12.sp) }
@@ -694,8 +839,15 @@ private fun ReadingHub(
 
         // 지문 보관함
         if (savedPassages.isNotEmpty()) {
-            Text("📚 내 지문 보관함", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
-            savedPassages.forEach { p ->
+            // 🔴 상한 없이 전부 그리던 곳이다(2026-09-08에 자름). 보관함이 늘어난 만큼
+            //    아래의 훈련 목록이 그대로 멀어져서, 지문을 많이 넣은 사람일수록 훈련 시작이 어려웠다.
+            var libraryVisible by remember { mutableStateOf(LIBRARY_PAGE) }
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("📚 내 지문 보관함", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+                Spacer(Modifier.width(6.dp))
+                Text("총 ${savedPassages.size}편", fontSize = 11.sp, color = Color.White.copy(0.5f))
+            }
+            savedPassages.take(libraryVisible).forEach { p ->
                 val selected = p.text.trim() == passage.trim()
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable {
@@ -710,7 +862,11 @@ private fun ReadingHub(
                         Gold24K.copy(if (selected) 0.7f else 0.12f)
                     )
                 ) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         if (p.imagePath != null) {
                             AsyncImage(
                                 model = java.io.File(p.imagePath),
@@ -745,6 +901,29 @@ private fun ReadingHub(
                         Text("✕", color = Color.White.copy(0.5f), fontSize = 16.sp,
                             modifier = Modifier.clip(CircleShape).clickable { viewModel.deletePassage(p.id) }.padding(8.dp))
                     }
+                    // 고른 지문에만 시작 버튼 — 「지문 고르기」와 같은 규칙(목록 높이를 지킨다).
+                    if (selected) {
+                        StartTrainingRow(
+                            label = startLabel(lastModule),
+                            emphasized = false,
+                            onStart = { beginTraining(p.text) },
+                            onPick = { openPicker(p.text) }
+                        )
+                    }
+                    } // 카드 내용 Column (썸네일 행 + 고른 경우의 시작 버튼)
+                }
+            }
+            if (savedPassages.size > libraryVisible) {
+                OutlinedButton(
+                    onClick = {
+                        libraryVisible = (libraryVisible + LIBRARY_PAGE).coerceAtMost(savedPassages.size)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "더 보기 (${savedPassages.size - libraryVisible}편 남음)",
+                        color = Gold24K, fontSize = 12.sp
+                    )
                 }
             }
         }
@@ -778,10 +957,12 @@ private fun ReadingHub(
         }
 
         // 훈련 모듈
+        // 🔴 지문 훈련 3종은 onStartTraining으로 보낸다 — 여기로 시작해도 «마지막 훈련»이 기록돼야
+        //    지문 카드의 시작 버튼이 다음번에 같은 이름을 달고 나온다(기록하는 자리를 한 곳으로 모았다).
         ModuleCard("🧘 집중 워밍업", "한 점을 응시하며 호흡으로 집중력을 끌어올려요.") { onSelect(ReadingModule.WARMUP) }
-        ModuleCard("🎯 리듬 페이서", "하이라이트를 따라 줄 단위로 읽으며 묵독을 줄여요.") { onSelect(ReadingModule.PACER) }
-        ModuleCard("⚡ 단어 점멸 (RSVP)", "한 곳에서 단어가 빠르게 바뀌어 안구 이동을 최소화해요.") { onSelect(ReadingModule.RSVP) }
-        ModuleCard("🔭 묶어 읽기 (청크)", "여러 단어를 한 묶음으로 보며 시야 폭을 넓혀요.") { onSelect(ReadingModule.CHUNK) }
+        ModuleCard("🎯 리듬 페이서", "하이라이트를 따라 줄 단위로 읽으며 묵독을 줄여요.") { onStartTraining(null, ReadingTrainingModule.PACER) }
+        ModuleCard("⚡ 단어 점멸 (RSVP)", "한 곳에서 단어가 빠르게 바뀌어 안구 이동을 최소화해요.") { onStartTraining(null, ReadingTrainingModule.RSVP) }
+        ModuleCard("🔭 묶어 읽기 (청크)", "여러 단어를 한 묶음으로 보며 시야 폭을 넓혀요.") { onStartTraining(null, ReadingTrainingModule.CHUNK) }
         ModuleCard("👀 안구 추적", "움직이는 점을 눈으로 따라가며 안구 근육을 풀어줘요.") { onSelect(ReadingModule.EYE) }
         ModuleCard("🗣️ 따라 말하기 (쉐도잉)", "선택한 지문을 한 문장씩 들려주고 따라 말하며 녹음해요.") { onShadow(passage) }
 
@@ -799,6 +980,51 @@ private fun StatItem(label: String, value: String, unit: String) {
         Text(value, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Gold24K)
         Text(unit, fontSize = 9.sp, color = Color.White.copy(0.45f))
         Text(label, fontSize = 10.sp, color = Color.White.copy(0.6f))
+    }
+}
+
+/**
+ * 시작 버튼에 쓸 문구 (2026-09-08).
+ *
+ * 🔴 **무엇이 열리는지 이름에 적는다.** 「이 지문으로 훈련하기」는 무슨 훈련이 시작되는지
+ * 말하지 않았고, 실은 시작조차 하지 않았다(지문만 바뀌었다).
+ * 아직 한 번도 고른 적이 없으면 «고르기»라고 정직하게 적는다 — 기본값으로 몰래 시작하지 않는다.
+ */
+private fun startLabel(module: ReadingTrainingModule?, again: Boolean = false): String = when {
+    module == null -> "▶ 훈련 고르기"
+    again -> "🔁 한 번 더 · ${module.label}"
+    else -> "▶ ${module.label} 시작"
+}
+
+/** 「시작」 + 「▾(훈련 바꾸기)」 한 쌍. 지문이 있는 모든 자리에 같은 모양으로 붙는다. */
+@Composable
+private fun StartTrainingRow(
+    label: String,
+    emphasized: Boolean,
+    onStart: () -> Unit,
+    onPick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (emphasized) {
+            Button(
+                onClick = onStart,
+                modifier = Modifier.weight(1f).height(44.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)
+            ) { Text(label, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1) }
+        } else {
+            OutlinedButton(onClick = onStart, modifier = Modifier.weight(1f)) {
+                Text(label, color = Gold24K, fontSize = 12.sp, maxLines = 1)
+            }
+        }
+        OutlinedButton(
+            onClick = onPick,
+            contentPadding = PaddingValues(horizontal = 14.dp)
+        ) { Text("▾", color = Gold24K, fontSize = 14.sp) }
     }
 }
 
@@ -1154,26 +1380,51 @@ private fun StatsCard(title: String, content: @Composable ColumnScope.() -> Unit
 }
 
 @Composable
-private fun ResultModule(wpm: Int, onQuiz: () -> Unit, onDone: () -> Unit) {
+private fun ResultModule(
+    wpm: Int,
+    ran: ReadingTrainingModule,
+    onQuiz: () -> Unit,
+    onAgain: () -> Unit,
+    onNext: () -> Unit,
+    onDone: () -> Unit
+) {
+    // 🔴 버튼에 **훈련 이름을 적는다**(2026-09-08). 「다음 훈련」만 적혀 있으면
+    //    무엇이 열릴지 모르는 채로 눌러야 하고, 그것은 허브의 시작 버튼에서 고친 것과 같은 문제다.
+    val next = ReadingTrainingModule.next(ran)
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text("훈련 완료! 🎉", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Gold24K)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(6.dp))
+        Text(ran.display, color = Color.White.copy(0.55f), fontSize = 12.sp)
+        Spacer(Modifier.height(10.dp))
         Text("이번 속도", color = Color.White.copy(0.7f), fontSize = 13.sp)
         Text("$wpm WPM", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(24.dp))
         Text("얼마나 이해했는지 AI 퀴즈로 확인해볼까요?\n(속도만 빠른 건 의미가 없어요!)",
             color = Color.White.copy(0.7f), fontSize = 13.sp, textAlign = TextAlign.Center, lineHeight = 20.sp)
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
         Button(onClick = onQuiz, modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)) {
             Text("📝 이해도 퀴즈 풀기", fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("건너뛰고 완료", color = Gold24K) }
+
+        // 한 판 더 — 허브를 거치지 않는다. 여기가 없어서 「또 그만큼 스크롤」이 생겼다.
+        Spacer(Modifier.height(10.dp))
+        OutlinedButton(onClick = onAgain, modifier = Modifier.fillMaxWidth()) {
+            Text("🔁 ${ran.label} 다시", color = Gold24K, fontSize = 13.sp)
+        }
+        Spacer(Modifier.height(6.dp))
+        OutlinedButton(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
+            Text("▶ 다음: ${next.display}", color = Gold24K, fontSize = 13.sp)
+        }
+
+        Spacer(Modifier.height(10.dp))
+        TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+            Text("건너뛰고 완료", color = Color.White.copy(0.65f), fontSize = 13.sp)
+        }
     }
 }
 

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,7 +28,10 @@ fun LearningHubScreen(
     shadowingViewModel: ShadowingViewModel = viewModel()
 )
 {
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    // 🔴 rememberSaveable이어야 한다 — 그냥 remember면 다른 탭(뉴스·증시)에 갔다 오는 순간
+    //    배움터가 컴포지션에서 내려가 **독서 훈련을 보고 있었어도 퀴즈 탭으로 되돌아간다**.
+    //    이 앱의 나머지 탭은 이미 「돌아오면 그 자리」다(MainScreen의 saveState/restoreState).
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf("우리말 퀴즈", "빠른 독서 훈련")
 
     val quizState by quizViewModel.quizState.collectAsState()

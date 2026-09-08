@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -63,6 +64,8 @@ class ReadingTrainingRepository(private val context: Context) {
         val SEEN_PASSAGE_COUNT = intPreferencesKey("seen_passage_count")
         // 사용자가 목록에서 치운 로봇 지문 id. 🔴 원본은 지우지 않는다(«내가 못 본 것이 지워졌다»는 인상을 주지 않는다)
         val HIDDEN_REMOTE_IDS = stringSetPreferencesKey("hidden_remote_passage_ids")
+        // 마지막으로 한 지문 훈련. 지문 카드의 시작 버튼이 «무엇으로 시작하는지»를 이름에 적기 위해 필요하다.
+        val LAST_MODULE = stringPreferencesKey("last_training_module")
     }
 
     val bestWpmFlow: Flow<Int> = context.readingDataStore.data.map { it[Keys.BEST_WPM] ?: 0 }
@@ -75,6 +78,19 @@ class ReadingTrainingRepository(private val context: Context) {
 
     /** 마지막 훈련일(yyyyMMdd). 복귀 사면 판정에 쓴다 — 퀴즈 출석과 별개의 기록이다. */
     val lastTrainedDateFlow: Flow<String?> = context.readingDataStore.data.map { it[Keys.LAST_DATE] }
+
+    /**
+     * 마지막으로 한 지문 훈련. **아직 한 적이 없으면 null**이고, 그때는 시작 버튼이
+     * 몰래 기본값으로 시작하지 않고 «훈련 고르기»를 먼저 띄운다.
+     * 저장된 값이 알 수 없는 문자열이면(예전 키·손상) 마찬가지로 null이 된다.
+     */
+    val lastModuleFlow: Flow<ReadingTrainingModule?> =
+        context.readingDataStore.data.map { ReadingTrainingModule.fromKey(it[Keys.LAST_MODULE]) }
+
+    /** 훈련을 실제로 시작한 순간에 기록한다(고르기만 한 시점이 아니라). */
+    suspend fun setLastModule(module: ReadingTrainingModule) {
+        context.readingDataStore.edit { p -> p[Keys.LAST_MODULE] = module.key }
+    }
 
     /** 이해도 점수(0~100) 기록 — 최고치만 갱신 */
     suspend fun recordComprehension(scorePercent: Int) {
