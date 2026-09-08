@@ -11,58 +11,64 @@
 
 ---
 
-## 🎬 지금 할 일 (2026-09-07 갱신)
+## 🎬 지금 할 일 (2026-09-08 갱신)
 
 ✅ **자매앱(K장부·KLotto645) 관련 대기 항목은 0건이다**(2026-09-07 완결).
 다른 저장소를 열어 볼 일도, 회신을 기다리는 것도 없다 — **이제 이 앱 안의 일만 하면 된다.**
 
-✅ **v1.7.0(vc8)을 2026-09-07에 Play Console에 업로드했다 — 현재 «검토 중».**
+✅ **v1.7.0(vc8)이 2026-09-08에 출시됐다**(업로드 09-07 → 다음날 라이브).
 🔴 **`versionCode 8`은 소모됐다. 다음 업로드는 vc9다**(반려되어 다시 올려도 9다 — vc는 되돌릴 수 없다).
-🔴 **신규 세션은 [doc/NEXT_SESSION.md §업로드 직후 할 일](doc/NEXT_SESSION.md)부터 본다** — 심사 통과 확인 ·
-알람 이틀 연속 · 지문이 매일 쌓이는지 · edge-to-edge 눈확인 · `aiModel` 레버 검증 · 데이터 보안 칸 · 깨끗한 계정 신규 설치.
+
+🟢 **vc9 작업이 시작됐다 — 09-08에 «독서 훈련 동선» 수정을 코드까지 끝냈다.**
+사용자 신고(「지문 고르고 훈련까지 스크롤이 너무 멀다 · 훈련 끝나면 또 그만큼」)에서 출발했고,
+원인 3가지를 코드에서 확인해 고쳤다 → [doc/NEXT_SESSION.md §할 일 0-B](doc/NEXT_SESSION.md).
+🔴 **UI 변경이라 단위 테스트로 못 잡는다 — 실기기 확인이 남았다**(부록 A §E).
+
+🔴 **신규 세션은 [doc/NEXT_SESSION.md](doc/NEXT_SESSION.md)부터 본다** — vc8 몫이던 확인이 아직 안 끝났다:
+**알람 이틀 연속**(가장 중요 · 안 본 채로 출시됐다) · 지문이 매일 쌓이는지 · edge-to-edge 눈확인 ·
+`aiModel` 레버 검증 · 데이터 보안 칸 · 깨끗한 계정 신규 설치. 여기에 vc9 몫(부록 A §E)이 얹혔다.
 
 > **릴리즈 산출물(2026-09-07)**: [`app/release/kdailyutil-v1.7.0.aab`](app/release/kdailyutil-v1.7.0.aab)
 > · `versionCode 8` / `versionName 1.7.0` (AAB 내부에서 확인) · 서명 SHA-256 `61:12:DE:…:A5:12:99` 확인 완료
 > · 붙여넣기용 출시 노트 = [`app/release/RELEASE_NOTES.md`](app/release/RELEASE_NOTES.md) §v1.7.0
 
-0. ✅ **완료(2026-09-07) — vc8 범위가 두 번 늘었고 둘 다 코드가 끝났다**
+0. ✅ **끝난 것(2026-09-07 · vc8으로 출시됨)**
    - **퀴즈 카운터 상한 + 복귀 사면**: `QUIZ_NEW_CAP = 20` · `RETURN_AMNESTY_DAYS = 7`을
      [`DailyRecord`](app/src/main/java/com/kitwlshcom/kdailyutil/data/DailyRecord.kt)에 두고 알림·허브 카드에 적용
    - 📖 **매일 새 지문 공급**: 로봇이 하루 1편을 만들고([`korean_quiz_data/update_passages.py`](../../korean_quiz_data/main/update_passages.py)),
-     앱이 그것을 받아 **「오늘의 지문」**(날짜로 정해지는 1편)으로 준다. 내장 19편은 **오프라인 폴백으로 남겼다**
-   - 🔴 **지문 로봇이 아직 원격에 없으면** 앱은 404를 받고 조용히 내장 19편으로 떨어진다(설계된 폴백).
-     지문이 실제로 오려면 `korean_quiz_data`를 **푸시**해야 한다
-1. 🔴 **심사 결과 확인 + 실기기·브라우저 확인** — 절차는 [doc/NEXT_SESSION.md 부록 A](doc/NEXT_SESSION.md)에 화면·버튼 단위로 있다
-   (`aiModel` 비상 레버 첫 검증 · 알람이 **이틀 연속** 오는지 · 알림 문구 = 상한·복귀 사면 · 오늘의 지문 = C-5-2 · edge-to-edge = C-5-3)
-   - ⚠️ **업로드를 먼저 하기로 했으므로 이 확인은 «출시된 뒤»에 하게 된다.** 알람이 둘째 날 안 오면
-     그 상태로 사용자에게 나간 것이니 즉시 `versionCode 9`로 고쳐 올린다
-2. ✅ `versionCode` **7 → 8** · `versionName` **1.6.1 → 1.7.0** — 완료(2026-09-07) · **업로드까지 완료**
-   - 🔴 문서에 오래 적혀 있던 «1.6.2»가 아니다. 그때는 vc8이 버그 수정뿐이었고,
-     **지문 공급(기능 추가)이 들어오면서 스킴 규칙(`기능추가 → MINOR`)대로 1.7.0**이 됐다
-3. ✅ `bundleRelease` → `keytool -printcert -jarfile`로 서명 확인 — 완료. **남은 것은 업로드뿐이다**
+     앱이 그것을 받아 **「오늘의 지문」**(날짜로 정해지는 1편)으로 준다. 내장 19편은 **오프라인 폴백으로 남겨둔다**
+   - ✅ **로봇은 살아 있다**(09-08 실측) — 원격 `passages_2026.json`이 **HTTP 200**을 준다.
+     예전에 적혀 있던 «푸시해야 지문이 온다» 경고는 **해소됐다**
+1. 🟢 **진행 중(vc9) — 독서 훈련 동선 수정은 09-08에 코드까지 끝났다**
+   - 지문을 고른 그 자리에서 시작 · 버튼 이름에 훈련명 · 결과 화면 「다시·다음」 · 스크롤 보존 · 보관함 상한
+   - 근거·설계 판단 = [doc/NEXT_SESSION.md §할 일 0-B](doc/NEXT_SESSION.md)
+2. 🔴 **실기기 확인이 밀려 있다** — vc8 몫(부록 A)과 vc9 몫(부록 A §E)이 같이 쌓였다
+   - 가장 급한 것 = **알람이 이틀 연속 오는지**. 안 본 채로 출시됐으므로, 둘째 날 안 오면 즉시 vc9로 고쳐 올린다
+3. 🔴 **다음 출하 순서** — `versionCode` **8 → 9** · `versionName` 상향 → `signingReport` → `bundleRelease`
+   → `keytool -printcert -jarfile`로 서명 확인 → 업로드. 🔴 **vc는 반려에도 소모되고 되돌릴 수 없다**
 
 ---
 
-## 📌 이 프로젝트의 사실 (2026-09-07 재검증)
+## 📌 이 프로젝트의 사실 (2026-09-08 재검증)
 
 | 항목 | 값 |
 |---|---|
-| 스토어 게시본 | **v1.6.1 (vc7)** · 2026-08-12 라이브 — 🕐 **v1.7.0(vc8) 업로드 완료, 09-07 검토 중** |
-| 저장소 | 스토어보다 앞섬 — **vc8 분량이 코드에 있고 아직 안 올라갔다**(503 대응 + 리텐션 한 판) |
-| 소스 버전 | `versionCode = 8` / `versionName = "1.7.0"` — 09-07 상향·빌드·서명 확인·**업로드 완료**. 다음 업로드는 **vc9** |
-| 단위 테스트 | **73건 통과** — AiErrorMessage 10 · BriefingScheduler 7 · DailyRecord 46 · GeminiFallback 9 · Example 1 |
+| 스토어 게시본 | **v1.7.0 (vc8)** · **2026-09-08 라이브**(09-07 업로드 → 다음날 출시) |
+| 저장소 | 스토어보다 앞섬 — **vc9 분량(독서 훈련 동선 수정)이 코드에 있고 아직 안 올라갔다** |
+| 소스 버전 | `versionCode = 8` / `versionName = "1.7.0"` — 스토어와 같다. 🔴 **vc9 상향은 아직 안 했다**(코드만 앞서 있다) |
+| 단위 테스트 | **82건 통과**(09-08 실측) — AiErrorMessage 10 · BriefingScheduler 7 · DailyRecord 46 · GeminiFallback 9 · **ReadingTrainingModule 9** · Example 1 |
 | 서명 | `local.properties` `release.*` 4개 + 키스토어 실물 확인. 업로드 키 SHA-256 `61:12:DE:…:A5:12:99` |
 | `family.json` 최상위 | 비상 레버 키(`aiModel`·`aiTrial`·`fscApi`) **0개 = 전부 기본값** · 앱 목록은 4곳 동일 |
 | Play 대시보드 권장 조치 | vc7 기준 4건 — **조사 완료(09-07)**. 셋은 우리가 고칠 것이 없고(①②③) 하나는 선택(④ AGP 9). 판정·근거 = [doc/NEXT_SESSION.md](doc/NEXT_SESSION.md) §권장 조치 4건 |
 | 자매앱 동기화 | ✅ 3벌 문서(핸드오프·아이콘 레시피)가 세 저장소에서 **0줄 차이** · 세 저장소 모두 원격과 동기 |
-| 퀴즈 로봇 | ✅ 정상 — 09-05·09-06 연속 성공 · `last_run.json` = `ok` · 누적 **515문항**(하루 5문항) |
+| 퀴즈·지문 로봇 | ✅ 정상(09-08 실측) — `last_run.json` = `ok` · 퀴즈 누적 **525문항** · 📖 **지문 공급도 살아 있다**(원격 `passages_2026.json` HTTP 200 · 09-07자 첫 편) |
 
 ---
 
 ## 🔧 자주 쓰는 명령
 
 ```bash
-./gradlew :app:testDebugUnitTest      # 단위 테스트 73건 (기기 불필요)
+./gradlew :app:testDebugUnitTest      # 단위 테스트 82건 (기기 불필요)
 ./gradlew :app:assembleDebug          # 실기기 확인용 디버그 APK
 ./gradlew :app:assembleDebug          # 디버그 APK
 ./gradlew :app:signingReport          # 🔑 서명 설정이 실제로 어느 키스토어를 잡는지 확인
