@@ -156,7 +156,7 @@ fun openAppOrStore(context: android.content.Context, pkg: String) {
 | 앱 | applicationId | 브랜드 아이콘 파일 | 한줄 소개 | Play 스토어(id=) | 출시상태 |
 |---|---|---|---|---|---|
 | KDailyUtil | `com.kitwlshcom.kdailyutil` | `ic_k_app_icon.png` | 데일리 라이프 유틸(뉴스/증시/오디오/퀴즈/배움터) | `com.kitwlshcom.kdailyutil` | **출시 v1.5(vc5, 2026-07-23)** (이전 v1.4/vc4 07-21) |
-| KLotto645 | `com.kitwlshCom.klotto645` | `ic_k_emblem_balls.png` | 로또 6/45 분석·생성 | `com.kitwlshCom.klotto645` | **라이브 v1.0.3(vc13, 2026-08-04 출시)** — §8 동적 레지스트리 적용본은 v1.0.2부터 |
+| KLotto645 | `com.kitwlshCom.klotto645` | `ic_k_emblem_balls.png` | 로또 6/45 분석·생성 | `com.kitwlshCom.klotto645` | **라이브 v1.1.0(vc14, 2026-09-09 출시)** — 이전 v1.0.3(vc13, 08-04) · §8 동적 레지스트리 적용본은 v1.0.2부터 |
 | K장부 | `com.kitwlshcom.kjangbu` | `ic_kjangbu.png` | AI 생활 기록·관리 장부(가계부·차계부·케어) | `com.kitwlshcom.kjangbu` | **라이브 v1.0.0(vc1, 2026-08-10 출시)** — 레지스트리 `comingSoon:false` 전환 완료 |
 | _(신규앱)_ | _(applicationId)_ | _(아이콘.png)_ | _(소개)_ | _(id 값)_ | _(예정/출시)_ |
 
@@ -244,7 +244,7 @@ Android 11+는 **설치감지(`getLaunchIntentForPackage`)/직접 실행**에 �
 | 앱 | 전환 상태 | 다음 배포 |
 |---|---|---|
 | **KDailyUtil** | ✅ **구현 완료(2026-07-29)** — Compose + Coil. **실기기 검증 10/10 통과(§8-12)** | vc6 / v1.6 |
-| **KLotto645** | ✅ **구현 + 🚀 배포 완료(2026-08-03)** — XML/View. 이미지 라이브러리가 없어 `RemoteIconCache`(디스크 캐시 + `BitmapFactory`)를 직접 구현, **의존성 추가 없음**. 실기기/에뮬레이터 **T1~T10 전 항목 검증 통과** | **vc12 / v1.0.2 (라이브)** |
+| **KLotto645** | ✅ **구현 + 🚀 배포 완료(2026-08-03)** — XML/View. 이미지 라이브러리가 없어 `RemoteIconCache`(디스크 캐시 + `BitmapFactory`)를 직접 구현, **의존성 추가 없음**. 실기기/에뮬레이터 **T1~T10 전 항목 검증 통과** | **vc12 / v1.0.2로 적용** · 현재 라이브 **vc14 / v1.1.0** |
 | **K장부** | ✅ **구현 + 🚀 출시 완료(2026-08-10)** — Compose + Coil. **첫 출시본(vc1)부터 동적**이라 전환용 추가 배포가 애초에 없었다 | **vc1 / v1.0.0 (라이브)** |
 
 > ⚠️ **전환은 배포돼야 효력이 생긴다.** **KLotto645는 v1.0.2(2026-08-03)로 배포 완료** — 업데이트를 받은 사용자부터 동적 카드가 보인다. KDailyUtil v1.5 사용자에게는 다음 업데이트가 깔릴 때까지 예전 하드코딩 카드가 보인다(K장부 카드 없음). 그 이후로는 영구히 JSON만으로 관리된다.
