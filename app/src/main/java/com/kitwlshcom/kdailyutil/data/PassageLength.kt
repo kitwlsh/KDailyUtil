@@ -25,6 +25,22 @@ object PassageLength {
     const val DEFAULT_WPM = 300
 
     /**
+     * 이 글자 수 이상이면 **«장문»**으로 본다 (2026-09-14).
+     *
+     * 🔴 **별도 필드를 만들지 않고 «길이»로 판정한다.** 로봇이 주 1회(일요일) 800~1,200자를
+     * 만드는데, JSON에 `kind` 같은 필드를 새로 넣으면 **구버전 앱이 모르는 값**이 생긴다.
+     * 길이는 이미 본문에 들어 있으므로 형식을 바꾸지 않고도 판정할 수 있다.
+     *
+     * 경계값 500자는 **평소 지문(최대 250자)과 장문(최소 800자) 사이의 빈 구간**이다.
+     * 어느 쪽 규격이 조금 흔들려도 오판하지 않는다.
+     * 🔴 로봇 쪽 값(`update_passages.py`의 `LONG_MIN_CHARS`)을 바꾸면 여기도 같이 본다.
+     */
+    const val LONG_CHARS = 500
+
+    /** 「오늘은 긴 지문」인가. 사용자가 **시작 전에** 알아야 하는 정보다. */
+    fun isLong(text: String): Boolean = text.trim().length >= LONG_CHARS
+
+    /**
      * 어절 수. 🔴 `RsvpModule`이 화면에 뿌리는 단위와 **같은 규칙**이다
      * (`trim().split(Regex("""\s+""")).filter { it.isNotBlank() }`).
      */

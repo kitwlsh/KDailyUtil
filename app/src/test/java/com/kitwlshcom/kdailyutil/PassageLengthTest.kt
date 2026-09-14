@@ -2,6 +2,7 @@ package com.kitwlshcom.kdailyutil
 
 import com.kitwlshcom.kdailyutil.data.PassageLength
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -80,5 +81,44 @@ class PassageLengthTest {
         assertTrue("글자 수를 말해야 한다: $label", label.contains("자"))
         assertTrue("시간을 말해야 한다: $label", label.contains("약"))
         assertEquals("빈 글에는 아무것도 붙이지 않는다", "", PassageLength.label("   ", 300))
+    }
+
+    // ── 「긴 지문」 판정 (2026-09-14 · 주 1회 장문) ──────────────────────────
+
+    /**
+     * 🔴 **길이로 판정하는 이유를 고정한다.** 로봇이 일요일에 800~1,200자를 만드는데,
+     * JSON에 `kind` 같은 필드를 새로 넣으면 **구버전 앱이 모르는 값**이 생긴다.
+     * 경계 500자는 평소 지문(최대 250자)과 장문(최소 800자) **사이의 빈 구간**이라
+     * 어느 쪽 규격이 조금 흔들려도 오판하지 않는다.
+     */
+    @Test
+    fun `평소 지문은 긴 지문이 아니고 장문은 긴 지문이다`() {
+        val normal = "가".repeat(250)   // 로봇 규격의 최대
+        val long = "가".repeat(800)     // 로봇 장문 규격의 최소
+        assertFalse("평소 지문을 긴 지문이라 하면 매일 경고가 뜬다", PassageLength.isLong(normal))
+        assertTrue("장문을 못 알아보면 경고가 아예 안 뜬다", PassageLength.isLong(long))
+    }
+
+    /** 경계 양쪽 — 규격이 흔들려도 판정이 뒤집히지 않을 만큼 떨어져 있어야 한다. */
+    @Test
+    fun `긴 지문 경계는 두 규격 사이의 빈 구간에 있다`() {
+        assertTrue(
+            "경계가 평소 지문 최대(250자)보다 넉넉히 위에 있어야 한다",
+            PassageLength.LONG_CHARS > 250 + 100
+        )
+        assertTrue(
+            "경계가 장문 최소(800자)보다 넉넉히 아래에 있어야 한다",
+            PassageLength.LONG_CHARS < 800 - 100
+        )
+    }
+
+    /** 🔴 장문은 «각오»가 필요한 길이여야 말이 된다 — 300 WPM에서 30초는 넘는다. */
+    @Test
+    fun `장문 한 편은 30초를 넘는다`() {
+        val long = List(210) { "단어$it" }.joinToString(" ") // 약 800자 상당의 어절 수
+        assertTrue(
+            "30초도 안 되면 «긴 지문»이라 말할 이유가 없다",
+            PassageLength.seconds(long, 300) > 30
+        )
     }
 }

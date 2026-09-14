@@ -23,6 +23,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -138,17 +139,8 @@ private fun randomPassageExcept(current: String, extra: List<String>): String {
  */
 private const val PASSAGE_PICKER_PAGE = 20
 
-/**
- * 「📚 내 지문 보관함」 한 번에 보여 주는 편수 (2026-09-08).
- *
- * 🔴 「지문 고르기」만 자르고 보관함을 안 잘라 두었던 것이 이번 스크롤 문제의 절반이었다.
- * 허브는 `Column + verticalScroll`이라 `forEach`가 **화면 밖까지 전부 구성**하므로,
- * 보관함이 늘어난 만큼 아래쪽 훈련 목록이 그대로 멀어졌다.
- * ⚠️ LazyColumn으로 바꾸는 것이 답이 아니다 — 스크롤되는 Column 안의 LazyColumn은 무한 높이로 터진다.
- */
-private const val LIBRARY_PAGE = 20
 
-private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, CHUNK, EYE, RESULT, COMPREHENSION, STATS }
+private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, CHUNK, EYE, RESULT, COMPREHENSION, STATS, LIBRARY }
 
 @Composable
 fun ReadingTrainingScreen(
@@ -264,6 +256,16 @@ fun ReadingTrainingScreen(
                 viewModel = viewModel,
                 onExit = { module = ReadingModule.HUB }
             )
+            ReadingModule.LIBRARY -> LibraryModule(
+                viewModel = viewModel,
+                currentPassage = passage,
+                onStartTraining = { text, target ->
+                    if (text != null) { userPickedPassage = true; passage = text }
+                    startTraining(target)
+                },
+                onUseCustom = { userPickedPassage = true; passage = it },
+                onExit = { module = ReadingModule.HUB }
+            )
         }
     }
 }
@@ -294,8 +296,6 @@ private fun ReadingHub(
 
     var customText by remember { mutableStateOf("") }
     var showCustomInput by remember { mutableStateOf(false) }
-    // 보관함 지문 제목 편집 대상(null이면 다이얼로그 닫힘)
-    var editingPassage by remember { mutableStateOf<SavedPassage?>(null) }
 
     // ── 훈련 시작 (2026-09-08) ────────────────────────────────
     //
@@ -370,75 +370,14 @@ private fun ReadingHub(
     // 훈련 고르기 창 — 확인 대화창이 아니라 **선택창**이다(무엇으로 시작할지 정하는 자리).
     if (pickerOpen) {
         val pending = pickerPassage
-        AlertDialog(
-            onDismissRequest = { pickerOpen = false },
-            title = { Text("어떤 훈련으로 할까요?", color = Gold24K, fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // 🔴 **한 줄에 동작이 둘이다 — 그 둘이 다르다는 것을 눈으로 알 수 있어야 한다**(2026-09-14).
-                    //    줄 본문을 누르면 «이번 한 번만» 그 훈련으로 시작한다(기본은 그대로).
-                    //    ⭐를 누르면 «앞으로 계속» 그 훈련이 된다(시작하지는 않는다).
-                    //    예전에는 이 창에서 고르기만 해도 기본이 바뀌었고, 그것이 「다음 훈련」을
-                    //    누른 사람에게까지 번져 «바꾼 적 없는데 바뀌어 있는» 상태를 만들었다.
-                    ReadingTrainingModule.entries.forEach { m ->
-                        val isDefault = m == defaultModule
-                        Card(
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                pickerOpen = false
-                                onStartTraining(pending, m)
-                            },
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isDefault) Gold24K.copy(0.14f) else DeepCharcoal.copy(0.6f)
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                if (isDefault) 1.5.dp else 0.5.dp,
-                                Gold24K.copy(if (isDefault) 0.7f else 0.12f)
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(start = 12.dp, top = 4.dp, bottom = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f).padding(vertical = 8.dp)) {
-                                    Text(m.display, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                    if (isDefault) {
-                                        Text("기본 훈련", fontSize = 10.sp, color = Gold24K)
-                                    }
-                                }
-                                Text("▶", color = Gold24K)
-                                // ⭐ — 기본 훈련을 바꾸는 **앱에서 유일한 자리**.
-                                TextButton(
-                                    onClick = {
-                                        viewModel.setDefaultModule(m)
-                                        Toast.makeText(
-                                            context,
-                                            "기본 훈련을 「${m.label}」로 정했어요.",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 10.dp)
-                                ) {
-                                    Text(
-                                        if (isDefault) "★" else "☆",
-                                        fontSize = 18.sp,
-                                        color = if (isDefault) Gold24K else Color.White.copy(0.45f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    Text(
-                        "줄을 누르면 이번 한 번만 그 훈련으로 합니다. ☆를 누르면 기본 훈련이 바뀌어 " +
-                            "다음부터 시작 버튼에 그대로 뜹니다. 화면이 열려도 바로 흐르지 않으니 준비되면 재생을 누르세요.",
-                        fontSize = 11.sp, color = Color.White.copy(0.5f), lineHeight = 16.sp
-                    )
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { pickerOpen = false }) { Text("취소", color = Color.White.copy(0.7f)) }
-            },
-            containerColor = DeepCharcoal
+        TrainingPickerDialog(
+            defaultModule = defaultModule,
+            onDismiss = { pickerOpen = false },
+            onStartOnce = { m -> pickerOpen = false; onStartTraining(pending, m) },
+            onSetDefault = { m ->
+                viewModel.setDefaultModule(m)
+                Toast.makeText(context, "기본 훈련을 「${m.label}」로 정했어요.", Toast.LENGTH_SHORT).show()
+            }
         )
     }
 
@@ -505,6 +444,17 @@ private fun ReadingHub(
                         Spacer(Modifier.weight(1f))
                         // 지난 지문 차례인 날은 그렇다고 말해 준다 — 말 없이 옛 지문이 나오면
                         // «왜 오늘 지문이 예전 것이지?»가 된다.
+                        // 🔴 **긴 지문은 시작 «전»에 말해 준다**(2026-09-14).
+                        //    훈련은 끝까지 흘러야 기록이 남는다 — 중간에 나가면 출석·연속이 빈다.
+                        //    11초짜리는 그냥 다 보지만 1분짜리는 «각오»가 필요하다.
+                        if (PassageLength.isLong(today.text)) {
+                            Text(
+                                "📜 긴 지문",
+                                fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                                color = Gold24K
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
                         if (todayIsRevisit) {
                             Text(
                                 "🔁 지난 지문",
@@ -603,6 +553,10 @@ private fun ReadingHub(
                                         modifier = Modifier.weight(1f, fill = false)
                                     )
                                     Spacer(Modifier.width(6.dp))
+                                    if (PassageLength.isLong(item.text)) {
+                                        Text("📜", fontSize = 11.sp)
+                                        Spacer(Modifier.width(2.dp))
+                                    }
                                     Text(
                                         PassageLength.label(item.text, recommendedWpm),
                                         fontSize = 10.sp, color = Color.White.copy(0.45f)
@@ -893,6 +847,7 @@ private fun ReadingHub(
                                         Spacer(Modifier.weight(1f))
                                         Text(
                                             listOfNotNull(
+                                                "📜".takeIf { PassageLength.isLong(item.text) },
                                                 PassageLength.durationLabel(item.text, recommendedWpm)
                                                     .takeIf { it.isNotBlank() },
                                                 item.theme.takeIf { it.isNotBlank() },
@@ -1046,22 +1001,233 @@ private fun ReadingHub(
             }
         }
 
-        // 지문 보관함
+        // 📚 내 지문 — **별도 화면으로 뺐다**(2026-09-14 · 사용자 요청).
+        //
+        // 🔴 **왜 뺐나** — 보관함은 사용자가 넣을수록 길어지는 유일한 구역이고, 허브에 있는 한
+        //    그 아래 것들이 계속 멀어진다. 09-08에 20편으로 자르고 09-14에 훈련을 위로 올려
+        //    급한 불은 껐지만, «지문을 많이 넣을수록 허브가 길어진다»는 성질 자체는 그대로였다.
+        //    화면을 나누면 그 성질이 사라진다 — 허브는 **한 줄**이다.
+        //
+        // ⚠️ **숨긴 로봇 지문은 여기로 옮기지 않았다.** 그건 «내 지문»이 아니라 시스템 지문이고,
+        //    그것을 되살리는 자리는 그것을 고르는 자리(「지문 고르기」)가 맞다.
         if (savedPassages.isNotEmpty()) {
-            // 🔴 상한 없이 전부 그리던 곳이다(2026-09-08에 자름). 보관함이 늘어난 만큼
-            //    아래의 훈련 목록이 그대로 멀어져서, 지문을 많이 넣은 사람일수록 훈련 시작이 어려웠다.
-            var libraryVisible by remember { mutableStateOf(LIBRARY_PAGE) }
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("📚 내 지문 보관함", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+            Row(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                    .background(Gold24K.copy(0.08f))
+                    .clickable { onSelect(ReadingModule.LIBRARY) }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("📚 내 지문", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
                 Spacer(Modifier.width(6.dp))
-                Text("총 ${savedPassages.size}편", fontSize = 11.sp, color = Color.White.copy(0.5f))
+                Text("${savedPassages.size}편", fontSize = 12.sp, color = Color.White.copy(0.6f))
+                Spacer(Modifier.weight(1f))
+                Text("열기 ›", fontSize = 12.sp, color = Gold24K.copy(0.85f))
             }
-            savedPassages.take(libraryVisible).forEach { p ->
-                val selected = p.text.trim() == passage.trim()
+        }
+
+        // 보관함 지문 제목 편집 다이얼로그
+
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "ⓘ 본 기능은 일반 속독 훈련 원리에 기반한 독자 구현이며 특정 도서·저자·프로그램과 무관합니다. 효과는 개인차가 있습니다.\n속독 원리에 관심이 있다면 김병완 「1시간에 1권 퀀텀 독서법」을 추천합니다.",
+            fontSize = 11.sp, color = Color.Gray, lineHeight = 16.sp
+        )
+    }
+}
+
+
+/**
+ * 「어떤 훈련으로 할까요?」 창 (2026-09-14에 공용으로 뺐다).
+ *
+ * 🔴 **한 줄에 동작이 둘이다.** 줄 본문 = «이번 한 번만» 시작 · ☆ = «앞으로 계속»(기본 훈련).
+ * 허브와 「📚 내 지문」 화면이 **같은 창을 쓴다** — 복사해 두면 한쪽만 고치는 사고가 난다.
+ */
+@Composable
+private fun TrainingPickerDialog(
+    defaultModule: ReadingTrainingModule,
+    onDismiss: () -> Unit,
+    /** 이번 한 번만 이 훈련으로 시작한다. 기본 훈련은 건드리지 않는다. */
+    onStartOnce: (ReadingTrainingModule) -> Unit,
+    /** ☆ — 기본 훈련을 바꾼다. **앱에서 기본이 바뀌는 유일한 경로다.** */
+    onSetDefault: (ReadingTrainingModule) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("어떤 훈련으로 할까요?", color = Gold24K, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ReadingTrainingModule.entries.forEach { m ->
+                    val isDefault = m == defaultModule
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable { onStartOnce(m) },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDefault) Gold24K.copy(0.14f) else DeepCharcoal.copy(0.6f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            if (isDefault) 1.5.dp else 0.5.dp,
+                            Gold24K.copy(if (isDefault) 0.7f else 0.12f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .padding(start = 12.dp, top = 4.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(vertical = 8.dp)) {
+                                Text(m.display, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                if (isDefault) Text("기본 훈련", fontSize = 10.sp, color = Gold24K)
+                            }
+                            Text("▶", color = Gold24K)
+                            TextButton(
+                                onClick = { onSetDefault(m) },
+                                contentPadding = PaddingValues(horizontal = 10.dp)
+                            ) {
+                                Text(
+                                    if (isDefault) "★" else "☆",
+                                    fontSize = 18.sp,
+                                    color = if (isDefault) Gold24K else Color.White.copy(0.45f)
+                                )
+                            }
+                        }
+                    }
+                }
+                Text(
+                    "줄을 누르면 이번 한 번만 그 훈련으로 합니다. ☆를 누르면 기본 훈련이 바뀌어 " +
+                        "다음부터 시작 버튼에 그대로 뜹니다. 화면이 열려도 바로 흐르지 않으니 준비되면 재생을 누르세요.",
+                    fontSize = 11.sp, color = Color.White.copy(0.5f), lineHeight = 16.sp
+                )
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("취소", color = Color.White.copy(0.7f)) }
+        },
+        containerColor = DeepCharcoal
+    )
+}
+
+/**
+ * 「📚 내 지문」 — 보관함 **별도 화면** (2026-09-14 · 사용자 요청).
+ *
+ * 🔴 **왜 화면을 나눴나** — 보관함은 사용자가 넣을수록 길어지는 유일한 구역이라,
+ * 허브에 있는 한 «지문을 많이 넣을수록 아래 것들이 멀어지는» 성질이 사라지지 않는다.
+ * 09-08에 20편으로 자르고 09-14에 훈련을 위로 올린 것은 **증상 완화**였다.
+ * 화면을 나누면 허브에서는 **한 줄**이 된다.
+ *
+ * ⚠️ **숨긴 로봇 지문은 여기 없다.** 그건 «내 지문»이 아니라 시스템 지문이고,
+ * 되살리는 자리는 그것을 고르는 자리(「지문 고르기」)가 맞다.
+ *
+ * 🟢 여기서는 `LazyColumn`을 쓴다 — **자기 화면 전체를 쓰므로** 높이가 무한이 아니다.
+ * 🔴 허브(`Column + verticalScroll`) 안에서는 절대 쓰지 말 것(무한 높이로 터진다).
+ */
+@Composable
+private fun LibraryModule(
+    viewModel: ReadingTrainingViewModel,
+    currentPassage: String,
+    onStartTraining: (String?, ReadingTrainingModule) -> Unit,
+    onUseCustom: (String) -> Unit,
+    onExit: () -> Unit
+) {
+    val context = LocalContext.current
+    val savedPassages by viewModel.savedPassages.collectAsState()
+    val defaultModule by viewModel.defaultModule.collectAsState()
+    val recommendedWpm by viewModel.recommendedWpm.collectAsState()
+
+    var query by remember { mutableStateOf("") }
+    var editingPassage by remember { mutableStateOf<SavedPassage?>(null) }
+    var pickerPassage by remember { mutableStateOf<String?>(null) }
+    var pickerOpen by remember { mutableStateOf(false) }
+
+    // 🔴 검색은 목록을 **줄이는** 일이라 편수가 늘수록 오히려 가벼워진다.
+    val shown = remember(savedPassages, query) {
+        val q = query.trim()
+        if (q.isBlank()) savedPassages
+        else savedPassages.filter { it.title.contains(q, true) || it.text.contains(q, true) }
+    }
+
+    if (pickerOpen) {
+        val pending = pickerPassage
+        TrainingPickerDialog(
+            defaultModule = defaultModule,
+            onDismiss = { pickerOpen = false },
+            onStartOnce = { m -> pickerOpen = false; onStartTraining(pending, m) },
+            onSetDefault = { m ->
+                viewModel.setDefaultModule(m)
+                Toast.makeText(context, "기본 훈련을 「${m.label}」로 정했어요.", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    editingPassage?.let { target ->
+        var titleInput by remember(target.id) { mutableStateOf(target.title) }
+        AlertDialog(
+            onDismissRequest = { editingPassage = null },
+            title = { Text("지문 제목 편집", color = Gold24K, fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = titleInput,
+                    onValueChange = { if (it.length <= 40) titleInput = it },
+                    label = { Text("제목 (최대 40자)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.renamePassage(target.id, titleInput); editingPassage = null },
+                    enabled = titleInput.isNotBlank()
+                ) { Text("저장", color = Gold24K) }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingPassage = null }) { Text("취소", color = Color.White.copy(0.7f)) }
+            },
+            containerColor = DeepCharcoal
+        )
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        ModuleTopBar("📚 내 지문", onExit)
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            singleLine = true,
+            label = { Text("제목·내용으로 찾기", fontSize = 12.sp) },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    TextButton(onClick = { query = "" }) { Text("지우기", color = Gold24K, fontSize = 11.sp) }
+                }
+            }
+        )
+        Text(
+            when {
+                query.isBlank() -> "총 ${savedPassages.size}편"
+                shown.isEmpty() -> "찾는 지문이 없어요."
+                else -> "${shown.size}편 찾음"
+            },
+            fontSize = 11.sp, color = Color.White.copy(0.55f),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+        )
+        if (savedPassages.isEmpty()) {
+            Text(
+                "아직 넣은 지문이 없어요. 독서 훈련 화면의 「책 페이지 촬영」이나 " +
+                    "「내 텍스트 붙여넣기」로 담을 수 있어요.",
+                fontSize = 13.sp, color = Color.White.copy(0.6f), lineHeight = 20.sp,
+                modifier = Modifier.padding(16.dp)
+            )
+        }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(bottom = 90.dp)
+        ) {
+            items(shown, key = { it.id }) { p ->
+                val selected = p.text.trim() == currentPassage.trim()
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable {
                         onUseCustom(p.text)
-                        android.widget.Toast.makeText(context, "「${p.title}」 선택됨", android.widget.Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "「${p.title}」 선택됨", Toast.LENGTH_SHORT).show()
                     },
                     colors = CardDefaults.cardColors(
                         containerColor = if (selected) Gold24K.copy(0.14f) else DeepCharcoal.copy(0.85f)
@@ -1075,106 +1241,80 @@ private fun ReadingHub(
                         modifier = Modifier.fillMaxWidth().padding(10.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        if (p.imagePath != null) {
-                            AsyncImage(
-                                model = java.io.File(p.imagePath),
-                                contentDescription = null,
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp))
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(Gold24K.copy(0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) { Text("📄", fontSize = 18.sp) }
-                        }
-                        Spacer(Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                if (selected) Text("✓", color = Gold24K, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                Text(
-                                    p.title, fontSize = 14.sp, fontWeight = FontWeight.Bold,
-                                    color = if (selected) Gold24K else Color.White, maxLines = 1
-                                )
-                            }
-                            // 보관함에도 길이를 적는다 — 촬영해 넣은 지문은 길이가 제각각이라
-                            // 여기야말로 «얼마나 걸리나»가 필요한 자리다.
-                            Text(
-                                PassageLength.label(p.text, recommendedWpm),
-                                fontSize = 10.sp, color = Color.White.copy(0.45f)
-                            )
-                            Text(
-                                if (selected) "사용 중" else (p.text.take(40) + if (p.text.length > 40) "…" else ""),
-                                fontSize = 11.sp,
-                                color = if (selected) Gold24K.copy(0.8f) else Color.White.copy(0.55f),
-                                maxLines = 1
-                            )
-                        }
-                        Text("✏️", fontSize = 15.sp,
-                            modifier = Modifier.clip(CircleShape).clickable { editingPassage = p }.padding(8.dp))
-                        Text("✕", color = Color.White.copy(0.5f), fontSize = 16.sp,
-                            modifier = Modifier.clip(CircleShape).clickable { viewModel.deletePassage(p.id) }.padding(8.dp))
-                    }
-                    // 고른 지문에만 시작 버튼 — 「지문 고르기」와 같은 규칙(목록 높이를 지킨다).
-                    if (selected) {
-                        StartTrainingRow(
-                            label = startLabel(defaultModule),
-                            emphasized = false,
-                            onStart = { beginTraining(p.text) },
-                            onPick = { openPicker(p.text) }
+                        LibraryRow(
+                            p = p,
+                            selected = selected,
+                            recommendedWpm = recommendedWpm,
+                            onEdit = { editingPassage = p },
+                            onDelete = { viewModel.deletePassage(p.id) }
                         )
+                        if (selected) {
+                            StartTrainingRow(
+                                label = startLabel(defaultModule),
+                                emphasized = false,
+                                onStart = { onStartTraining(p.text, defaultModule) },
+                                onPick = { pickerPassage = p.text; pickerOpen = true }
+                            )
+                        }
                     }
-                    } // 카드 내용 Column (썸네일 행 + 고른 경우의 시작 버튼)
-                }
-            }
-            if (savedPassages.size > libraryVisible) {
-                OutlinedButton(
-                    onClick = {
-                        libraryVisible = (libraryVisible + LIBRARY_PAGE).coerceAtMost(savedPassages.size)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        "더 보기 (${savedPassages.size - libraryVisible}편 남음)",
-                        color = Gold24K, fontSize = 12.sp
-                    )
                 }
             }
         }
+    }
+}
 
-        // 보관함 지문 제목 편집 다이얼로그
-        editingPassage?.let { target ->
-            var titleInput by remember(target.id) { mutableStateOf(target.title) }
-            AlertDialog(
-                onDismissRequest = { editingPassage = null },
-                title = { Text("지문 제목 편집", color = Gold24K, fontWeight = FontWeight.Bold) },
-                text = {
-                    OutlinedTextField(
-                        value = titleInput,
-                        onValueChange = { if (it.length <= 40) titleInput = it },
-                        label = { Text("제목 (최대 40자)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = { viewModel.renamePassage(target.id, titleInput); editingPassage = null },
-                        enabled = titleInput.isNotBlank()
-                    ) { Text("저장", color = Gold24K) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { editingPassage = null }) { Text("취소", color = Color.White.copy(0.7f)) }
-                },
-                containerColor = DeepCharcoal
+/** 「📚 내 지문」 한 줄 — 썸네일·제목·길이·본문 미리보기 + 편집/삭제. */
+@Composable
+private fun LibraryRow(
+    p: SavedPassage,
+    selected: Boolean,
+    recommendedWpm: Int,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        if (p.imagePath != null) {
+            AsyncImage(
+                model = java.io.File(p.imagePath),
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp))
+            )
+        } else {
+            Box(
+                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(6.dp))
+                    .background(Gold24K.copy(0.15f)),
+                contentAlignment = Alignment.Center
+            ) { Text("📄", fontSize = 18.sp) }
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                if (selected) Text("✓", color = Gold24K, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(
+                    p.title, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                    color = if (selected) Gold24K else Color.White, maxLines = 1
+                )
+            }
+            Text(
+                PassageLength.label(p.text, recommendedWpm),
+                fontSize = 10.sp, color = Color.White.copy(0.45f)
+            )
+            Text(
+                if (selected) "사용 중" else (p.text.take(40) + if (p.text.length > 40) "…" else ""),
+                fontSize = 11.sp, color = Color.White.copy(0.6f), maxLines = 2
             )
         }
-
-        Spacer(Modifier.height(4.dp))
         Text(
-            "ⓘ 본 기능은 일반 속독 훈련 원리에 기반한 독자 구현이며 특정 도서·저자·프로그램과 무관합니다. 효과는 개인차가 있습니다.\n속독 원리에 관심이 있다면 김병완 「1시간에 1권 퀀텀 독서법」을 추천합니다.",
-            fontSize = 11.sp, color = Color.Gray, lineHeight = 16.sp
+            "✏️", fontSize = 15.sp,
+            modifier = Modifier.clip(CircleShape).clickable(onClick = onEdit).padding(8.dp)
+        )
+        Text(
+            "✕", color = Color.White.copy(0.5f), fontSize = 16.sp,
+            modifier = Modifier.clip(CircleShape).clickable(onClick = onDelete).padding(8.dp)
         )
     }
 }
