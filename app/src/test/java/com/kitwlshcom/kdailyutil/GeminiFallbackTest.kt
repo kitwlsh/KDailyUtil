@@ -88,27 +88,71 @@ class GeminiFallbackTest {
         assertEquals(models, tried)
     }
 
-    // ── 넘어가면 안 되는 경우 ─────────────────────────────────────────────
-
     /**
-     * 🔴 **429는 폴백하지 않는다.** 한도는 **키 단위**라 모델을 바꿔도 그대로다.
-     * 폴백하면 같은 실패를 후보 수만큼 반복하고(사용자는 그만큼 더 기다린다),
-     * 한도를 더 태우며, 사용자에게 보여줄 사유까지 흐려진다.
+     * 🔴 **이 테스트는 2026-09-14에 정반대로 뒤집혔다.**
+     *
+     * 08-25에는 「429는 폴백하지 않는다 — 한도는 **키 단위**라 모델을 바꿔도 그대로다」였고,
+     * 그것을 «넘어가면 안 되는 경우»로 못 박아 두고 있었다. **그 전제가 실측으로 깨졌다.**
+     *
+     * 진단 워크플로에서 **간격 없이 교대로** 던진 결과(2026-09-14 11:31 KST):
+     * ```
+     *   2회 · gemini-3.5-flash (대조군): 429  (limit: 5 · retry in 36.9s)
+     *   2회 · gemini-3.6-flash         : 200
+     * ```
+     * 같은 키·같은 순간인데 한쪽만 막혔다 → **한도는 모델마다 따로다.**
+     * (09-09에 두 번 쟀지만 대조군을 맨 끝에 둬서 그새 창이 풀려 판정을 못 했다.)
+     *
+     * 🔴 **이 테스트가 깨지면 «모델을 바꿔도 안 되는데 계속 바꿔 태우는» 쪽이 아니라,
+     * «바꾸면 되는데 안 바꾸고 포기하는» 쪽으로 되돌아간 것이다.**
      */
     @Test
-    fun `429는 폴백하지 않고 즉시 던진다`() = runBlocking {
+    fun `429면 다음 후보로 넘어간다`() = runBlocking {
         val first = GeminiManager.FALLBACK_MODELS[0]
+        val second = GeminiManager.FALLBACK_MODELS[1]
+
+        val out = manager().askWithFallback(caller(mapOf(first to quota429)))
+
+        assertEquals("OK from $second", out)
+        assertEquals("첫 후보에서 멈추면 안 된다", listOf(first, second), tried)
+    }
+
+    /** 429와 503이 섞여 나와도 끝까지 내려간다 — 실측에서 실제로 둘 다 나왔다. */
+    @Test
+    fun `429와 503이 섞여도 끝까지 내려간다`() = runBlocking {
+        val models = GeminiManager.FALLBACK_MODELS
+        val out = manager().askWithFallback(
+            caller(mapOf(models[0] to quota429, models[1] to busy503))
+        )
+
+        assertEquals("OK from ${models[2]}", out)
+        assertEquals(models.take(3), tried)
+    }
+
+    /**
+     * 후보가 **전부** 429면 그때는 던진다.
+     * 🔴 **앱은 «자고 재시도»를 하지 않는다** — 관측된 대기가 28~38초인데 사람이 앞에서 기다린다.
+     * 대신 안내 문구가 「약 N초 뒤에 다시 시도해 주세요」라고 말해 준다(`AiErrorMessageTest`).
+     */
+    @Test
+    fun `후보가 전부 429면 한도 안내로 끝난다`() = runBlocking {
+        val all = GeminiManager.FALLBACK_MODELS.associateWith { quota429 as Exception }
         var thrown: Exception? = null
 
         try {
-            manager().askWithFallback(caller(mapOf(first to quota429)))
+            manager().askWithFallback(caller(all))
         } catch (e: Exception) {
             thrown = e
         }
 
-        assertNotNull("한도 초과는 그대로 던져야 한다", thrown)
-        assertEquals("후보를 더 시도하면 한도만 더 태운다", listOf(first), tried)
+        assertNotNull("전부 막히면 던져야 한다", thrown)
+        assertEquals("모든 후보를 한 번씩은 시도한다", GeminiManager.FALLBACK_MODELS, tried)
+        assertTrue(
+            "사유가 «한도»로 남아야 한다: " + GeminiManager.aiErrorMessage(thrown!!),
+            GeminiManager.aiErrorMessage(thrown!!).contains("한도")
+        )
     }
+
+    // ── 넘어가면 안 되는 경우 ─────────────────────────────────────────────
 
     @Test
     fun `키 오류는 폴백하지 않고 즉시 던진다`() = runBlocking {

@@ -144,7 +144,10 @@ class GeminiManager(private val apiKey: String?) {
             RegexOption.IGNORE_CASE
         )
 
-        /** 429 / 사용량 한도인가. **키가 틀린 것·서버 혼잡과 구분해야 한다.** */
+        /**
+         * 429 / 사용량 한도인가. **키가 틀린 것·서버 혼잡과 구분해야 한다.**
+         * 🔴 2026-09-14부터 이 판정도 **폴백 대상**이다(한도가 모델별임이 실측됐다).
+         */
         internal fun looksRateLimited(m: String): Boolean =
             m.contains("429") || m.contains("RESOURCE_EXHAUSTED", true) ||
                 m.contains("QUOTA", true) || m.contains("rate limit", true)
@@ -193,11 +196,15 @@ class GeminiManager(private val apiKey: String?) {
 
     /**
      * 프롬프트 1건 실행 — **모든 AI 기능이 이 한 곳을 통과한다**(폴백이 전 기능에 적용되게).
-     * 모델이 **사라졌거나(404) 붐비면(503)** 다음 후보로 넘어간다.
+     * 모델이 **사라졌거나(404) · 붐비거나(503) · 한도에 걸리면(429)** 다음 후보로 넘어간다.
      *
-     * ⚠️ 그 외 오류(키·한도·네트워크)는 **폴백하지 않고 그대로 던진다.**
-     * 폴백하면 같은 오류를 후보 수만큼 반복하고, 사용자에게 보여줄 사유도 흐려진다.
-     * 특히 **429(내 한도)는 폴백하지 않는다** — 한도는 키 단위라 모델을 바꿔도 그대로다.
+     * 🔴 **429 폴백은 2026-09-14 실측으로 켰다** — 그 전에는 일부러 끄고 있었고,
+     * 근거는 「한도는 키 단위라 모델을 바꿔도 그대로다」였다. **그 전제가 틀렸다.**
+     * 간격 없이 교대로 던진 같은 순간에 `gemini-3.5-flash`는 429(limit 5)인데
+     * `gemini-3.6-flash`는 200이었다 → **한도는 모델마다 따로다**(AI_KEY_NOTES §3-2).
+     *
+     * ⚠️ 그 외 오류(키·네트워크)는 **폴백하지 않고 그대로 던진다.**
+     * 폴백해 봐야 같은 오류를 후보 수만큼 반복하고, 사용자에게 보여줄 사유도 흐려진다.
      *
      * @return 응답 텍스트. 키가 없으면 빈 문자열(호출부 가드가 먼저 걸러내는 게 정상 경로).
      */
@@ -239,12 +246,22 @@ class GeminiManager(private val apiKey: String?) {
                 val reason = when {
                     isModelUnavailable(e) -> "모델 없음(404) → 다음 후보"
                     isOverloaded(e) -> "모델 과부하(503) → 다음 후보"
+                    isRateLimited(e) -> "한도 초과(429) → 다음 후보"
                     else -> "폴백 안 함"
                 }
                 android.util.Log.w("GeminiModel", "⚠️ $name 실패($reason): ${e.javaClass.simpleName}: ${e.message}")
                 // 🔴 503은 **기다려도 그 모델이 안 풀린다** — 다른 모델로 넘어가야 한다.
                 //    예전엔 어느 분기에도 안 걸려서 폴백도 재시도도 없이 그냥 실패했다.
-                if (!isModelUnavailable(e) && !isOverloaded(e)) throw e
+                //
+                // 🔴 **429도 넘어간다(2026-09-14 실측으로 뒤집은 판단).**
+                //    한도는 모델마다 따로다 — 한쪽이 막힌 그 순간 다른 쪽은 200이었다.
+                //
+                // ⚠️ **앱은 «자고 재시도»를 하지 않는다. 로봇과 다른 선택이다.**
+                //    로봇(`update_quiz.py`)은 오류가 말한 초만큼 자고 다시 묻는다 — 아무도 안 기다리니까.
+                //    앱 앞에는 **사람이 앉아 있고** 관측된 대기가 28~38초다. 그만큼 멈춰 세우면
+                //    «앱이 먹통»으로 보인다. 모델을 바꾸면 **그 자리에서 200이 나오므로** 그쪽이 빠르다.
+                //    후보가 전부 막히면 그때는 던진다 — 안내 문구가 「약 N초 뒤에」라고 말해 준다.
+                if (!isModelUnavailable(e) && !isOverloaded(e) && !isRateLimited(e)) throw e
             }
         }
         throw last ?: IllegalStateException("사용 가능한 Gemini 모델을 찾지 못했습니다.")
@@ -255,6 +272,10 @@ class GeminiManager(private val apiKey: String?) {
 
     private fun isOverloaded(e: Exception): Boolean =
         looksOverloaded((e.message ?: "") + (e.cause?.message ?: ""))
+
+    /** 🔴 2026-09-14 실측 뒤 폴백 대상이 됐다 — 한도는 모델마다 따로다. */
+    private fun isRateLimited(e: Exception): Boolean =
+        looksRateLimited((e.message ?: "") + (e.cause?.message ?: ""))
 
     /** 기존 호출부의 `response?.text` 형태를 유지하기 위한 얇은 래퍼. 빈 응답은 null로 준다. */
     private class AiResponse(val text: String)
