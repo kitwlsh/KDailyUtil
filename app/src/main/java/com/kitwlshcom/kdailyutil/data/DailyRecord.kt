@@ -260,6 +260,42 @@ object DailyRecord {
      */
     const val REVISIT_EVERY_DAYS = 7L
 
+    // ──────────────────────────────────────────────────────────────
+    // 2-4. 지문이 하나도 없을 때 «왜 없는지» (2026-09-14)
+    //
+    // 🔴 첫 설치에는 기기에 지문 파일이 없다. 그래서 받아오기 전까지 「오늘의 지문」 카드가
+    //    **그려지지 않는다** — 없어지는 게 아니라 애초에 안 그려진다. 그 결과:
+    //      · 첫 사용자는 «매일 새 지문»이라는 기능이 있는 줄도 모른다
+    //      · 오프라인이면 영영 안 보이는데 이유를 알 길이 없다
+    //    개발 기기에는 이미 데이터가 있어서 **개발 중에는 보이지 않는 문제**다(08-12 장애와 같은 종류).
+    // ──────────────────────────────────────────────────────────────
+
+    /** 지문 목록이 빈 이유. [NONE]이면 지문이 있다는 뜻이라 설명할 것이 없다. */
+    enum class PassageEmptyReason { NONE, LOADING, OFFLINE, ALL_HIDDEN }
+
+    /**
+     * 지문이 하나도 없을 때 **무엇이라고 말할지** 고른다.
+     *
+     * 🔴 «못 받아서 빈 것»과 «내가 다 숨겨서 빈 것»은 사용자가 할 일이 정반대다.
+     * 전자는 기다리거나 연결을 보고, 후자는 숨긴 것을 다시 꺼내면 된다.
+     * 둘을 같은 문구로 안내하면 숨긴 사람은 영영 되돌리지 못한다.
+     *
+     * 안드로이드 API를 쓰지 않는 순수 함수다(단위 테스트 대상).
+     */
+    fun passageEmptyReason(
+        total: Int,
+        hiddenCount: Int,
+        syncing: Boolean,
+        syncFailed: Boolean
+    ): PassageEmptyReason = when {
+        total > 0 -> PassageEmptyReason.NONE
+        // 🔴 숨김이 먼저다 — 되돌릴 수 있는 쪽을 먼저 알려 준다.
+        hiddenCount > 0 -> PassageEmptyReason.ALL_HIDDEN
+        syncing -> PassageEmptyReason.LOADING
+        // 실패했거나(syncFailed) 아직 한 번도 못 받았거나 — 사용자에게는 같은 상황이다.
+        else -> PassageEmptyReason.OFFLINE
+    }
+
     /**
      * 오늘이 «지난 지문 차례»인가. 0 이하로 설정하면 이 배려를 끄는 것이다.
      * 안드로이드 API를 쓰지 않는 순수 함수다(단위 테스트 대상).

@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import com.kitwlshcom.kdailyutil.data.DailyRecord
 import com.kitwlshcom.kdailyutil.data.PassageLength
 import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
 import com.kitwlshcom.kdailyutil.data.repository.SavedPassage
@@ -408,6 +409,8 @@ private fun ReadingHub(
         val newPassages by viewModel.newPassages.collectAsState()
         val allRemote by viewModel.allRemotePassages.collectAsState()
         val hiddenCount by viewModel.hiddenPassageCount.collectAsState()
+        val passageSyncing by viewModel.passageSyncing.collectAsState()
+        val passageSyncFailed by viewModel.passageSyncFailed.collectAsState()
         val todayIsRevisit by viewModel.todayIsRevisit.collectAsState()
 
         // 🔴 「지문 고르기」의 열림 상태를 **여기까지 올린다**(2026-09-14).
@@ -421,6 +424,78 @@ private fun ReadingHub(
         // ⚠️ remember로 굳히지 않는다 — 자정을 넘겨 쓰는 사람에게 「오늘 완료」가 그대로 남으면 거짓말이 된다.
         val todayKey = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
         val doneToday = todayKey in trainedDates
+
+        // 🔴 **지문이 없을 때 자리를 비워 두지 않는다**(2026-09-14 · 사용자 질문에서 나왔다).
+        //    첫 설치에는 기기에 지문 파일이 없어 「오늘의 지문」 카드가 **애초에 안 그려진다.**
+        //    그러면 첫 사용자는 «매일 새 지문»이라는 기능이 있는 줄도 모르고,
+        //    오프라인이면 영영 안 보이는데 이유를 알 길이 없다.
+        //    🟢 훈련 자체는 첫 실행부터 된다 — 내장 지문이 이미 하나 골라져 있다. 그 사실도 말해 준다.
+        val emptyReason = DailyRecord.passageEmptyReason(
+            total = allRemote.size,
+            hiddenCount = hiddenCount,
+            syncing = passageSyncing,
+            syncFailed = passageSyncFailed
+        )
+        if (emptyReason != DailyRecord.PassageEmptyReason.NONE) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(0.85f)),
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.25f))
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    when (emptyReason) {
+                        DailyRecord.PassageEmptyReason.LOADING -> {
+                            Text(
+                                "📖 오늘의 지문을 받아오는 중이에요…",
+                                fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K
+                            )
+                            Text(
+                                "그동안 아래 내장 지문 ${PRACTICE_PASSAGES.size}편으로 바로 연습할 수 있어요.",
+                                fontSize = 12.sp, color = Color.White.copy(0.65f), lineHeight = 18.sp
+                            )
+                        }
+                        DailyRecord.PassageEmptyReason.ALL_HIDDEN -> {
+                            Text(
+                                "📖 받아 둔 지문을 모두 숨겼어요",
+                                fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K
+                            )
+                            Text(
+                                "숨긴 지문 ${hiddenCount}편이 있어요. 다시 꺼내면 「오늘의 지문」이 돌아옵니다.",
+                                fontSize = 12.sp, color = Color.White.copy(0.65f), lineHeight = 18.sp
+                            )
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.restoreHiddenPassages()
+                                    Toast.makeText(context, "숨긴 지문을 모두 다시 꺼냈어요.", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("숨긴 지문 다시 보기", color = Gold24K, fontSize = 12.sp, maxLines = 1) }
+                        }
+                        else -> {
+                            Text(
+                                "📖 매일 새 지문이 오는 기능이 있어요",
+                                fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K
+                            )
+                            Text(
+                                "지금은 받아오지 못해 내장 지문 ${PRACTICE_PASSAGES.size}편으로 연습해요. " +
+                                    "연결되면 하루 한 편씩 새 지문이 도착합니다.",
+                                fontSize = 12.sp, color = Color.White.copy(0.65f), lineHeight = 18.sp
+                            )
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.syncRemotePassages(force = true)
+                                    Toast.makeText(context, "다시 받아오는 중이에요…", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("다시 시도", color = Gold24K, fontSize = 12.sp, maxLines = 1) }
+                        }
+                    }
+                }
+            }
+        }
 
         todayRemote?.let { today ->
             Card(

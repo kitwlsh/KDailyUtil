@@ -133,6 +133,14 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     private val _newPassageNotice = MutableStateFlow(DailyRecord.NewItemNotice(unit = "편"))
     val newPassageNotice: StateFlow<DailyRecord.NewItemNotice> = _newPassageNotice.asStateFlow()
 
+    /** 지문을 받아오는 중인가. 첫 설치에는 «받아오는 중»을 말해 줘야 빈 화면이 되지 않는다. */
+    private val _passageSyncing = MutableStateFlow(false)
+    val passageSyncing: StateFlow<Boolean> = _passageSyncing.asStateFlow()
+
+    /** 마지막 받아오기가 실패했는가(오프라인 포함). */
+    private val _passageSyncFailed = MutableStateFlow(false)
+    val passageSyncFailed: StateFlow<Boolean> = _passageSyncFailed.asStateFlow()
+
     /** 사용자가 「숨기기」로 감춘 지문 수. 0보다 크면 다시 꺼내는 길을 화면에 내준다. */
     private val _hiddenPassageCount = MutableStateFlow(0)
     val hiddenPassageCount: StateFlow<Int> = _hiddenPassageCount.asStateFlow()
@@ -163,10 +171,15 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
         if (!force && now - lastSyncAtMs < SYNC_INTERVAL_MS) return
         lastSyncAtMs = now
         viewModelScope.launch {
+            _passageSyncing.value = true
             try {
                 repo.syncRemotePassages()
+                _passageSyncFailed.value = false
             } catch (e: Exception) {
                 Log.e(TAG, "지문 동기화 실패(캐시로 계속): ${e.message}")
+                _passageSyncFailed.value = true
+            } finally {
+                _passageSyncing.value = false
             }
             loadRemotePassages()
         }

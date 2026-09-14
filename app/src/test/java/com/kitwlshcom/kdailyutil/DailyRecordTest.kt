@@ -495,4 +495,44 @@ class DailyRecordTest {
         val hits = (0 until 70).count { DailyRecord.isPassageRevisitDay(today.plusDays(it.toLong())) }
         assertEquals("70일이면 정확히 10번", 10, hits)
     }
+
+    // ── 지문이 하나도 없을 때 «왜 없는지» (2026-09-14) ──────────────────────
+
+    private fun reason(total: Int, hidden: Int, syncing: Boolean, failed: Boolean) =
+        DailyRecord.passageEmptyReason(total, hidden, syncing, failed)
+
+    /** 지문이 있으면 설명할 것이 없다 — 멀쩡한 화면에 안내가 끼어들면 안 된다. */
+    @Test
+    fun `지문이 있으면 빈 이유를 말하지 않는다`() {
+        assertEquals(DailyRecord.PassageEmptyReason.NONE, reason(1, 0, false, false))
+        assertEquals(DailyRecord.PassageEmptyReason.NONE, reason(8, 3, true, true))
+    }
+
+    /** 🔴 첫 설치 — 받아오는 중이면 «받아오는 중»이라고 말해야 빈 화면이 되지 않는다. */
+    @Test
+    fun `첫 설치에 받아오는 중이면 로딩이라고 말한다`() {
+        assertEquals(DailyRecord.PassageEmptyReason.LOADING, reason(0, 0, true, false))
+    }
+
+    /** 못 받았으면(오프라인 포함) 기능이 있다는 것과 내장 지문으로 된다는 것을 말한다. */
+    @Test
+    fun `못 받았으면 오프라인이라고 말한다`() {
+        assertEquals(DailyRecord.PassageEmptyReason.OFFLINE, reason(0, 0, false, true))
+        // 아직 한 번도 못 받은 상태도 사용자에게는 같은 상황이다.
+        assertEquals(DailyRecord.PassageEmptyReason.OFFLINE, reason(0, 0, false, false))
+    }
+
+    /**
+     * 🔴 **«못 받아서 빈 것»과 «내가 다 숨겨서 빈 것»은 할 일이 정반대다.**
+     * 전자는 기다리면 되고, 후자는 숨긴 것을 꺼내야 한다.
+     * 같은 문구로 안내하면 숨긴 사람은 영영 되돌리지 못한다.
+     */
+    @Test
+    fun `다 숨겨서 빈 것은 숨김이라고 말한다`() {
+        assertEquals(DailyRecord.PassageEmptyReason.ALL_HIDDEN, reason(0, 2, false, false))
+        assertEquals(
+            "받아오는 중이어도, 되돌릴 수 있는 쪽을 먼저 알려 준다",
+            DailyRecord.PassageEmptyReason.ALL_HIDDEN, reason(0, 2, true, false)
+        )
+    }
 }
