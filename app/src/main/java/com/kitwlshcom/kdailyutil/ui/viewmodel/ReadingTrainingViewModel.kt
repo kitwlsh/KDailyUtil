@@ -132,7 +132,7 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     private val _newPassageNotice = MutableStateFlow(DailyRecord.NewItemNotice(unit = "편"))
     val newPassageNotice: StateFlow<DailyRecord.NewItemNotice> = _newPassageNotice.asStateFlow()
 
-    /** 사용자가 「치우기」로 감춘 지문 수. 0보다 크면 되돌리는 길을 화면에 내준다. */
+    /** 사용자가 「숨기기」로 감춘 지문 수. 0보다 크면 다시 꺼내는 길을 화면에 내준다. */
     private val _hiddenPassageCount = MutableStateFlow(0)
     val hiddenPassageCount: StateFlow<Int> = _hiddenPassageCount.asStateFlow()
 
@@ -249,7 +249,7 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
-    /** 치운 지문을 전부 되돌린다 — 「치우기」에 되돌아올 길이 없으면 그것은 삭제다. */
+    /** 숨긴 지문을 전부 다시 꺼낸다 — 「숨기기」에 돌아올 길이 없으면 그것은 삭제다. */
     fun restoreHiddenPassages() {
         viewModelScope.launch {
             repo.restoreHiddenRemotePassages()

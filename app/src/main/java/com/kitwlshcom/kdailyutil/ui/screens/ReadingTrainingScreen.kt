@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import com.kitwlshcom.kdailyutil.data.PassageLength
 import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
 import com.kitwlshcom.kdailyutil.data.repository.SavedPassage
 import androidx.compose.runtime.*
@@ -455,6 +456,216 @@ private fun ReadingHub(
             fontSize = 13.sp, color = Color.White.copy(0.7f)
         )
 
+        // ── 오늘의 지문 (로봇 공급 · 2026-09-07) ────────────────
+        //
+        // 랜덤만 있으면 «끝»이 없어서 «언제 해도 되니까 안 하게» 된다.
+        // 날짜로 정해진 1편은 오늘 할 일을 분명히 해 주고, 자정을 넘기면 새 지문이 온다.
+        // 원격 지문이 하나도 없으면(첫 설치·오프라인) 이 카드를 숨기고 기존 동작을 그대로 둔다.
+        val todayRemote by viewModel.todayPassage.collectAsState()
+        val newPassageNotice by viewModel.newPassageNotice.collectAsState()
+        val newPassages by viewModel.newPassages.collectAsState()
+        val allRemote by viewModel.allRemotePassages.collectAsState()
+        val hiddenCount by viewModel.hiddenPassageCount.collectAsState()
+        val todayIsRevisit by viewModel.todayIsRevisit.collectAsState()
+
+        // 🔴 「지문 고르기」의 열림 상태를 **여기까지 올린다**(2026-09-14).
+        //    「새로 온 지문」 카드에서 «전체 목록»으로 보내려면 그 카드보다 위에 있어야 한다.
+        //    한 주에 7편이 오는데 그 카드는 NEW_LIST_MAX(5)편까지만 보여 줘서,
+        //    링크가 없으면 매주 2편쯤은 사용자가 존재조차 모르는 채 창고로 넘어간다.
+        var showPicker by remember { mutableStateOf(false) }
+        var passageQuery by remember { mutableStateOf("") }
+
+        // 오늘 훈련을 이미 했는가. 퀴즈 카드와 같은 문법으로 «오늘 몫을 다 했다»를 보여 준다.
+        // ⚠️ remember로 굳히지 않는다 — 자정을 넘겨 쓰는 사람에게 「오늘 완료」가 그대로 남으면 거짓말이 된다.
+        val todayKey = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
+        val doneToday = todayKey in trainedDates
+
+        todayRemote?.let { today ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (doneToday) Color(0xFF1B3A2A).copy(alpha = 0.55f) else Gold24K.copy(0.10f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    0.8.dp,
+                    if (doneToday) Color(0xFF4CAF50).copy(alpha = 0.5f) else Gold24K.copy(0.45f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (doneToday) "✅ 오늘의 지문 완료!" else "📖 오늘의 지문",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (doneToday) Color(0xFF7BD98F) else Gold24K
+                        )
+                        Spacer(Modifier.weight(1f))
+                        // 지난 지문 차례인 날은 그렇다고 말해 준다 — 말 없이 옛 지문이 나오면
+                        // «왜 오늘 지문이 예전 것이지?»가 된다.
+                        if (todayIsRevisit) {
+                            Text(
+                                "🔁 지난 지문",
+                                fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                                color = Gold24K.copy(0.85f)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
+                        if (today.theme.isNotBlank()) {
+                            Text(today.theme, fontSize = 11.sp, color = Color.White.copy(0.55f))
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            today.title,
+                            fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(0.9f),
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        // 🔴 «얼마나 걸리나»를 말해 준다 — 고르는 데 필요한 정보다(2026-09-14).
+                        //    추천 목표 속도로 계산하므로 실력이 늘면 숫자도 같이 줄어든다.
+                        Text(
+                            PassageLength.label(today.text, recommendedWpm),
+                            fontSize = 10.sp, color = Color.White.copy(0.5f)
+                        )
+                    }
+                    Text(
+                        today.text.take(70) + if (today.text.length > 70) "…" else "",
+                        fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
+                    )
+
+                    // 🔴 오래 비운 사용자에게는 숫자를 말하지 않는다(복귀 사면).
+                    // 「밀린 12편」은 초대가 아니라 청구서이고, 오늘 할 일은 어느 쪽이든 한 편이다.
+                    if (newPassageNotice.amnesty) {
+                        Text(
+                            "🌱 그동안 새 지문이 쌓였어요 — 오늘 한 편부터 다시 시작해요",
+                            fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Gold24K.copy(0.9f)
+                        )
+                    } else if (newPassageNotice.hasNumber) {
+                        Text(
+                            "🆕 새 지문 ${newPassageNotice.text}이 도착했어요",
+                            fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Gold24K.copy(0.9f)
+                        )
+                    }
+
+                    // 완료한 뒤에도 막지 않는다 — 더 읽고 싶은 사람을 세거나 목표를 붙이지만 않으면
+                    // 자발적 소비는 부담이 되지 않는다(§6-5).
+                    StartTrainingRow(
+                        label = startLabel(defaultModule, again = doneToday),
+                        emphasized = !doneToday,
+                        onStart = {
+                            viewModel.markPassagesSeen()
+                            beginTraining(today.text)
+                        },
+                        onPick = {
+                            viewModel.markPassagesSeen()
+                            openPicker(today.text)
+                        }
+                    )
+                }
+            }
+
+            // 새로 온 지문 — 🔴 최대 NEW_LIST_MAX편만 보여 준다. 목록이 벽처럼 보이면
+            // 「나중에」가 된다. 나머지는 사라진 것이 아니라 오늘의 지문으로 차례가 온다.
+            // 오늘의 지문으로 이미 뜬 편은 뺀다(같은 것을 두 번 보여 주지 않는다).
+            val newExceptToday = newPassages.filter { it.id != today.id }
+            if (newExceptToday.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(0.85f)),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.15f))
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🆕 새로 온 지문", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+                            Spacer(Modifier.weight(1f))
+                            // 🔴 여기는 최대 NEW_LIST_MAX편이다. 나머지로 가는 길을 반드시 내준다.
+                            if (allRemote.size > newExceptToday.size) {
+                                Text(
+                                    "전체 ${allRemote.size}편 보기 ›",
+                                    fontSize = 11.sp, color = Gold24K.copy(0.85f),
+                                    modifier = Modifier.clickable { showPicker = true }
+                                )
+                            }
+                        }
+                        newExceptToday.forEach { item ->
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        item.title,
+                                        fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                                        color = Color.White.copy(0.85f),
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        PassageLength.label(item.text, recommendedWpm),
+                                        fontSize = 10.sp, color = Color.White.copy(0.45f)
+                                    )
+                                }
+                                Text(
+                                    item.text.take(46) + if (item.text.length > 46) "…" else "",
+                                    fontSize = 11.sp, color = Color.White.copy(0.6f), lineHeight = 16.sp
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    // 「이 지문으로」는 지문만 바꾸고 끝나서, 누른 뒤 훈련 목록까지
+                                    // 다시 내려가야 했다. 이제 그 자리에서 시작한다.
+                                    OutlinedButton(onClick = {
+                                        viewModel.markPassagesSeen()
+                                        beginTraining(item.text)
+                                    }) {
+                                        Text(
+                                            "▶ ${defaultModule.label}",
+                                            color = Gold24K, fontSize = 11.sp, maxLines = 1
+                                        )
+                                    }
+                                    OutlinedButton(onClick = {
+                                        viewModel.copyRemoteToLibrary(item)
+                                        Toast.makeText(context, "보관함에 저장했어요!", Toast.LENGTH_SHORT).show()
+                                    }) { Text("보관함에 저장", color = Gold24K, fontSize = 11.sp) }
+                                    // 🔴 **「치우기」에서 「숨기기」로 바꿨다**(2026-09-14 · 사용자 지적).
+                                    //    «치우다»는 버린다는 뜻으로 읽히는데 실제 동작은 목록에서 감추는 것이고
+                                    //    원본은 그대로 남는다. **이름이 동작과 같아야 한다.**
+                                    OutlinedButton(onClick = {
+                                        viewModel.hideRemotePassage(item)
+                                        Toast.makeText(
+                                            context,
+                                            "숨겼어요 — 「지문 고르기」에서 다시 볼 수 있어요.",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }) {
+                                        Text("숨기기", color = Color.White.copy(0.6f), fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 🔴 **훈련 목록을 지문 카드 바로 아래로 올렸다**(2026-09-14 · 사용자 신고).
+        //    09-08에 «지문 카드마다 시작 버튼을 두면 순서를 안 건드려도 된다»고 판단했는데,
+        //    그 판단은 **지문을 쓰는 훈련 3종에만** 통했다. 워밍업·안구 추적·쉐도잉은 지문을 쓰지 않아
+        //    붙일 자리가 없었고, 그래서 그 셋은 여전히 허브 맨 끝(9번째 구역)에만 있었다.
+        //    → 「집중 워밍업 한 번 하려고 지문을 전부 스크롤해야」 했다.
+        Text("🏃 훈련", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+        // 훈련 모듈
+        // 🔴 여기서 시작해도 **기본 훈련은 바뀌지 않는다**(2026-09-14). 목록에서 하나 골라 해 보는 것은
+        //    «오늘 이걸 해 보겠다»이지 «앞으로 늘 이걸 쓰겠다»가 아니다.
+        //    기본 훈련을 바꾸는 자리는 「▾」 창의 ☆ 하나뿐이다.
+        ModuleCard("🧘 집중 워밍업", "한 점을 응시하며 호흡으로 집중력을 끌어올려요.") { onSelect(ReadingModule.WARMUP) }
+        ModuleCard("🎯 리듬 페이서", "하이라이트를 따라 줄 단위로 읽으며 묵독을 줄여요.") { onStartTraining(null, ReadingTrainingModule.PACER) }
+        ModuleCard("⚡ 단어 점멸 (RSVP)", "한 곳에서 단어가 빠르게 바뀌어 안구 이동을 최소화해요.") { onStartTraining(null, ReadingTrainingModule.RSVP) }
+        ModuleCard("🔭 묶어 읽기 (청크)", "여러 단어를 한 묶음으로 보며 시야 폭을 넓혀요.") { onStartTraining(null, ReadingTrainingModule.CHUNK) }
+        ModuleCard("👀 안구 추적", "움직이는 점을 눈으로 따라가며 안구 근육을 풀어줘요.") { onSelect(ReadingModule.EYE) }
+        ModuleCard("🗣️ 따라 말하기 (쉐도잉)", "선택한 지문을 한 문장씩 들려주고 따라 말하며 녹음해요.") { onShadow(passage) }
+
         // 진척 통계
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -539,176 +750,6 @@ private fun ReadingHub(
             }
         }
 
-        // ── 오늘의 지문 (로봇 공급 · 2026-09-07) ────────────────
-        //
-        // 랜덤만 있으면 «끝»이 없어서 «언제 해도 되니까 안 하게» 된다.
-        // 날짜로 정해진 1편은 오늘 할 일을 분명히 해 주고, 자정을 넘기면 새 지문이 온다.
-        // 원격 지문이 하나도 없으면(첫 설치·오프라인) 이 카드를 숨기고 기존 동작을 그대로 둔다.
-        val todayRemote by viewModel.todayPassage.collectAsState()
-        val newPassageNotice by viewModel.newPassageNotice.collectAsState()
-        val newPassages by viewModel.newPassages.collectAsState()
-        val allRemote by viewModel.allRemotePassages.collectAsState()
-        val hiddenCount by viewModel.hiddenPassageCount.collectAsState()
-        val todayIsRevisit by viewModel.todayIsRevisit.collectAsState()
-
-        // 🔴 「지문 고르기」의 열림 상태를 **여기까지 올린다**(2026-09-14).
-        //    「새로 온 지문」 카드에서 «전체 목록»으로 보내려면 그 카드보다 위에 있어야 한다.
-        //    한 주에 7편이 오는데 그 카드는 NEW_LIST_MAX(5)편까지만 보여 줘서,
-        //    링크가 없으면 매주 2편쯤은 사용자가 존재조차 모르는 채 창고로 넘어간다.
-        var showPicker by remember { mutableStateOf(false) }
-        var passageQuery by remember { mutableStateOf("") }
-
-        // 오늘 훈련을 이미 했는가. 퀴즈 카드와 같은 문법으로 «오늘 몫을 다 했다»를 보여 준다.
-        // ⚠️ remember로 굳히지 않는다 — 자정을 넘겨 쓰는 사람에게 「오늘 완료」가 그대로 남으면 거짓말이 된다.
-        val todayKey = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
-        val doneToday = todayKey in trainedDates
-
-        todayRemote?.let { today ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (doneToday) Color(0xFF1B3A2A).copy(alpha = 0.55f) else Gold24K.copy(0.10f)
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    0.8.dp,
-                    if (doneToday) Color(0xFF4CAF50).copy(alpha = 0.5f) else Gold24K.copy(0.45f)
-                )
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            if (doneToday) "✅ 오늘의 지문 완료!" else "📖 오늘의 지문",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (doneToday) Color(0xFF7BD98F) else Gold24K
-                        )
-                        Spacer(Modifier.weight(1f))
-                        // 지난 지문 차례인 날은 그렇다고 말해 준다 — 말 없이 옛 지문이 나오면
-                        // «왜 오늘 지문이 예전 것이지?»가 된다.
-                        if (todayIsRevisit) {
-                            Text(
-                                "🔁 지난 지문",
-                                fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                                color = Gold24K.copy(0.85f)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                        }
-                        if (today.theme.isNotBlank()) {
-                            Text(today.theme, fontSize = 11.sp, color = Color.White.copy(0.55f))
-                        }
-                    }
-                    Text(today.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(0.9f))
-                    Text(
-                        today.text.take(70) + if (today.text.length > 70) "…" else "",
-                        fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
-                    )
-
-                    // 🔴 오래 비운 사용자에게는 숫자를 말하지 않는다(복귀 사면).
-                    // 「밀린 12편」은 초대가 아니라 청구서이고, 오늘 할 일은 어느 쪽이든 한 편이다.
-                    if (newPassageNotice.amnesty) {
-                        Text(
-                            "🌱 그동안 새 지문이 쌓였어요 — 오늘 한 편부터 다시 시작해요",
-                            fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Gold24K.copy(0.9f)
-                        )
-                    } else if (newPassageNotice.hasNumber) {
-                        Text(
-                            "🆕 새 지문 ${newPassageNotice.text}이 도착했어요",
-                            fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Gold24K.copy(0.9f)
-                        )
-                    }
-
-                    // 완료한 뒤에도 막지 않는다 — 더 읽고 싶은 사람을 세거나 목표를 붙이지만 않으면
-                    // 자발적 소비는 부담이 되지 않는다(§6-5).
-                    StartTrainingRow(
-                        label = startLabel(defaultModule, again = doneToday),
-                        emphasized = !doneToday,
-                        onStart = {
-                            viewModel.markPassagesSeen()
-                            beginTraining(today.text)
-                        },
-                        onPick = {
-                            viewModel.markPassagesSeen()
-                            openPicker(today.text)
-                        }
-                    )
-                }
-            }
-
-            // 새로 온 지문 — 🔴 최대 NEW_LIST_MAX편만 보여 준다. 목록이 벽처럼 보이면
-            // 「나중에」가 된다. 나머지는 사라진 것이 아니라 오늘의 지문으로 차례가 온다.
-            // 오늘의 지문으로 이미 뜬 편은 뺀다(같은 것을 두 번 보여 주지 않는다).
-            val newExceptToday = newPassages.filter { it.id != today.id }
-            if (newExceptToday.isNotEmpty()) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(0.85f)),
-                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.15f))
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🆕 새로 온 지문", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
-                            Spacer(Modifier.weight(1f))
-                            // 🔴 여기는 최대 NEW_LIST_MAX편이다. 나머지로 가는 길을 반드시 내준다.
-                            if (allRemote.size > newExceptToday.size) {
-                                Text(
-                                    "전체 ${allRemote.size}편 보기 ›",
-                                    fontSize = 11.sp, color = Gold24K.copy(0.85f),
-                                    modifier = Modifier.clickable { showPicker = true }
-                                )
-                            }
-                        }
-                        newExceptToday.forEach { item ->
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    item.title,
-                                    fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(0.85f)
-                                )
-                                Text(
-                                    item.text.take(46) + if (item.text.length > 46) "…" else "",
-                                    fontSize = 11.sp, color = Color.White.copy(0.6f), lineHeight = 16.sp
-                                )
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    // 「이 지문으로」는 지문만 바꾸고 끝나서, 누른 뒤 훈련 목록까지
-                                    // 다시 내려가야 했다. 이제 그 자리에서 시작한다.
-                                    OutlinedButton(onClick = {
-                                        viewModel.markPassagesSeen()
-                                        beginTraining(item.text)
-                                    }) {
-                                        Text(
-                                            "▶ ${defaultModule.label}",
-                                            color = Gold24K, fontSize = 11.sp, maxLines = 1
-                                        )
-                                    }
-                                    OutlinedButton(onClick = {
-                                        viewModel.copyRemoteToLibrary(item)
-                                        Toast.makeText(context, "보관함에 저장했어요!", Toast.LENGTH_SHORT).show()
-                                    }) { Text("보관함에 저장", color = Gold24K, fontSize = 11.sp) }
-                                    // 🔴 «치운다»가 무엇인지 말해 준다 — 지우는 것이 아니라 목록에서
-                                    //    감추는 것이고, 「지문 고르기」에서 되돌릴 수 있다.
-                                    OutlinedButton(onClick = {
-                                        viewModel.hideRemotePassage(item)
-                                        Toast.makeText(
-                                            context,
-                                            "목록에서 감췄어요 — 「지문 고르기」에서 되돌릴 수 있어요.",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }) {
-                                        Text("치우기", color = Color.White.copy(0.6f), fontSize = 11.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         // ── 📖 지문 고르기 (서버 지문 전체 · 2026-09-07) ─────────
         //
         // 🔴 «밀린 것을 세는 목록»과 «고르는 목록»은 다르다.
@@ -786,18 +827,18 @@ private fun ReadingHub(
                                 fontSize = 11.sp, color = Color.White.copy(0.55f)
                             )
                         }
-                        // 🔴 치운 지문을 되돌리는 유일한 길. 이것이 없으면 「치우기」는 삭제다.
+                        // 🔴 숨긴 지문을 다시 꺼내는 유일한 길. 이것이 없으면 「숨기기」는 삭제다.
                         if (hiddenCount > 0) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    "치운 지문 ${hiddenCount}편",
+                                    "숨긴 지문 ${hiddenCount}편",
                                     fontSize = 11.sp, color = Color.White.copy(0.45f)
                                 )
                                 Spacer(Modifier.weight(1f))
                                 TextButton(onClick = {
                                     viewModel.restoreHiddenPassages()
-                                    Toast.makeText(context, "치운 지문을 모두 되돌렸어요.", Toast.LENGTH_SHORT).show()
-                                }) { Text("되돌리기", color = Gold24K, fontSize = 11.sp) }
+                                    Toast.makeText(context, "숨긴 지문을 모두 다시 꺼냈어요.", Toast.LENGTH_SHORT).show()
+                                }) { Text("다시 보기", color = Gold24K, fontSize = 11.sp) }
                             }
                         }
                         filteredRemote.take(visibleCount).forEach { item ->
@@ -832,6 +873,8 @@ private fun ReadingHub(
                                         Spacer(Modifier.weight(1f))
                                         Text(
                                             listOfNotNull(
+                                                PassageLength.durationLabel(item.text, recommendedWpm)
+                                                    .takeIf { it.isNotBlank() },
                                                 item.theme.takeIf { it.isNotBlank() },
                                                 item.createdAt?.toString()
                                             ).joinToString(" · "),
@@ -886,7 +929,14 @@ private fun ReadingHub(
             border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.15f))
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("연습 지문", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("연습 지문", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        PassageLength.label(passage, recommendedWpm),
+                        fontSize = 10.sp, color = Color.White.copy(0.5f)
+                    )
+                }
                 Text(
                     passage.take(60) + if (passage.length > 60) "…" else "",
                     fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
@@ -1007,6 +1057,12 @@ private fun ReadingHub(
                                     color = if (selected) Gold24K else Color.White, maxLines = 1
                                 )
                             }
+                            // 보관함에도 길이를 적는다 — 촬영해 넣은 지문은 길이가 제각각이라
+                            // 여기야말로 «얼마나 걸리나»가 필요한 자리다.
+                            Text(
+                                PassageLength.label(p.text, recommendedWpm),
+                                fontSize = 10.sp, color = Color.White.copy(0.45f)
+                            )
                             Text(
                                 if (selected) "사용 중" else (p.text.take(40) + if (p.text.length > 40) "…" else ""),
                                 fontSize = 11.sp,
@@ -1073,17 +1129,6 @@ private fun ReadingHub(
                 containerColor = DeepCharcoal
             )
         }
-
-        // 훈련 모듈
-        // 🔴 여기서 시작해도 **기본 훈련은 바뀌지 않는다**(2026-09-14). 목록에서 하나 골라 해 보는 것은
-        //    «오늘 이걸 해 보겠다»이지 «앞으로 늘 이걸 쓰겠다»가 아니다.
-        //    기본 훈련을 바꾸는 자리는 「▾」 창의 ☆ 하나뿐이다.
-        ModuleCard("🧘 집중 워밍업", "한 점을 응시하며 호흡으로 집중력을 끌어올려요.") { onSelect(ReadingModule.WARMUP) }
-        ModuleCard("🎯 리듬 페이서", "하이라이트를 따라 줄 단위로 읽으며 묵독을 줄여요.") { onStartTraining(null, ReadingTrainingModule.PACER) }
-        ModuleCard("⚡ 단어 점멸 (RSVP)", "한 곳에서 단어가 빠르게 바뀌어 안구 이동을 최소화해요.") { onStartTraining(null, ReadingTrainingModule.RSVP) }
-        ModuleCard("🔭 묶어 읽기 (청크)", "여러 단어를 한 묶음으로 보며 시야 폭을 넓혀요.") { onStartTraining(null, ReadingTrainingModule.CHUNK) }
-        ModuleCard("👀 안구 추적", "움직이는 점을 눈으로 따라가며 안구 근육을 풀어줘요.") { onSelect(ReadingModule.EYE) }
-        ModuleCard("🗣️ 따라 말하기 (쉐도잉)", "선택한 지문을 한 문장씩 들려주고 따라 말하며 녹음해요.") { onShadow(passage) }
 
         Spacer(Modifier.height(4.dp))
         Text(
