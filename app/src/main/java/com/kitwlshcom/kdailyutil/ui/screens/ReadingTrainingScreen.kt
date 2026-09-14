@@ -612,34 +612,54 @@ private fun ReadingHub(
                                     item.text.take(46) + if (item.text.length > 46) "…" else "",
                                     fontSize = 11.sp, color = Color.White.copy(0.6f), lineHeight = 16.sp
                                 )
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    // 「이 지문으로」는 지문만 바꾸고 끝나서, 누른 뒤 훈련 목록까지
-                                    // 다시 내려가야 했다. 이제 그 자리에서 시작한다.
-                                    OutlinedButton(onClick = {
+                                // 🔴 **버튼 셋을 한 줄에 두면 안 된다**(2026-09-14 · 실기기에서 잡혔다).
+                                //    훈련 이름이 길어지면(「단어 점멸 (RSVP)」·「묶어 읽기 (청크)」)
+                                //    가로가 모자라 마지막 버튼 글자가 **세로로 한 자씩 접힌다**.
+                                //    Row는 좁아도 줄을 바꾸지 않고 자식을 짜부라뜨리기 때문이다.
+                                //    → 주(시작)는 제 줄을 통째로 쓰고, 부(저장·숨기기)가 아래 줄을 나눠 쓴다.
+                                //    ⚠️ 폭을 고정(width)하거나 글씨를 줄여 «지금은 맞게» 만들지 말 것 —
+                                //       훈련 이름·글꼴 크기·화면 폭 중 하나만 바뀌어도 그대로 재발한다.
+                                // 「이 지문으로」는 지문만 바꾸고 끝나서, 누른 뒤 훈련 목록까지
+                                // 다시 내려가야 했다. 이제 그 자리에서 시작한다.
+                                OutlinedButton(
+                                    onClick = {
                                         viewModel.markPassagesSeen()
                                         beginTraining(item.text)
-                                    }) {
-                                        Text(
-                                            "▶ ${defaultModule.label}",
-                                            color = Gold24K, fontSize = 11.sp, maxLines = 1
-                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        "▶ ${defaultModule.label}",
+                                        color = Gold24K, fontSize = 11.sp, maxLines = 1
+                                    )
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            viewModel.copyRemoteToLibrary(item)
+                                            Toast.makeText(context, "보관함에 저장했어요!", Toast.LENGTH_SHORT).show()
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text("보관함에 저장", color = Gold24K, fontSize = 11.sp, maxLines = 1)
                                     }
-                                    OutlinedButton(onClick = {
-                                        viewModel.copyRemoteToLibrary(item)
-                                        Toast.makeText(context, "보관함에 저장했어요!", Toast.LENGTH_SHORT).show()
-                                    }) { Text("보관함에 저장", color = Gold24K, fontSize = 11.sp) }
                                     // 🔴 **「치우기」에서 「숨기기」로 바꿨다**(2026-09-14 · 사용자 지적).
                                     //    «치우다»는 버린다는 뜻으로 읽히는데 실제 동작은 목록에서 감추는 것이고
                                     //    원본은 그대로 남는다. **이름이 동작과 같아야 한다.**
-                                    OutlinedButton(onClick = {
-                                        viewModel.hideRemotePassage(item)
-                                        Toast.makeText(
-                                            context,
-                                            "숨겼어요 — 「지문 고르기」에서 다시 볼 수 있어요.",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }) {
-                                        Text("숨기기", color = Color.White.copy(0.6f), fontSize = 11.sp)
+                                    OutlinedButton(
+                                        onClick = {
+                                            viewModel.hideRemotePassage(item)
+                                            Toast.makeText(
+                                                context,
+                                                "숨겼어요 — 「지문 고르기」에서 다시 볼 수 있어요.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text("숨기기", color = Color.White.copy(0.6f), fontSize = 11.sp, maxLines = 1)
                                     }
                                 }
                             }
@@ -948,26 +968,47 @@ private fun ReadingHub(
                     onStart = { beginTraining(null) },
                     onPick = { openPicker(null) }
                 )
+                // 🔴 한 줄에 둘 이상이면 **반드시 weight로 폭을 나눠 준다**(2026-09-14).
+                //    그러지 않으면 좁은 화면에서 뒤쪽 버튼이 짜부라져 글자가 세로로 접힌다.
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onUseRandom) { Text("랜덤 지문", color = Gold24K, fontSize = 12.sp) }
-                    OutlinedButton(onClick = { showCustomInput = !showCustomInput }) {
-                        Text(if (showCustomInput) "닫기" else "내 텍스트 붙여넣기", color = Gold24K, fontSize = 12.sp)
+                    OutlinedButton(
+                        onClick = onUseRandom,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                    ) { Text("랜덤 지문", color = Gold24K, fontSize = 12.sp, maxLines = 1) }
+                    OutlinedButton(
+                        onClick = { showCustomInput = !showCustomInput },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            if (showCustomInput) "닫기" else "내 텍스트 붙여넣기",
+                            color = Gold24K, fontSize = 12.sp, maxLines = 1
+                        )
                     }
                 }
                 // 책 페이지 촬영 / 이미지에서 가져오기 (OCR)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = {
-                        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
-                            context, android.Manifest.permission.CAMERA
-                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                        if (granted) {
-                            tempPhotoUri = getTempImageUriForReading(context)
-                            tempPhotoUri?.let { takePicture.launch(it) }
-                        } else {
-                            cameraPerm.launch(android.Manifest.permission.CAMERA)
-                        }
-                    }) { Text("📷 책 페이지 촬영", color = Gold24K, fontSize = 12.sp) }
-                    OutlinedButton(onClick = { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+                    OutlinedButton(
+                        onClick = {
+                            val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+                                context, android.Manifest.permission.CAMERA
+                            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                            if (granted) {
+                                tempPhotoUri = getTempImageUriForReading(context)
+                                tempPhotoUri?.let { takePicture.launch(it) }
+                            } else {
+                                cameraPerm.launch(android.Manifest.permission.CAMERA)
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                    ) { Text("📷 책 페이지 촬영", color = Gold24K, fontSize = 12.sp, maxLines = 1) }
+                    OutlinedButton(
+                        onClick = { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
                         Text("🖼 이미지에서", color = Gold24K, fontSize = 12.sp)
                     }
                 }
