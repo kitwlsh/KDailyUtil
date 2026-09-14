@@ -64,6 +64,8 @@ class ReadingTrainingRepository(private val context: Context) {
         val SEEN_PASSAGE_COUNT = intPreferencesKey("seen_passage_count")
         // 사용자가 목록에서 치운 로봇 지문 id. 🔴 원본은 지우지 않는다(«내가 못 본 것이 지워졌다»는 인상을 주지 않는다)
         val HIDDEN_REMOTE_IDS = stringSetPreferencesKey("hidden_remote_passage_ids")
+        // 이미 «초독»을 끝낸 지문들의 열쇠(PassageKey). 재독 판정에 쓴다.
+        val READ_PASSAGE_KEYS = stringSetPreferencesKey("read_passage_keys")
         // 사용자가 정한 «기본 훈련». 지문 카드의 시작 버튼이 이것으로 시작한다.
         // 🔴 **키 문자열은 그대로 둔다**("last_training_module") — 2026-09-14에 의미만 바뀌었다
         //    («마지막에 한 것을 앱이 기억» → «사용자가 정한 기본»). 키를 바꾸면 기존 사용자의
@@ -105,6 +107,27 @@ class ReadingTrainingRepository(private val context: Context) {
         context.readingDataStore.edit { p -> p[Keys.LAST_MODULE] = module.key }
     }
 
+    /**
+     * 이 지문을 **처음 읽는가**. 처음이면 true를 돌려주고 **그 자리에서 «읽음»으로 표시한다**
+     * (읽기와 쓰기를 한 번에 하는 이유 = 두 번 부르면 두 번째가 재독이 되어야 하기 때문이다).
+     *
+     * 🔴 빈 지문은 항상 false다 — 기록할 것이 없다.
+     */
+    suspend fun markReadAndCheckFirst(passageKey: String): Boolean {
+        if (passageKey.isBlank()) return false
+        var first = false
+        context.readingDataStore.edit { p ->
+            val seen = p[Keys.READ_PASSAGE_KEYS] ?: emptySet()
+            first = passageKey !in seen
+            if (first) p[Keys.READ_PASSAGE_KEYS] = seen + passageKey
+        }
+        return first
+    }
+
+    /** 지금까지 초독을 끝낸 지문 편수(통계 화면 설명용). */
+    val readPassageCountFlow: Flow<Int> =
+        context.readingDataStore.data.map { (it[Keys.READ_PASSAGE_KEYS] ?: emptySet()).size }
+
     /** 이해도 점수(0~100) 기록 — 최고치만 갱신 */
     suspend fun recordComprehension(scorePercent: Int) {
         context.readingDataStore.edit { p ->
@@ -117,10 +140,12 @@ class ReadingTrainingRepository(private val context: Context) {
      * 한 세션 완료 기록. wpm=0이면 최고 WPM은 갱신하지 않음(워밍업 등).
      * @param today,yesterday yyyyMMdd 문자열 (연속일 계산용)
      */
-    suspend fun recordSession(wpm: Int, today: String, yesterday: String) {
+    suspend fun recordSession(wpm: Int, today: String, yesterday: String, countSpeed: Boolean = true) {
         context.readingDataStore.edit { p ->
             val prevBest = p[Keys.BEST_WPM] ?: 0
-            if (wpm > prevBest) p[Keys.BEST_WPM] = wpm
+            // 🔴 재독(countSpeed=false)이면 «최고 속도»를 갱신하지 않는다 — 내용을 아는 글로 낸
+            //    숫자이기 때문이다. 출석·연속·누적은 아래에서 그대로 올라간다(훈련은 한 것이다).
+            if (countSpeed && wpm > prevBest) p[Keys.BEST_WPM] = wpm
             p[Keys.TOTAL] = (p[Keys.TOTAL] ?: 0) + 1
             val last = p[Keys.LAST_DATE] ?: ""
             val streak = p[Keys.STREAK] ?: 0

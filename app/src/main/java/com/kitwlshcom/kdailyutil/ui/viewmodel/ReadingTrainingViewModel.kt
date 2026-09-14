@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kitwlshcom.kdailyutil.data.PassageKey
 import com.kitwlshcom.kdailyutil.data.DailyRecord
 import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
 import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
@@ -332,20 +333,52 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     }
 
     /** 한 세션 완료 기록 (wpm=0이면 워밍업 등 속도 무관 세션) */
-    fun recordSession(wpm: Int) {
+    /**
+     * 한 세션 완료 기록.
+     *
+     * 🔴 **재독은 속도 기록에 넣지 않는다**(2026-09-14 · 사용자 지적).
+     * 같은 지문을 다시 읽으면 내용을 아니까 더 빠른 속도로도 «따라갈» 수 있다.
+     * 그것을 실력으로 세면 ① WPM 추이가 거짓말이 되고 ② 「추천 목표」(최근 5회 평균 × 1.08)까지
+     * 함께 부풀어 **다음 목표가 더 헛돌게** 된다.
+     *
+     * ⚠️ **재독도 «훈련은 한 것»이다** — 출석·연속·누적 횟수는 그대로 인정한다.
+     * 빼는 것은 **속도 숫자뿐**이다. 그러지 않으면 «복습하면 손해»가 되어 재독을 벌주게 된다.
+     *
+     * 🔴 **`wpmHistory`의 형식은 건드리지 않았다**(숫자 목록 그대로).
+     * 재독을 «넣되 표시만» 하려면 형식을 바꿔야 하고 기존 사용자 데이터 이전이 따라온다.
+     * 「넣지 않는다」로 정하면 형식도 그대로고 추천 목표 오염도 같이 풀린다.
+     *
+     * @param passage 이번에 읽은 지문. 비어 있으면(워밍업·안구 추적) 재독 판정을 하지 않는다.
+     */
+    fun recordSession(wpm: Int, passage: String = "") {
         viewModelScope.launch {
             val sdf = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
             val cal = Calendar.getInstance()
             val today = sdf.format(cal.time)
             cal.add(Calendar.DATE, -1)
             val yesterday = sdf.format(cal.time)
-            repo.recordSession(wpm, today, yesterday)
-            if (wpm > 0) {
+
+            val firstRead = repo.markReadAndCheckFirst(PassageKey.of(passage))
+            _lastSessionWasRepeat.value = wpm > 0 && passage.isNotBlank() && !firstRead
+
+            repo.recordSession(wpm, today, yesterday, countSpeed = firstRead)
+            if (wpm > 0 && firstRead) {
                 withContext(Dispatchers.IO) { repo.addWpmHistory(wpm) }
                 refreshWpmHistory()
             }
         }
     }
+
+    /**
+     * 방금 끝낸 세션이 **재독이었는가**. 결과 화면이 «왜 기록이 안 올라갔는지» 말해 주기 위해 필요하다.
+     * 🔴 말해 주지 않으면 사용자는 «앱이 고장났나»로 읽는다.
+     */
+    private val _lastSessionWasRepeat = MutableStateFlow(false)
+    val lastSessionWasRepeat: StateFlow<Boolean> = _lastSessionWasRepeat.asStateFlow()
+
+    /** 지금까지 «처음» 읽은 지문 편수 — 통계 화면의 설명에 쓴다. */
+    val readPassageCount: StateFlow<Int> =
+        repo.readPassageCountFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     /** 이해도 점수(0~100) 최고치 기록 */
     fun recordComprehension(scorePercent: Int) {

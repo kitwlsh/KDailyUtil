@@ -192,6 +192,8 @@ fun ReadingTrainingScreen(
     }
 
     val recommendedWpm by viewModel.recommendedWpm.collectAsState()
+    // 방금 끝낸 세션이 재독이었나 — 결과 화면이 «왜 기록이 안 올라갔는지» 말해야 한다.
+    val wasRepeat by viewModel.lastSessionWasRepeat.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         when (module) {
@@ -221,19 +223,19 @@ fun ReadingTrainingScreen(
                 passage = passage,
                 initialWpm = recommendedWpm,
                 onExit = { module = ReadingModule.HUB },
-                onComplete = { wpm -> viewModel.recordSession(wpm); lastWpm = wpm; module = ReadingModule.RESULT }
+                onComplete = { wpm -> viewModel.recordSession(wpm, passage); lastWpm = wpm; module = ReadingModule.RESULT }
             )
             ReadingModule.RSVP -> RsvpModule(
                 passage = passage,
                 initialWpm = recommendedWpm,
                 onExit = { module = ReadingModule.HUB },
-                onComplete = { wpm -> viewModel.recordSession(wpm); lastWpm = wpm; module = ReadingModule.RESULT }
+                onComplete = { wpm -> viewModel.recordSession(wpm, passage); lastWpm = wpm; module = ReadingModule.RESULT }
             )
             ReadingModule.CHUNK -> ChunkModule(
                 passage = passage,
                 initialWpm = recommendedWpm,
                 onExit = { module = ReadingModule.HUB },
-                onComplete = { wpm -> viewModel.recordSession(wpm); lastWpm = wpm; module = ReadingModule.RESULT }
+                onComplete = { wpm -> viewModel.recordSession(wpm, passage); lastWpm = wpm; module = ReadingModule.RESULT }
             )
             ReadingModule.EYE -> EyeTrackModule(
                 onExit = { module = ReadingModule.HUB },
@@ -242,6 +244,7 @@ fun ReadingTrainingScreen(
             ReadingModule.RESULT -> ResultModule(
                 wpm = lastWpm,
                 ran = ranModule,
+                wasRepeat = wasRepeat,
                 onQuiz = { module = ReadingModule.COMPREHENSION },
                 onAgain = { startTraining(ranModule) },
                 onNext = { startTraining(ReadingTrainingModule.next(ranModule)) },
@@ -656,6 +659,14 @@ private fun ReadingHub(
                 StatItem("누적", "$total", "회")
             }
         }
+        // 🔴 **이 숫자가 무엇인지 정직하게 적는다**(2026-09-14 · 사용자 지적).
+        //    속도는 «앱이 잰 값»이 아니라 «내가 슬라이더로 정하고 끝까지 따라간 값»이고,
+        //    이해도와도 이어져 있지 않다. 적지 않으면 사용자는 측정값으로 읽는다.
+        Text(
+            "ⓘ 속도는 «내가 정해 놓고 끝까지 따라간 값»이에요 — 이해도는 따로 확인해요. " +
+                "전에 읽은 지문은 속도 기록에 넣지 않아요.",
+            fontSize = 10.sp, color = Color.White.copy(0.42f), lineHeight = 15.sp
+        )
 
         // 난이도 자동 추천 + 통계 상세 진입
         Row(
@@ -1701,6 +1712,7 @@ private fun StatsModule(viewModel: ReadingTrainingViewModel, onExit: () -> Unit)
     val history by viewModel.wpmHistory.collectAsState()
     val trainedDates by viewModel.trainedDates.collectAsState()
     val recommended by viewModel.recommendedWpm.collectAsState()
+    val readCount by viewModel.readPassageCount.collectAsState()
 
     val avg = if (history.isNotEmpty()) history.average().toInt() else 0
     val latest = history.lastOrNull() ?: 0
@@ -1760,6 +1772,32 @@ private fun StatsModule(viewModel: ReadingTrainingViewModel, onExit: () -> Unit)
                     }
                 }
             }
+            // 🔴 **이 숫자들이 무엇인지 한 곳에서 제대로 설명한다**(2026-09-14 · 사용자 지적).
+            //    사용자가 물었다: 「연습만 하면 속도가 올라가는 거죠? 퀴즈 안 풀어도?
+            //    같은 지문을 계속 보면 암기가 돼서 빨라질 텐데요?」 — 둘 다 맞는 말이었다.
+            //    숫자를 감추는 대신 **무엇을 재고 무엇을 못 재는지** 적는다.
+            item {
+                StatsCard("ⓘ 이 숫자들이 뜻하는 것") {
+                    Text(
+                        "• 속도(WPM)는 앱이 잰 값이 아니라 «내가 슬라이더로 정해 놓고 끝까지 따라간 값»이에요.",
+                        fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
+                    )
+                    Text(
+                        "• 🔁 전에 읽은 지문은 속도 기록에 넣지 않아요. 내용을 알면 더 빨리 넘길 수 있어서, " +
+                            "그대로 세면 추이가 실제보다 부풀어요. (출석·연속·누적은 그대로 올라가요)",
+                        fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
+                    )
+                    Text(
+                        "• 이해도는 속도와 별개로 기록돼요. 빠르게만 넘기면 속도만 오르고 이해는 남지 않아요 — " +
+                            "가끔 이해도 퀴즈로 확인해 보세요.",
+                        fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
+                    )
+                    Text(
+                        "지금까지 처음 읽은 지문 ${readCount}편",
+                        fontSize = 11.sp, color = Gold24K.copy(0.8f)
+                    )
+                }
+            }
             item {
                 StatsCard("🎯 다음 목표 (난이도 추천)") {
                     Text("$recommended WPM · ${difficultyLabel(recommended)}", fontSize = 22.sp,
@@ -1795,6 +1833,7 @@ private fun StatsCard(title: String, content: @Composable ColumnScope.() -> Unit
 private fun ResultModule(
     wpm: Int,
     ran: ReadingTrainingModule,
+    wasRepeat: Boolean,
     onQuiz: () -> Unit,
     onAgain: () -> Unit,
     onNext: () -> Unit,
@@ -1812,8 +1851,21 @@ private fun ResultModule(
         Spacer(Modifier.height(6.dp))
         Text(ran.display, color = Color.White.copy(0.55f), fontSize = 12.sp)
         Spacer(Modifier.height(10.dp))
-        Text("이번 속도", color = Color.White.copy(0.7f), fontSize = 13.sp)
+        Text(if (wasRepeat) "이번 속도 (기록에는 넣지 않음)" else "이번 속도",
+            color = Color.White.copy(0.7f), fontSize = 13.sp)
         Text("$wpm WPM", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold)
+        // 🔴 **말해 주지 않으면 «앱이 고장났나»가 된다**(2026-09-14).
+        //    기록이 안 올라간 데는 이유가 있고, 그 이유가 사용자를 벌주려는 것이 아님도 함께 말한다.
+        if (wasRepeat) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                """🔁 전에 읽은 지문이에요.
+내용을 아는 글은 더 빨리 넘길 수 있어서 속도 기록에는 넣지 않았어요.
+출석과 연속은 그대로 올라갑니다.""",
+                color = Gold24K.copy(0.9f), fontSize = 12.sp, lineHeight = 18.sp,
+                textAlign = TextAlign.Center
+            )
+        }
         Spacer(Modifier.height(24.dp))
         Text("얼마나 이해했는지 AI 퀴즈로 확인해볼까요?\n(속도만 빠른 건 의미가 없어요!)",
             color = Color.White.copy(0.7f), fontSize = 13.sp, textAlign = TextAlign.Center, lineHeight = 20.sp)
