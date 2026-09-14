@@ -897,7 +897,13 @@ private fun ReadingHub(
             }
         }
 
-        // 연습 지문 선택
+        // 📄 지금 고른 지문 + ➕ 내 지문 담기
+        //
+        // 🔴 **제목이 내용과 맞지 않았다**(2026-09-14 · 사용자 지적).
+        //    카드 하나에 제목이 「연습 지문」 하나뿐인데, 그 안에는 성격이 다른 두 가지가 있었다:
+        //    ① 지금 고른 지문(미리보기 + 시작) ② 지문을 **가져오는** 버튼 4개.
+        //    ②는 «연습 지문»이 아니라 «내 지문을 담는 일»이다 — 눌러 보기 전에는 알 수 없었다.
+        //    → 소제목을 나눠 **무엇을 하는 자리인지 각각 말하게** 했다.
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(0.85f)),
@@ -905,7 +911,7 @@ private fun ReadingHub(
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("연습 지문", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+                    Text("📄 지금 고른 지문", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
                     Spacer(Modifier.weight(1f))
                     Text(
                         PassageLength.label(passage, recommendedWpm),
@@ -923,24 +929,34 @@ private fun ReadingHub(
                     onStart = { beginTraining(null) },
                     onPick = { openPicker(null) }
                 )
+                // 🔀 지문 바꾸기 — «담는» 것이 아니라 지금 고른 것을 갈아 끼우는 동작이다.
+                OutlinedButton(
+                    onClick = onUseRandom,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                ) { Text("🔀 다른 지문으로 (랜덤)", color = Gold24K, fontSize = 12.sp, maxLines = 1) }
+
+                Spacer(Modifier.height(2.dp))
+                HorizontalDivider(color = Gold24K.copy(0.15f))
+
+                // ➕ 내 지문 담기 — 아래 셋은 전부 **「📚 내 지문」에 저장까지** 된다.
+                //    그래서 «연습 지문»이 아니라 «담기»라고 부른다.
+                Text("➕ 내 지문 담기", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+                Text(
+                    "담은 지문은 「📚 내 지문」에 저장돼요.",
+                    fontSize = 11.sp, color = Color.White.copy(0.5f)
+                )
                 // 🔴 한 줄에 둘 이상이면 **반드시 weight로 폭을 나눠 준다**(2026-09-14).
                 //    그러지 않으면 좁은 화면에서 뒤쪽 버튼이 짜부라져 글자가 세로로 접힌다.
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = onUseRandom,
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
-                    ) { Text("랜덤 지문", color = Gold24K, fontSize = 12.sp, maxLines = 1) }
-                    OutlinedButton(
-                        onClick = { showCustomInput = !showCustomInput },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            if (showCustomInput) "닫기" else "내 텍스트 붙여넣기",
-                            color = Gold24K, fontSize = 12.sp, maxLines = 1
-                        )
-                    }
+                OutlinedButton(
+                    onClick = { showCustomInput = !showCustomInput },
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        if (showCustomInput) "닫기" else "✍️ 내 텍스트 붙여넣기",
+                        color = Gold24K, fontSize = 12.sp, maxLines = 1
+                    )
                 }
                 // 책 페이지 촬영 / 이미지에서 가져오기 (OCR)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -964,7 +980,7 @@ private fun ReadingHub(
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                     ) {
-                        Text("🖼 이미지에서", color = Gold24K, fontSize = 12.sp)
+                        Text("🖼 사진에서 가져오기", color = Gold24K, fontSize = 12.sp, maxLines = 1)
                     }
                 }
                 Text(
@@ -996,7 +1012,7 @@ private fun ReadingHub(
                         },
                         enabled = customText.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)
-                    ) { Text("이 텍스트로 연습 (보관함 저장)", fontWeight = FontWeight.Bold) }
+                    ) { Text("담고 이 지문으로 바꾸기", fontWeight = FontWeight.Bold) }
                 }
             }
         }
@@ -1138,6 +1154,7 @@ private fun LibraryModule(
     var editingPassage by remember { mutableStateOf<SavedPassage?>(null) }
     var pickerPassage by remember { mutableStateOf<String?>(null) }
     var pickerOpen by remember { mutableStateOf(false) }
+    var deletingPassage by remember { mutableStateOf<SavedPassage?>(null) }
 
     // 🔴 검색은 목록을 **줄이는** 일이라 편수가 늘수록 오히려 가벼워진다.
     val shown = remember(savedPassages, query) {
@@ -1181,6 +1198,40 @@ private fun LibraryModule(
             },
             dismissButton = {
                 TextButton(onClick = { editingPassage = null }) { Text("취소", color = Color.White.copy(0.7f)) }
+            },
+            containerColor = DeepCharcoal
+        )
+    }
+
+    // 🔴 **삭제는 되돌릴 수 없다 — 그래서 한 번 묻는다**(2026-09-14 · 사용자 신고).
+    //    「숨기기」(시스템 지문)와 달리 이건 **진짜 삭제**다: 목록에서 빼는 것이 아니라
+    //    저장 파일에서 지우고 **촬영해 넣은 사진 파일까지 File.delete()** 한다.
+    //    ⚠️ 훈련 시작에 확인창을 두지 않은 것과 모순이 아니다 — 훈련은 정지 상태로 열려
+    //       되돌릴 수 있지만, 여기는 누르는 순간 끝이다.
+    deletingPassage?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deletingPassage = null },
+            title = { Text("「${target.title}」을 삭제할까요?", color = Gold24K, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    if (target.imagePath != null)
+                        "이 지문은 완전히 지워집니다 — 되돌릴 수 없어요.\n촬영해 넣은 사진도 함께 지워집니다."
+                    else
+                        "이 지문은 완전히 지워집니다 — 되돌릴 수 없어요.",
+                    fontSize = 13.sp, color = Color.White.copy(0.8f), lineHeight = 20.sp
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deletePassage(target.id)
+                    Toast.makeText(context, "「${target.title}」을 삭제했어요.", Toast.LENGTH_SHORT).show()
+                    deletingPassage = null
+                }) { Text("삭제", color = Color(0xFFE57373), fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingPassage = null }) {
+                    Text("취소", color = Color.White.copy(0.7f))
+                }
             },
             containerColor = DeepCharcoal
         )
@@ -1246,7 +1297,7 @@ private fun LibraryModule(
                             selected = selected,
                             recommendedWpm = recommendedWpm,
                             onEdit = { editingPassage = p },
-                            onDelete = { viewModel.deletePassage(p.id) }
+                            onDelete = { deletingPassage = p }
                         )
                         if (selected) {
                             StartTrainingRow(
@@ -1263,7 +1314,14 @@ private fun LibraryModule(
     }
 }
 
-/** 「📚 내 지문」 한 줄 — 썸네일·제목·길이·본문 미리보기 + 편집/삭제. */
+/**
+ * 「📚 내 지문」 한 줄 — 썸네일·제목·길이·미리보기 + **이름 바꾸기 / 삭제**.
+ *
+ * 🔴 **아이콘만 두지 않는다**(2026-09-14 · 사용자 신고).
+ * 예전에는 ✏️와 ✕만 있었는데, ✕가 «닫기»인지 «지우기»인지 알 수 없었다.
+ * 실제로 사용자가 눌러 보고 «지워진 건가요? 어디로 갔죠?»라고 물었다 —
+ * **되돌릴 수 없는 동작에 이름이 없었던 것**이 문제였다.
+ */
 @Composable
 private fun LibraryRow(
     p: SavedPassage,
@@ -1299,23 +1357,35 @@ private fun LibraryRow(
                     color = if (selected) Gold24K else Color.White, maxLines = 1
                 )
             }
-            Text(
-                PassageLength.label(p.text, recommendedWpm),
-                fontSize = 10.sp, color = Color.White.copy(0.45f)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (PassageLength.isLong(p.text)) {
+                    Text("📜", fontSize = 11.sp)
+                    Spacer(Modifier.width(2.dp))
+                }
+                Text(
+                    PassageLength.label(p.text, recommendedWpm),
+                    fontSize = 10.sp, color = Color.White.copy(0.45f)
+                )
+            }
             Text(
                 if (selected) "사용 중" else (p.text.take(40) + if (p.text.length > 40) "…" else ""),
                 fontSize = 11.sp, color = Color.White.copy(0.6f), maxLines = 2
             )
         }
-        Text(
-            "✏️", fontSize = 15.sp,
-            modifier = Modifier.clip(CircleShape).clickable(onClick = onEdit).padding(8.dp)
-        )
-        Text(
-            "✕", color = Color.White.copy(0.5f), fontSize = 16.sp,
-            modifier = Modifier.clip(CircleShape).clickable(onClick = onDelete).padding(8.dp)
-        )
+    }
+    // 🔴 **버튼은 제 줄에 둔다.** 한 줄에 욱여넣으면 좁은 화면에서 글자가 세로로 접힌다
+    //    (09-14에 「숨기기」가 실제로 그렇게 됐다). weight로 폭을 나눈다.
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = onEdit,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+        ) { Text("✏️ 이름 바꾸기", color = Gold24K, fontSize = 11.sp, maxLines = 1) }
+        OutlinedButton(
+            onClick = onDelete,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+        ) { Text("🗑 삭제", color = Color(0xFFE57373), fontSize = 11.sp, maxLines = 1) }
     }
 }
 
