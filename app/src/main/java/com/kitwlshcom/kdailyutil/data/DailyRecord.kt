@@ -249,6 +249,25 @@ object DailyRecord {
     const val NEW_LIST_MAX = 5
 
     /**
+     * 「오늘의 지문」이 **지난 지문을 다시 꺼내 오는 주기**(일 · 2026-09-14).
+     *
+     * 🔴 **왜 필요한가** — 「오늘의 지문」은 [FRESH_SLOTS] 때문에 사실상 «최근 [FRESH_WINDOW_DAYS]일에
+     * 온 것»에서만 뽑힌다. 그래서 지문은 **일주일만 살아 있고 8일째부터 영영 안 나온다.**
+     * 로봇이 하루 1편씩 넣으므로 1년이면 360편 넘게 «다시는 오늘의 지문이 되지 않는» 지문이 쌓인다.
+     *
+     * 7일에 하루는 신규 배려를 끄고 **전체에서** 뽑아, 지난 지문에도 차례가 오게 한다.
+     * 🔴 날짜만으로 정한다 — 같은 날은 몇 번을 열어도 같은 판정이어야 한다(오늘의 지문의 대전제).
+     */
+    const val REVISIT_EVERY_DAYS = 7L
+
+    /**
+     * 오늘이 «지난 지문 차례»인가. 0 이하로 설정하면 이 배려를 끄는 것이다.
+     * 안드로이드 API를 쓰지 않는 순수 함수다(단위 테스트 대상).
+     */
+    fun isPassageRevisitDay(date: LocalDate): Boolean =
+        REVISIT_EVERY_DAYS > 0L && date.toEpochDay() % REVISIT_EVERY_DAYS == 0L
+
+    /**
      * 「새 지문 N편」.
      *
      * @param createdDates 지금 가진 원격 지문들의 도착일(파싱 실패한 것은 호출자가 걸러 넣는다)

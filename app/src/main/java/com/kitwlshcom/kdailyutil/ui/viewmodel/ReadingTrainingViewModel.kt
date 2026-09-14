@@ -60,15 +60,20 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     val trainedDates: StateFlow<Set<String>> = repo.trainedDatesFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     /**
-     * 마지막으로 한 지문 훈련. **null이면 «아직 고른 적 없음»**이고, 그때 시작 버튼은
-     * 몰래 시작하지 않고 훈련 고르기를 먼저 띄운다(§2026-09-08 결정).
+     * 사용자가 정한 **기본 훈련**. 정한 적이 없으면 [ReadingTrainingModule.DEFAULT](리듬 페이서).
+     * 지문 카드의 시작 버튼은 **항상 이 값**으로 시작한다.
      */
-    val lastModule: StateFlow<ReadingTrainingModule?> =
-        repo.lastModuleFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val defaultModule: StateFlow<ReadingTrainingModule> =
+        repo.defaultModuleFlow.stateIn(
+            viewModelScope, SharingStarted.WhileSubscribed(5000), ReadingTrainingModule.DEFAULT
+        )
 
-    /** 훈련을 실제로 시작한 순간에 부른다 — 고르기만 한 시점이 아니다. */
-    fun rememberLastModule(module: ReadingTrainingModule) {
-        viewModelScope.launch { repo.setLastModule(module) }
+    /**
+     * 🔴 **「⭐ 기본으로 정하기」에서만 부른다.** 훈련을 시작하는 것만으로 이걸 부르면
+     * 「다음 훈련」 한 번에 기본이 갈아치워지던 2026-09-14 이전 동작으로 되돌아간다.
+     */
+    fun setDefaultModule(module: ReadingTrainingModule) {
+        viewModelScope.launch { repo.setDefaultModule(module) }
     }
 
     private val _wpmHistory = MutableStateFlow<List<Int>>(emptyList())
@@ -127,6 +132,14 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     private val _newPassageNotice = MutableStateFlow(DailyRecord.NewItemNotice(unit = "편"))
     val newPassageNotice: StateFlow<DailyRecord.NewItemNotice> = _newPassageNotice.asStateFlow()
 
+    /** 사용자가 「치우기」로 감춘 지문 수. 0보다 크면 되돌리는 길을 화면에 내준다. */
+    private val _hiddenPassageCount = MutableStateFlow(0)
+    val hiddenPassageCount: StateFlow<Int> = _hiddenPassageCount.asStateFlow()
+
+    /** 오늘의 지문이 «지난 지문을 다시 꺼낸 것»인가. 화면이 그 사실을 말해 주게 한다. */
+    private val _todayIsRevisit = MutableStateFlow(false)
+    val todayIsRevisit: StateFlow<Boolean> = _todayIsRevisit.asStateFlow()
+
     init { refreshPassages(); refreshWpmHistory(); loadRemotePassages(); syncRemotePassages() }
 
     /** 기기에 있는 것만 먼저 그린다 — 통신을 기다리는 동안 화면이 비어 있으면 안 된다. */
@@ -135,6 +148,7 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
             val list = withContext(Dispatchers.IO) { repo.loadRemotePassages() }
             val hidden = repo.hiddenRemoteIdsFlow.first()
             _remotePassages.value = list.filter { it.id.toString() !in hidden }
+            _hiddenPassageCount.value = list.count { it.id.toString() in hidden }
             recomputePassageState()
         }
     }
@@ -196,11 +210,17 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
         val freshFrom = ordered.indexOfFirst { p ->
             p.createdAt?.let { today.toEpochDay() - it.toEpochDay() < DailyRecord.FRESH_WINDOW_DAYS } == true
         }
+        // 🔴 7일에 하루는 신규 배려를 끄고 **전체에서** 뽑는다(2026-09-14).
+        //    그러지 않으면 지문은 일주일만 살아 있고 8일째부터 영영 오늘의 지문이 되지 않는다.
+        //    ⚠️ «지난 지문이 실제로 존재할 때»만 켠다 — 전부 새것이면 다시 꺼낼 것이 없다.
+        val hasOlder = freshFrom > 0
+        val revisit = hasOlder && DailyRecord.isPassageRevisitDay(today)
+        _todayIsRevisit.value = revisit
         val index = DailyRecord.pickDailyIndices(
             date = today,
             total = ordered.size,
             count = 1,
-            freshFrom = if (freshFrom > 0) freshFrom else 0
+            freshFrom = if (hasOlder && !revisit) freshFrom else 0
         ).firstOrNull() ?: return null
         return ordered.getOrNull(index)
     }
@@ -225,6 +245,14 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     fun hideRemotePassage(passage: RemotePassage) {
         viewModelScope.launch {
             repo.hideRemotePassage(passage.id)
+            loadRemotePassages()
+        }
+    }
+
+    /** 치운 지문을 전부 되돌린다 — 「치우기」에 되돌아올 길이 없으면 그것은 삭제다. */
+    fun restoreHiddenPassages() {
+        viewModelScope.launch {
+            repo.restoreHiddenRemotePassages()
             loadRemotePassages()
         }
     }

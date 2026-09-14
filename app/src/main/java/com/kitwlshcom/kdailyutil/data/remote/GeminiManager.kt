@@ -68,8 +68,7 @@ class GeminiManager(private val apiKey: String?) {
                     "이 키에 Gemini API 사용 권한이 없습니다. AI Studio에서 새 키를 만들어 보세요."
                 looksOverloaded(m) ->
                     "지금 AI 서버가 붐빕니다. 사용량을 다 쓴 것이 아니라 구글 쪽이 혼잡한 것이니, 잠시 뒤 다시 시도해 주세요."
-                looksRateLimited(m) ->
-                    "이 키의 사용 한도를 초과했습니다. 무료 등급은 분당·하루 한도가 있어 잠시 뒤 풀립니다."
+                looksRateLimited(m) -> rateLimitMessage(m)
                 looksModelUnavailable(m) ->
                     "사용 가능한 AI 모델을 찾지 못했습니다. 앱을 최신 버전으로 업데이트한 뒤 다시 시도해 주세요."
                 m.contains("UnknownHost", true) || m.contains("timeout", true) ||
@@ -94,6 +93,56 @@ class GeminiManager(private val apiKey: String?) {
             m.contains("503") || m.contains("UNAVAILABLE", true) ||
                 m.contains("high demand", true) || m.contains("overloaded", true) ||
                 m.contains("Service Unavailable", true)
+
+        /**
+         * 429 안내 — 🔴 **«잠시 뒤 풀립니다»라고 단정하지 않는다**(2026-09-09 실측 반영).
+         *
+         * 예전 문구는 «무료 등급은 분당·하루 한도가 있어 **잠시 뒤 풀립니다**»였다. 그런데 그 둘은
+         * 풀리는 시각이 전혀 다르다 — **분당 창이면 수십 초**지만 **하루 한도면 최대 24시간**이다
+         * (리셋은 태평양 자정 = 한국시간 오후 4~5시). 한 문장으로 뭉개면, 하루 한도에 걸린 사용자가
+         * 「잠시」라는 말을 믿고 몇 시간을 헛되이 재시도한다.
+         *
+         * 🟢 **다행히 오류가 직접 말해 준다** — Gemini의 429 본문에는 `Please retry in 26.19s`처럼
+         * 재시도 시각이 들어 있다(2026-09-08·09 실측값 = 1.9 / 8.4 / 9.4 / 26.2 / 42.9 / 48.6초).
+         * 있으면 **그 숫자를 그대로** 안내하고, 없을 때만 두 경우를 모두 말한다.
+         *
+         * ⚠️ 이 함수는 **안내만** 바꾼다. 「429에도 다른 모델로 폴백할 것인가」는 별개의 결정이고,
+         * 아직 실측(모델별 한도인지 직접 관측)이 끝나지 않았다 → `AI_KEY_NOTES.md` §3-2.
+         */
+        internal fun rateLimitMessage(m: String): String {
+            val sec = retryAfterSeconds(m)
+            return when {
+                sec == null ->
+                    "이 키의 사용 한도를 초과했습니다. 무료 등급은 «분당 한도»와 «하루 한도»가 따로 있어, " +
+                        "분당 한도면 1분 안에 풀리고 하루 한도면 다음 날(한국시간 오후 4~5시)에 풀립니다."
+                sec <= 90 ->
+                    "이 키의 사용 한도를 잠시 넘었습니다. 약 ${sec}초 뒤에 다시 시도해 주세요. " +
+                        "무료 등급의 분당 한도에 걸린 것이라 키를 새로 만들 필요는 없습니다."
+                else ->
+                    "이 키의 사용 한도를 초과했습니다. 약 ${(sec + 59) / 60}분 뒤에 다시 시도해 주세요."
+            }
+        }
+
+        /**
+         * 429 본문에서 «몇 초 뒤에 다시 하라»를 꺼낸다. 없으면 null.
+         *
+         * 관측된 형태 두 가지를 받는다 — `Please retry in 1.88s` · `"retryDelay": "26s"`(RetryInfo).
+         * 🔴 **초 단위인지 시간 단위인지가 «짧은 창»과 «하루 한도»를 가르는 유일한 단서다**
+         * (09-08에 이 단서를 놓쳐 「하루치 소진」으로 오진했고, 30분 뒤 반례가 나왔다).
+         *
+         * 안드로이드 API를 쓰지 않는 순수 함수다(단위 테스트 대상).
+         */
+        internal fun retryAfterSeconds(m: String): Int? {
+            val hit = RETRY_HINT.find(m)?.groupValues?.getOrNull(1) ?: return null
+            val v = hit.toDoubleOrNull() ?: return null
+            if (v <= 0.0) return null
+            return kotlin.math.ceil(v).toInt().coerceAtLeast(1)
+        }
+
+        private val RETRY_HINT = Regex(
+            """retry(?:\s+in\s+|delay["\s:]{0,4})([0-9]+(?:\.[0-9]+)?)\s*s""",
+            RegexOption.IGNORE_CASE
+        )
 
         /** 429 / 사용량 한도인가. **키가 틀린 것·서버 혼잡과 구분해야 한다.** */
         internal fun looksRateLimited(m: String): Boolean =

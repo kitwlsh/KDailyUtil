@@ -64,7 +64,10 @@ class ReadingTrainingRepository(private val context: Context) {
         val SEEN_PASSAGE_COUNT = intPreferencesKey("seen_passage_count")
         // 사용자가 목록에서 치운 로봇 지문 id. 🔴 원본은 지우지 않는다(«내가 못 본 것이 지워졌다»는 인상을 주지 않는다)
         val HIDDEN_REMOTE_IDS = stringSetPreferencesKey("hidden_remote_passage_ids")
-        // 마지막으로 한 지문 훈련. 지문 카드의 시작 버튼이 «무엇으로 시작하는지»를 이름에 적기 위해 필요하다.
+        // 사용자가 정한 «기본 훈련». 지문 카드의 시작 버튼이 이것으로 시작한다.
+        // 🔴 **키 문자열은 그대로 둔다**("last_training_module") — 2026-09-14에 의미만 바뀌었다
+        //    («마지막에 한 것을 앱이 기억» → «사용자가 정한 기본»). 키를 바꾸면 기존 사용자의
+        //    값이 통째로 날아가 전원이 리듬 페이서로 되돌아간다.
         val LAST_MODULE = stringPreferencesKey("last_training_module")
     }
 
@@ -80,15 +83,25 @@ class ReadingTrainingRepository(private val context: Context) {
     val lastTrainedDateFlow: Flow<String?> = context.readingDataStore.data.map { it[Keys.LAST_DATE] }
 
     /**
-     * 마지막으로 한 지문 훈련. **아직 한 적이 없으면 null**이고, 그때는 시작 버튼이
-     * 몰래 기본값으로 시작하지 않고 «훈련 고르기»를 먼저 띄운다.
-     * 저장된 값이 알 수 없는 문자열이면(예전 키·손상) 마찬가지로 null이 된다.
+     * 사용자가 정한 **기본 훈련**(2026-09-14). 정한 적이 없으면 [ReadingTrainingModule.DEFAULT].
+     *
+     * 🔴 **예전에는 «마지막에 한 훈련»을 앱이 자동으로 기억했다** — 그런데 기억이 바뀌는 자리가
+     * 네 곳이나 됐고, 그중 **결과 화면의 「▶ 다음: ○○」**은 «이어서 한 판 더»라는 뜻인데도
+     * 기본 훈련을 통째로 갈아치웠다. 사용자는 바꾼 적이 없는데 **모든 지문의 시작 버튼이
+     * 바뀌어 있었다.** 앱이 «추측»하는 대신 사용자가 «선언»하게 바꾼 것이 이 값이다.
+     *
+     * 저장된 값이 알 수 없는 문자열이면(손상·예전 값) 기본값으로 떨어진다 — 화면이 비지 않는다.
      */
-    val lastModuleFlow: Flow<ReadingTrainingModule?> =
-        context.readingDataStore.data.map { ReadingTrainingModule.fromKey(it[Keys.LAST_MODULE]) }
+    val defaultModuleFlow: Flow<ReadingTrainingModule> =
+        context.readingDataStore.data.map {
+            ReadingTrainingModule.fromKey(it[Keys.LAST_MODULE]) ?: ReadingTrainingModule.DEFAULT
+        }
 
-    /** 훈련을 실제로 시작한 순간에 기록한다(고르기만 한 시점이 아니라). */
-    suspend fun setLastModule(module: ReadingTrainingModule) {
+    /**
+     * 기본 훈련을 바꾼다. 🔴 **이 함수를 부르는 자리는 «⭐ 기본으로 정하기» 한 곳뿐이어야 한다.**
+     * 훈련을 시작하는 것만으로 여기를 부르면, 고치려던 그 문제(몰래 바뀜)가 그대로 돌아온다.
+     */
+    suspend fun setDefaultModule(module: ReadingTrainingModule) {
         context.readingDataStore.edit { p -> p[Keys.LAST_MODULE] = module.key }
     }
 
@@ -331,6 +344,17 @@ class ReadingTrainingRepository(private val context: Context) {
         context.readingDataStore.edit {
             it[Keys.HIDDEN_REMOTE_IDS] = (it[Keys.HIDDEN_REMOTE_IDS] ?: emptySet()) + id.toString()
         }
+    }
+
+    /**
+     * 치운 지문을 **전부 되돌린다**(2026-09-14).
+     *
+     * 🔴 **왜 필요한가** — 「치우기」는 원본을 지우지 않고 목록에서만 감추는 것인데,
+     * **되돌릴 방법이 앱 안에 없어서 사용자에게는 사실상 삭제**였다. 버튼 이름(「치우기」)은
+     * «잠깐 옆으로 밀어 둔다»고 말하는데 동작은 영구였다 — 이름과 동작이 어긋나 있었다.
+     */
+    suspend fun restoreHiddenRemotePassages() {
+        context.readingDataStore.edit { it[Keys.HIDDEN_REMOTE_IDS] = emptySet() }
     }
 
     companion object {

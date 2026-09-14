@@ -442,4 +442,57 @@ class DailyRecordTest {
         assertFalse(streak7.achieved)
         assertEquals(3f / 7f, streak7.progress, 0.001f)
     }
+
+    // ── 오늘의 지문 — 지난 지문에도 차례를 준다 (2026-09-14) ──────────────────
+
+    /**
+     * 🔴 **이 수정이 왜 필요했는지를 고정한다.**
+     * 「오늘의 지문」은 `count=1`로 부르는데, 신규 몫([DailyRecord.FRESH_SLOTS] = 1)이
+     * 그 하나뿐인 칸을 다 먹는다. 그래서 `freshFrom > 0`이면 **오늘의 지문은 언제나
+     * «최근 7일에 온 것»에서만** 뽑혔고, 8일째부터는 그 지문에 영영 차례가 오지 않았다.
+     * 하루 1편이 들어오므로 1년이면 360편 넘게 «다시는 나오지 않는» 지문이 쌓인다.
+     */
+    @Test
+    fun `지문 한 편만 뽑을 때 신규 배려가 켜져 있으면 옛 지문은 못 나온다`() {
+        val total = 100
+        val freshFrom = 93 // 최근 7편만 «새것»
+        for (d in 0 until 30) {
+            val picked = DailyRecord.pickDailyIndices(
+                today.plusDays(d.toLong()), total = total, count = 1, freshFrom = freshFrom
+            )
+            assertEquals(1, picked.size)
+            assertTrue(
+                "신규 배려가 켜진 날은 새 지문에서만 뽑힌다: ${picked.first()}",
+                picked.first() >= freshFrom
+            )
+        }
+    }
+
+    /** 배려를 끄면(`freshFrom = 0`) 전체에서 뽑힌다 — 지난 지문 차례가 이렇게 만들어진다. */
+    @Test
+    fun `신규 배려를 끄면 옛 지문도 뽑힌다`() {
+        val total = 100
+        val hits = (0 until 60).map { d ->
+            DailyRecord.pickDailyIndices(
+                today.plusDays(d.toLong()), total = total, count = 1, freshFrom = 0
+            ).first()
+        }
+        assertTrue("60일을 돌렸는데 옛 구간이 한 번도 안 나오면 배려가 안 꺼진 것이다", hits.any { it < 93 })
+    }
+
+    /** 지난 지문 차례는 **날짜만으로** 정해진다 — 같은 날은 몇 번을 물어도 같아야 한다. */
+    @Test
+    fun `지난 지문 차례는 같은 날 항상 같은 답을 준다`() {
+        for (d in 0 until 14) {
+            val date = today.plusDays(d.toLong())
+            assertEquals(DailyRecord.isPassageRevisitDay(date), DailyRecord.isPassageRevisitDay(date))
+        }
+    }
+
+    /** 🔴 너무 자주 오면 «새 지문이 안 온다»가 되고, 너무 드물면 없는 것과 같다. 7일에 하루다. */
+    @Test
+    fun `지난 지문 차례는 7일에 하루뿐이다`() {
+        val hits = (0 until 70).count { DailyRecord.isPassageRevisitDay(today.plusDays(it.toLong())) }
+        assertEquals("70일이면 정확히 10번", 10, hits)
+    }
 }

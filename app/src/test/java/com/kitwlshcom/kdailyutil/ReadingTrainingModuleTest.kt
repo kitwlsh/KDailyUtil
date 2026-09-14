@@ -11,8 +11,8 @@ import org.junit.Test
  *
  * 무엇을 지키는 테스트인가:
  * 1. 결과 화면의 「다음: X」가 **어디서 시작해도 막다른 곳에 닿지 않는다**(순환).
- * 2. DataStore에 저장되는 `key`가 **바뀌지 않는다** — 바꾸면 기존 사용자의 「마지막 훈련」이
- *    통째로 인식 불가가 되어 매번 고르기 창이 뜬다. 조용히 나빠지는 종류의 회귀라 여기서 못 박는다.
+ * 2. DataStore에 저장되는 `key`가 **바뀌지 않는다** — 바꾸면 기존 사용자가 정해 둔 「기본 훈련」이
+ *    통째로 인식 불가가 되어 전원이 리듬 페이서로 되돌아간다. 조용히 나빠지는 회귀라 여기서 못 박는다.
  * 3. 지문을 쓰지 않는 훈련(워밍업·안구 추적)이 **순환에 섞여 들어오지 않는다** — 섞이면
  *    WPM이 없는 화면으로 「다음 훈련」이 떨어진다.
  */
@@ -92,5 +92,36 @@ class ReadingTrainingModuleTest {
     @Test
     fun `기본값은 순환 안에 있는 훈련이다`() {
         assertTrue(ReadingTrainingModule.DEFAULT in ReadingTrainingModule.entries)
+    }
+
+    // ── 기본 훈련 (2026-09-14) ──────────────────────────────────────
+
+    /**
+     * 🔴 **사용자 요청을 값으로 고정한다**(2026-09-14):
+     * 「새로운 지문에는 항상 첫 번째 연습(리듬 페이서)으로 되어 있는 게 낫지 않을지」.
+     * 기본 훈련의 초기값이 곧 «새 지문을 열었을 때 나오는 훈련»이다.
+     */
+    @Test
+    fun `기본 훈련의 초기값은 목록의 첫 훈련인 리듬 페이서다`() {
+        assertEquals(ReadingTrainingModule.PACER, ReadingTrainingModule.DEFAULT)
+        assertEquals(
+            "초기값은 «목록의 첫 훈련»이어야 한다 — 순서를 바꾸면 이 테스트가 먼저 알려 준다",
+            ReadingTrainingModule.entries.first(),
+            ReadingTrainingModule.DEFAULT
+        )
+    }
+
+    /**
+     * 저장된 값이 깨져 있어도 화면이 «고를 것 없음»으로 비지 않는다.
+     * 저장소가 쓰는 폴백 경로(`fromKey(...) ?: DEFAULT`)를 그대로 재현한 것이다.
+     */
+    @Test
+    fun `저장값이 깨져 있으면 기본 훈련으로 떨어진다`() {
+        for (broken in listOf(null, "", "eye", "warmup", "PACER")) {
+            assertEquals(
+                ReadingTrainingModule.DEFAULT,
+                ReadingTrainingModule.fromKey(broken) ?: ReadingTrainingModule.DEFAULT
+            )
+        }
     }
 }

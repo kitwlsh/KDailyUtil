@@ -1,7 +1,9 @@
 package com.kitwlshcom.kdailyutil
 
 import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -125,5 +127,61 @@ class AiErrorMessageTest {
             "신규 계정에 닫힌 모델이다(2026-08 장애)",
             GeminiManager.FALLBACK_MODELS.contains("gemini-2.5-flash")
         )
+    }
+
+    // ── 429 안내 — 「잠시 뒤」로 뭉개지 않는다 (2026-09-14) ──────────────────
+
+    /** 2026-09-08 로봇이 실제로 받은 429 본문(그대로 옮김). */
+    private val real429 = RuntimeException(
+        "429 You exceeded your current quota. Quota exceeded for metric: " +
+            "generativelanguage.googleapis.com/generate_content_free_tier_requests, " +
+            "limit: 20, model: gemini-3.8-flash. Please retry in 26.19s"
+    )
+
+    /**
+     * 🔴 오류가 «26초 뒤»라고 말해 주는데 앱이 «잠시 뒤»라고만 하면, 사용자는
+     * 얼마나 기다려야 하는지 모른 채 될 때까지 두드리거나 그냥 포기한다.
+     */
+    @Test
+    fun `429에 재시도 시각이 있으면 그 숫자를 안내한다`() {
+        val msg = GeminiManager.aiErrorMessage(real429)
+        assertTrue("오류가 말해 준 시간을 그대로 전해야 한다: $msg", msg.contains("27초"))
+        assertFalse("원인 미상으로 떨어지면 회귀다: $msg", msg.contains("상세:"))
+    }
+
+    /**
+     * 🔴 **이것이 이번 수정의 핵심이다.** 재시도 시각이 없을 때 «잠시 뒤 풀립니다»라고 단정하면,
+     * 하루 한도(최대 24시간)에 걸린 사용자가 그 말을 믿고 몇 시간을 헛되이 재시도한다.
+     * 모르면 **모르는 대로 두 경우를 다 말해야** 한다.
+     */
+    @Test
+    fun `429에 시각 힌트가 없으면 하루 한도 가능성도 말한다`() {
+        val msg = GeminiManager.aiErrorMessage(RuntimeException("429 RESOURCE_EXHAUSTED: quota"))
+        assertTrue("하루 한도일 수 있음을 알려야 한다: $msg", msg.contains("하루 한도"))
+        assertTrue("언제 풀리는지 시각을 줘야 한다: $msg", msg.contains("오후 4~5시"))
+    }
+
+    /** 힌트가 분 단위로 커져도 «초»로 말하지 않는다. */
+    @Test
+    fun `429 대기가 길면 분으로 안내한다`() {
+        val msg = GeminiManager.aiErrorMessage(RuntimeException("429 quota. Please retry in 300s"))
+        assertTrue("분으로 환산해야 한다: $msg", msg.contains("5분"))
+    }
+
+    /** 파서 자체 — 관측된 두 형태를 다 받아야 한다. 🔴 올림이다(0.5초를 «0초»라고 하면 안 된다). */
+    @Test
+    fun `재시도 힌트를 두 형태 모두에서 읽는다`() {
+        assertEquals(27, GeminiManager.retryAfterSeconds("Please retry in 26.19s"))
+        assertEquals(26, GeminiManager.retryAfterSeconds("\"retryDelay\": \"26s\""))
+        assertEquals(1, GeminiManager.retryAfterSeconds("please retry in 0.5s"))
+        assertNull("힌트가 없으면 지어내지 않는다", GeminiManager.retryAfterSeconds("429 RESOURCE_EXHAUSTED"))
+    }
+
+    /** 503과 429는 여전히 다른 안내여야 한다(문구를 바꿔도 이 구분은 유지된다). */
+    @Test
+    fun `문구를 바꿔도 503과 429 구분은 유지된다`() {
+        val busy = GeminiManager.aiErrorMessage(real503)
+        assertNotEquals(busy, GeminiManager.aiErrorMessage(real429))
+        assertFalse("429 안내가 «붐빈다»로 읽히면 안 된다", GeminiManager.aiErrorMessage(real429).contains("붐빕니다"))
     }
 }
