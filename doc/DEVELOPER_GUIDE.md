@@ -98,6 +98,9 @@ KDailyUtil/
 │   │   ├── AudioCaptureService.kt          # 포그라운드 오디오 캡처/재생(MediaSession 미디어버튼·오디오포커스, 유휴 시 알림 해제)
 │   │   └── TtsManager.kt                   # TTS 낭독
 │   ├── data/
+│   │   ├── PassageLength.kt                # 🆕 지문 길이 → 「224자 · 약 12초」 · 장문 판정(2026-09-14)
+│   │   ├── PassageKey.kt                   # 🆕 지문 열쇠(본문 SHA-256 앞16자) — 재독 판정(2026-09-14)
+│   │   ├── ReadingTrainingModule.kt        # 지문 훈련 3종 + 「기본 훈련」 초기값(2026-09-14 의미 변경)
 │   │   ├── model/
 │   │   │   ├── QuizQuestion.kt             # 퀴즈 데이터 모델 (imageUrl 필드 포함)
 │   │   │   ├── StockModels.kt              # 시세/차트/공시/예정 모델 (EarningsDisclosure 등)
@@ -109,7 +112,7 @@ KDailyUtil/
 │   │   ├── repository/
 │   │   │   ├── QuizRepository.kt           # 퀴즈 CRUD, 원격 동기화, 커스텀 저장
 │   │   │   ├── StockRepository.kt          # Yahoo 시세/차트 + DART 공시/재무 + 캐시/즐겨찾기/숨김
-│   │   │   ├── ReadingTrainingRepository.kt# 빠른 독서 훈련 진척/보관함/WPM이력
+│   │   │   ├── ReadingTrainingRepository.kt# 빠른 독서 훈련 진척/보관함/WPM이력/읽은 지문/기본 훈련
 │   │   │   ├── AudioRepository.kt          # 오디오 파일 관리
 │   │   │   ├── NewsRepository.kt           # 뉴스 RSS 수집 및 크롤링
 │   │   │   ├── FamilyRepository.kt         # 자매앱 동적 레지스트리(원격 family.json + 캐시/번들 폴백)
@@ -125,7 +128,7 @@ KDailyUtil/
 │       ├── screens/
 │       │   ├── QuizScreen.kt  QuizCreatorScreen.kt   # 퀴즈 플레이/제작
 │       │   ├── StockDashboardScreen.kt     # 증시: 시세·차트(크로스헤어)/AI 실적공시/예정일정
-│       │   ├── ReadingTrainingScreen.kt    # ⚡ 빠른 독서 훈련 (배움터 탭1, 드릴5+OCR+이해도)
+│   │   │   ├── ReadingTrainingScreen.kt    # ⚡ 빠른 독서 훈련 (허브·드릴5·OCR·이해도·📚 내 지문 화면)
 │       │   ├── LearningHubScreen.kt        # 배움터 허브 (탭0 퀴즈 / 탭1 빠른 독서 훈련)
 │       │   ├── AudioCaptureScreen.kt  AudioSubScreens.kt  DrivingShadowingScreen.kt
 │       │   ├── MorningBriefingSettingsScreen.kt # 설정 화면 (5탭: 브리핑/증시/AI·키/화면/앱정보)
