@@ -17,7 +17,8 @@ KDailyUtil 앱의 학습 기능을 강화하기 위해, AI 기반의 자동화�
 - `update_quiz.py` 스크립트를 안정적인 `google-generativeai` 라이브러리로 전면 교체했습니다.
 - 사용자 환경 최적화 모델인 **`gemini-2.5-flash`**를 적용했습니다.
 - JSON 추출 로직을 강화하여 AI의 부가 설명 없이 데이터만 정확하게 추출하도록 개선했습니다.
-- 매일 자정 자동 실행 및 수동 실행(workflow_dispatch) 기능을 지원합니다.
+- 매일 자동 실행 및 수동 실행(workflow_dispatch) 기능을 지원합니다.
+  (⏰ 실행 시각은 2026-09-15에 **04:40 KST**로 옮겼다 — 정본은 `korean_quiz_data/README.md`)
 
 ### 📱 앱 연동 및 안정화 (Android App)
 - **실시간 퀴즈 생성**: 사용자가 입력한 주제로 즉석에서 퀴즈를 만드는 기능을 구현하고 JSON 파싱 안정성을 확보했습니다.
