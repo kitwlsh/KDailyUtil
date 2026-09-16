@@ -127,21 +127,9 @@ private fun randomPassageExcept(current: String, extra: List<String>): String {
     return next
 }
 
-/**
- * 「지문 고르기」가 한 번에 그리는 편수.
- *
- * 🔴 상한이 필요한 이유: 허브는 `Column + verticalScroll`이라 목록을 `forEach`로 그린다.
- * 로봇이 하루 1편을 넣으므로 1년이면 365편이 되고, 상한이 없으면 **펼치는 순간 365장을
- * 한꺼번에 구성**한다(LazyColumn과 달리 화면 밖도 다 만든다).
- *
- * ⚠️ 그렇다고 여기에 LazyColumn을 쓰면 안 된다 — 스크롤되는 Column 안의 LazyColumn은
- * «무한 높이»로 측정돼 터진다. 높이를 고정하면 피할 수 있지만, 그러면 목록 안에 또 다른
- * 스크롤이 생겨 손가락이 어느 쪽을 움직이는지 알 수 없게 된다. 그래서 «조금씩 더 보기»로 간다.
- */
-private const val PASSAGE_PICKER_PAGE = 20
 
 
-private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, CHUNK, EYE, RESULT, COMPREHENSION, STATS, LIBRARY }
+private enum class ReadingModule { HUB, WARMUP, PACER, RSVP, CHUNK, EYE, RESULT, COMPREHENSION, STATS, LIBRARY, PICKER }
 
 @Composable
 fun ReadingTrainingScreen(
@@ -258,6 +246,16 @@ fun ReadingTrainingScreen(
             )
             ReadingModule.STATS -> StatsModule(
                 viewModel = viewModel,
+                onExit = { module = ReadingModule.HUB }
+            )
+            ReadingModule.PICKER -> PassagePickerModule(
+                viewModel = viewModel,
+                currentPassage = passage,
+                onStartTraining = { text, target ->
+                    if (text != null) { userPickedPassage = true; passage = text }
+                    startTraining(target)
+                },
+                onUseCustom = { userPickedPassage = true; passage = it },
                 onExit = { module = ReadingModule.HUB }
             )
             ReadingModule.LIBRARY -> LibraryModule(
@@ -413,12 +411,11 @@ private fun ReadingHub(
         val passageSyncFailed by viewModel.passageSyncFailed.collectAsState()
         val todayIsRevisit by viewModel.todayIsRevisit.collectAsState()
 
-        // 🔴 「지문 고르기」의 열림 상태를 **여기까지 올린다**(2026-09-14).
-        //    「새로 온 지문」 카드에서 «전체 목록»으로 보내려면 그 카드보다 위에 있어야 한다.
-        //    한 주에 7편이 오는데 그 카드는 NEW_LIST_MAX(5)편까지만 보여 줘서,
-        //    링크가 없으면 매주 2편쯤은 사용자가 존재조차 모르는 채 창고로 넘어간다.
-        var showPicker by remember { mutableStateOf(false) }
-        var passageQuery by remember { mutableStateOf("") }
+        // 🔴 **「지문 고르기」는 2026-09-16에 별도 화면이 됐다.**
+        //    예전에는 허브 맨 아래의 «펼침 카드»였고, 그 열림 상태를 여기까지 끌어올려
+        //    「새로 온 지문」의 링크가 그것을 펼치게 했다. 그런데 펼쳐지는 자리가
+        //    **화면 밖 저 아래**라 실기기에서는 «눌러도 아무 반응이 없는 링크»로 보였다
+        //    (사용자 신고). 화면을 나누면 그 문제가 구조적으로 사라진다.
 
         // 오늘 훈련을 이미 했는가. 퀴즈 카드와 같은 문법으로 «오늘 몫을 다 했다»를 보여 준다.
         // ⚠️ remember로 굳히지 않는다 — 자정을 넘겨 쓰는 사람에게 「오늘 완료」가 그대로 남으면 거짓말이 된다.
@@ -617,7 +614,7 @@ private fun ReadingHub(
                                 Text(
                                     "전체 ${allRemote.size}편 보기 ›",
                                     fontSize = 11.sp, color = Gold24K.copy(0.85f),
-                                    modifier = Modifier.clickable { showPicker = true }
+                                    modifier = Modifier.clickable { onSelect(ReadingModule.PICKER) }
                                 )
                             }
                         }
@@ -684,7 +681,7 @@ private fun ReadingHub(
                                             viewModel.hideRemotePassage(item)
                                             Toast.makeText(
                                                 context,
-                                                "숨겼어요 — 「지문 고르기」에서 다시 볼 수 있어요.",
+                                                "숨겼어요 — 아래 「🙈 숨긴 지문」에서 되돌릴 수 있어요.",
                                                 Toast.LENGTH_SHORT
                                             ).show()
                                         },
@@ -698,6 +695,36 @@ private fun ReadingHub(
                         }
                     }
                 }
+            }
+        }
+
+        // ── 📚 지문 서랍 — 지문으로 가는 길을 **한자리에 모았다** (2026-09-16 · 사용자 신고) ──
+        //
+        // 🔴 **무엇이 문제였나.** 지문으로 가는 길이 세 곳에 흩어져 있었다 —
+        //    ① 위의 「🆕 새로 온 지문」(최대 NEW_LIST_MAX편) ② 허브 **맨 아래**의 「지문 고르기」 펼침 카드
+        //    ③ 그보다 더 아래의 「📚 내 지문」. 실기기에서는 이렇게 보였다:
+        //    **「전체 9편 보기 ›」를 눌러도 아무 일도 일어나지 않는다.**
+        //    실제로는 ②가 펼쳐졌지만 화면 밖 저 아래라 «죽은 링크»였다.
+        //    → ②를 **별도 화면**으로 빼고, 세 갈래를 여기 한자리에 모았다.
+        //
+        // 🔴 **숨김 되돌리기도 같은 이유로 끊겨 있었다.** 새로 온 5편을 **전부** 숨기면
+        //    「새로 온 지문」 카드 자체가 사라지는데, 되돌리는 「다시 보기」는 ② 안에 있었다.
+        //    숨긴 사용자는 «되돌릴 자리»를 화면 끝까지 내려가서야 만났다.
+        //    → 되돌리기 줄은 **카드 밖·항상 보이는 자리**에 둔다. 숨긴 자리가 곧 되돌리는 자리다.
+        if (allRemote.isNotEmpty()) {
+            PassageDrawerRow("📖 지문 고르기", "총 ${allRemote.size}편", "열기 ›") {
+                onSelect(ReadingModule.PICKER)
+            }
+        }
+        if (savedPassages.isNotEmpty()) {
+            PassageDrawerRow("📚 내 지문", "${savedPassages.size}편", "열기 ›") {
+                onSelect(ReadingModule.LIBRARY)
+            }
+        }
+        if (hiddenCount > 0) {
+            PassageDrawerRow("🙈 숨긴 지문", "${hiddenCount}편", "다시 보기") {
+                viewModel.restoreHiddenPassages()
+                Toast.makeText(context, "숨긴 지문을 모두 다시 꺼냈어요.", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -804,179 +831,6 @@ private fun ReadingHub(
                         Box(
                             modifier = Modifier.weight(1f).height(14.dp).clip(RoundedCornerShape(3.dp))
                                 .background(if (done) Gold24K else Color.White.copy(0.10f))
-                        )
-                    }
-                }
-            }
-        }
-
-        // ── 📖 지문 고르기 (서버 지문 전체 · 2026-09-07) ─────────
-        //
-        // 🔴 «밀린 것을 세는 목록»과 «고르는 목록»은 다르다.
-        // 여기에는 안 읽음 배지·진행률·「N편 남음」·「다 따라잡기」를 붙이지 않는다 — 그것이
-        // §6-6에서 하지 말 것으로 정한 것이고, 붙는 순간 목록이 과제가 된다.
-        // 기본은 접혀 있다. 지문이 쌓이면 목록 자체가 벽처럼 보이기 때문이다.
-        if (allRemote.isNotEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = DeepCharcoal.copy(0.85f)),
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, Gold24K.copy(0.15f))
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable { showPicker = !showPicker },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("📖 지문 고르기", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
-                        Spacer(Modifier.width(6.dp))
-                        Text("총 ${allRemote.size}편", fontSize = 11.sp, color = Color.White.copy(0.5f))
-                        Spacer(Modifier.weight(1f))
-                        Text(if (showPicker) "접기 ▲" else "펼치기 ▼", fontSize = 12.sp, color = Gold24K)
-                    }
-
-                    // 정렬은 목록이 바뀔 때만 한다(recomposition마다 다시 정렬하면 스크롤이 버벅인다).
-                    val sortedRemote = remember(allRemote) {
-                        allRemote.sortedWith(
-                            compareByDescending<com.kitwlshcom.kdailyutil.data.repository.RemotePassage> {
-                                it.createdAt ?: java.time.LocalDate.MIN
-                            }.thenByDescending { it.id }
-                        )
-                    }
-                    var visibleCount by remember { mutableStateOf(PASSAGE_PICKER_PAGE) }
-                    // 접으면 다음에 펼칠 때 다시 처음부터 — 접힌 상태에서 수백 장을 들고 있을 이유가 없다.
-                    LaunchedEffect(showPicker) { if (!showPicker) visibleCount = PASSAGE_PICKER_PAGE }
-
-                    // 🔴 **검색이 이 목록의 핵심이다**(2026-09-14).
-                    //    지문은 7일이 지나면 「오늘의 지문」·「새로 온 지문」 양쪽에서 빠지고
-                    //    **여기에만 남는다.** 하루 1편씩 쌓이므로 1년이면 360편이 넘는데,
-                    //    찾는 수단이 «20편씩 펼쳐 눈으로 훑기»뿐이면 사실상 닿을 수 없는 창고가 된다.
-                    //    ⚠️ 안 읽음 배지·진행률·「N편 남음」은 **여전히 붙이지 않는다**(§6-6) —
-                    //       검색은 «찾는 도구»이지 «밀린 것을 세는 장치»가 아니다.
-                    val filteredRemote = remember(sortedRemote, passageQuery) {
-                        val q = passageQuery.trim()
-                        if (q.isBlank()) sortedRemote
-                        else sortedRemote.filter {
-                            it.title.contains(q, true) || it.theme.contains(q, true) || it.text.contains(q, true)
-                        }
-                    }
-                    // 검색어가 바뀌면 처음부터 — 「더 보기」를 눌러 둔 상태가 다음 검색에 새어 나가면 안 된다.
-                    LaunchedEffect(passageQuery) { visibleCount = PASSAGE_PICKER_PAGE }
-
-                    if (showPicker) {
-                        OutlinedTextField(
-                            value = passageQuery,
-                            onValueChange = { passageQuery = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            label = { Text("제목·주제·내용으로 찾기", fontSize = 12.sp) },
-                            trailingIcon = {
-                                if (passageQuery.isNotEmpty()) {
-                                    TextButton(onClick = { passageQuery = "" }) {
-                                        Text("지우기", color = Gold24K, fontSize = 11.sp)
-                                    }
-                                }
-                            }
-                        )
-                        if (passageQuery.isNotBlank()) {
-                            Text(
-                                if (filteredRemote.isEmpty()) "찾는 지문이 없어요."
-                                else "${filteredRemote.size}편 찾음",
-                                fontSize = 11.sp, color = Color.White.copy(0.55f)
-                            )
-                        }
-                        // 🔴 숨긴 지문을 다시 꺼내는 유일한 길. 이것이 없으면 「숨기기」는 삭제다.
-                        if (hiddenCount > 0) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    "숨긴 지문 ${hiddenCount}편",
-                                    fontSize = 11.sp, color = Color.White.copy(0.45f)
-                                )
-                                Spacer(Modifier.weight(1f))
-                                TextButton(onClick = {
-                                    viewModel.restoreHiddenPassages()
-                                    Toast.makeText(context, "숨긴 지문을 모두 다시 꺼냈어요.", Toast.LENGTH_SHORT).show()
-                                }) { Text("다시 보기", color = Gold24K, fontSize = 11.sp) }
-                            }
-                        }
-                        filteredRemote.take(visibleCount).forEach { item ->
-                            val selected = item.text.trim() == passage.trim()
-                            Card(
-                                modifier = Modifier.fillMaxWidth().clickable {
-                                    onUseCustom(item.text)
-                                    viewModel.markPassagesSeen()
-                                    Toast.makeText(context, "「${item.title}」 선택됨", Toast.LENGTH_SHORT).show()
-                                },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (selected) Gold24K.copy(0.14f) else DeepCharcoal.copy(0.6f)
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    if (selected) 1.5.dp else 0.5.dp,
-                                    Gold24K.copy(if (selected) 0.7f else 0.12f)
-                                )
-                            ) {
-                                Column(
-                                    modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        if (selected) {
-                                            Text("✓ ", color = Gold24K, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                        }
-                                        Text(
-                                            item.title,
-                                            fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                                            color = Color.White.copy(0.88f)
-                                        )
-                                        Spacer(Modifier.weight(1f))
-                                        Text(
-                                            listOfNotNull(
-                                                "📜".takeIf { PassageLength.isLong(item.text) },
-                                                PassageLength.durationLabel(item.text, recommendedWpm)
-                                                    .takeIf { it.isNotBlank() },
-                                                item.theme.takeIf { it.isNotBlank() },
-                                                item.createdAt?.toString()
-                                            ).joinToString(" · "),
-                                            fontSize = 10.sp, color = Color.White.copy(0.45f)
-                                        )
-                                    }
-                                    Text(
-                                        item.text.take(48) + if (item.text.length > 48) "…" else "",
-                                        fontSize = 11.sp, color = Color.White.copy(0.6f), lineHeight = 16.sp
-                                    )
-                                    // 🔴 시작 버튼은 **고른 한 줄에만** 붙인다. 모든 줄에 붙이면
-                                    //    목록 높이가 배로 늘어 이번에 줄이려는 스크롤이 도로 길어진다.
-                                    if (selected) {
-                                        Spacer(Modifier.height(2.dp))
-                                        StartTrainingRow(
-                                            label = startLabel(defaultModule),
-                                            emphasized = false,
-                                            onStart = { beginTraining(item.text) },
-                                            onPick = { openPicker(item.text) }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        if (filteredRemote.size > visibleCount) {
-                            OutlinedButton(
-                                onClick = {
-                                    visibleCount = (visibleCount + PASSAGE_PICKER_PAGE)
-                                        .coerceAtMost(filteredRemote.size)
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    "더 보기 (${filteredRemote.size - visibleCount}편 남음)",
-                                    color = Gold24K, fontSize = 12.sp
-                                )
-                            }
-                        }
-                        Text(
-                            "내장 지문 ${PRACTICE_PASSAGES.size}편은 아래 「랜덤 지문」으로 나옵니다.",
-                            fontSize = 10.sp, color = Color.White.copy(0.4f)
                         )
                     }
                 }
@@ -1103,31 +957,6 @@ private fun ReadingHub(
             }
         }
 
-        // 📚 내 지문 — **별도 화면으로 뺐다**(2026-09-14 · 사용자 요청).
-        //
-        // 🔴 **왜 뺐나** — 보관함은 사용자가 넣을수록 길어지는 유일한 구역이고, 허브에 있는 한
-        //    그 아래 것들이 계속 멀어진다. 09-08에 20편으로 자르고 09-14에 훈련을 위로 올려
-        //    급한 불은 껐지만, «지문을 많이 넣을수록 허브가 길어진다»는 성질 자체는 그대로였다.
-        //    화면을 나누면 그 성질이 사라진다 — 허브는 **한 줄**이다.
-        //
-        // ⚠️ **숨긴 로봇 지문은 여기로 옮기지 않았다.** 그건 «내 지문»이 아니라 시스템 지문이고,
-        //    그것을 되살리는 자리는 그것을 고르는 자리(「지문 고르기」)가 맞다.
-        if (savedPassages.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                    .background(Gold24K.copy(0.08f))
-                    .clickable { onSelect(ReadingModule.LIBRARY) }
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("📚 내 지문", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
-                Spacer(Modifier.width(6.dp))
-                Text("${savedPassages.size}편", fontSize = 12.sp, color = Color.White.copy(0.6f))
-                Spacer(Modifier.weight(1f))
-                Text("열기 ›", fontSize = 12.sp, color = Gold24K.copy(0.85f))
-            }
-        }
-
         // 보관함 지문 제목 편집 다이얼로그
 
         Spacer(Modifier.height(4.dp))
@@ -1223,6 +1052,216 @@ private fun TrainingPickerDialog(
  * 🟢 여기서는 `LazyColumn`을 쓴다 — **자기 화면 전체를 쓰므로** 높이가 무한이 아니다.
  * 🔴 허브(`Column + verticalScroll`) 안에서는 절대 쓰지 말 것(무한 높이로 터진다).
  */
+/**
+ * 지문으로 가는 **한 줄 입구** (2026-09-16).
+ *
+ * 「📖 지문 고르기」·「📚 내 지문」·「🙈 숨긴 지문」 셋이 같은 모양이어야 «같은 갈래»로 읽힌다.
+ * 🔴 오른쪽 끝의 말(«열기 ›» / «다시 보기»)이 **누르면 무슨 일이 나는지**를 말한다 —
+ * 09-14에 이름 없는 ✕로 한 번 사고가 났다(되돌릴 수 없는 동작에 이름이 없었다).
+ */
+@Composable
+private fun PassageDrawerRow(
+    title: String,
+    count: String,
+    action: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+            .background(Gold24K.copy(0.08f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gold24K)
+        Spacer(Modifier.width(6.dp))
+        Text(count, fontSize = 12.sp, color = Color.White.copy(0.6f))
+        Spacer(Modifier.weight(1f))
+        Text(action, fontSize = 12.sp, color = Gold24K.copy(0.85f))
+    }
+}
+
+/**
+ * 「📖 지문 고르기」 — **별도 화면**(2026-09-16 · 사용자 신고에서 나왔다).
+ *
+ * 🔴 **왜 화면을 나눴나.** 예전에는 허브 **맨 아래**의 «펼침 카드»였다. 그래서
+ * 「새로 온 지문」의 **「전체 N편 보기 ›」를 눌러도 아무 반응이 없어 보였다** —
+ * 실제로는 카드가 펼쳐졌지만 그 자리가 화면 밖 저 아래였다. 스크롤을 옮기는 땜질도
+ * 가능했지만, 그러면 «허브가 길수록 링크가 멀어지는» 성질이 그대로 남는다.
+ * 📚 내 지문을 09-14에 뺀 것과 **같은 판단**이다 — 목록은 자기 화면을 갖는다.
+ *
+ * 🔴 **숨긴 지문을 되돌리는 자리를 여기와 허브 양쪽에 둔다.** 여기에만 두면
+ * 새로 온 지문을 전부 숨긴 사람이 «되돌릴 자리»를 찾아 헤맨다(실제 신고가 있었다).
+ *
+ * 🟢 `LazyColumn`을 쓴다 — **자기 화면 전체를 쓰므로** 높이가 무한이 아니다.
+ * 🔴 허브(`Column + verticalScroll`) 안에서는 절대 쓰지 말 것(무한 높이로 터진다).
+ *    화면을 나눈 덕에 «20편씩 더 보기»도 필요 없어져 상수와 함께 지웠다 —
+ *    LazyColumn은 보이는 만큼만 그린다.
+ */
+@Composable
+private fun PassagePickerModule(
+    viewModel: ReadingTrainingViewModel,
+    currentPassage: String,
+    onStartTraining: (String?, ReadingTrainingModule) -> Unit,
+    onUseCustom: (String) -> Unit,
+    onExit: () -> Unit
+) {
+    val context = LocalContext.current
+    val allRemote by viewModel.allRemotePassages.collectAsState()
+    val hiddenCount by viewModel.hiddenPassageCount.collectAsState()
+    val defaultModule by viewModel.defaultModule.collectAsState()
+    val recommendedWpm by viewModel.recommendedWpm.collectAsState()
+
+    var query by remember { mutableStateOf("") }
+    var pickerPassage by remember { mutableStateOf<String?>(null) }
+    var pickerOpen by remember { mutableStateOf(false) }
+
+    if (pickerOpen) {
+        val pending = pickerPassage
+        TrainingPickerDialog(
+            defaultModule = defaultModule,
+            onDismiss = { pickerOpen = false },
+            onStartOnce = { m -> pickerOpen = false; onStartTraining(pending, m) },
+            onSetDefault = { m ->
+                viewModel.setDefaultModule(m)
+                Toast.makeText(context, "기본 훈련을 「${m.label}」로 정했어요.", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    // 정렬은 목록이 바뀔 때만 한다(recomposition마다 다시 정렬하면 스크롤이 버벅인다).
+    val sorted = remember(allRemote) {
+        allRemote.sortedWith(
+            compareByDescending<com.kitwlshcom.kdailyutil.data.repository.RemotePassage> {
+                it.createdAt ?: java.time.LocalDate.MIN
+            }.thenByDescending { it.id }
+        )
+    }
+    // 🔴 **검색이 이 화면의 핵심이다.** 지문은 7일이 지나면 「오늘의 지문」·「새로 온 지문」
+    //    양쪽에서 빠지고 **여기에만 남는다.** 하루 1편씩 쌓이므로 1년이면 360편이 넘는다.
+    //    ⚠️ 안 읽음 배지·진행률·「N편 남음」은 **붙이지 않는다**(§6-6) —
+    //       검색은 «찾는 도구»이지 «밀린 것을 세는 장치»가 아니다.
+    val shown = remember(sorted, query) {
+        val q = query.trim()
+        if (q.isBlank()) sorted
+        else sorted.filter {
+            it.title.contains(q, true) || it.theme.contains(q, true) || it.text.contains(q, true)
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        ModuleTopBar("📖 지문 고르기", onExit)
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            singleLine = true,
+            label = { Text("제목·주제·내용으로 찾기", fontSize = 12.sp) },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    TextButton(onClick = { query = "" }) { Text("지우기", color = Gold24K, fontSize = 11.sp) }
+                }
+            }
+        )
+        Text(
+            when {
+                query.isBlank() -> "총 ${allRemote.size}편"
+                shown.isEmpty() -> "찾는 지문이 없어요."
+                else -> "${shown.size}편 찾음"
+            },
+            fontSize = 11.sp, color = Color.White.copy(0.55f),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+        )
+        // 🔴 숨긴 지문을 다시 꺼내는 길. 이것이 없으면 「숨기기」는 사실상 삭제다.
+        if (hiddenCount > 0) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("🙈 숨긴 지문 ${hiddenCount}편", fontSize = 11.sp, color = Color.White.copy(0.45f))
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = {
+                    viewModel.restoreHiddenPassages()
+                    Toast.makeText(context, "숨긴 지문을 모두 다시 꺼냈어요.", Toast.LENGTH_SHORT).show()
+                }) { Text("다시 보기", color = Gold24K, fontSize = 11.sp) }
+            }
+        }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(bottom = 90.dp)
+        ) {
+            items(shown, key = { it.id }) { item ->
+                val selected = item.text.trim() == currentPassage.trim()
+                Card(
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        onUseCustom(item.text)
+                        viewModel.markPassagesSeen()
+                        Toast.makeText(context, "「${item.title}」 선택됨", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (selected) Gold24K.copy(0.14f) else DeepCharcoal.copy(0.85f)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        if (selected) 1.5.dp else 0.5.dp,
+                        Gold24K.copy(if (selected) 0.7f else 0.12f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (selected) {
+                                Text("✓ ", color = Gold24K, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                            Text(
+                                item.title,
+                                fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                                color = Color.White.copy(0.88f),
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Spacer(Modifier.weight(1f))
+                            Text(
+                                listOfNotNull(
+                                    "📜".takeIf { PassageLength.isLong(item.text) },
+                                    PassageLength.durationLabel(item.text, recommendedWpm)
+                                        .takeIf { it.isNotBlank() },
+                                    item.theme.takeIf { it.isNotBlank() },
+                                    item.createdAt?.toString()
+                                ).joinToString(" · "),
+                                fontSize = 10.sp, color = Color.White.copy(0.45f)
+                            )
+                        }
+                        Text(
+                            item.text.take(48) + if (item.text.length > 48) "…" else "",
+                            fontSize = 11.sp, color = Color.White.copy(0.6f), lineHeight = 16.sp
+                        )
+                        // 🔴 시작 버튼은 **고른 한 줄에만** 붙인다. 모든 줄에 붙이면
+                        //    목록 높이가 배로 늘어 이번에 줄이려는 스크롤이 도로 길어진다.
+                        if (selected) {
+                            Spacer(Modifier.height(2.dp))
+                            StartTrainingRow(
+                                label = startLabel(defaultModule),
+                                emphasized = false,
+                                onStart = { onStartTraining(item.text, defaultModule) },
+                                onPick = { pickerPassage = item.text; pickerOpen = true }
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                Text(
+                    "내장 지문 ${PRACTICE_PASSAGES.size}편은 허브의 「랜덤 지문」으로 나옵니다.",
+                    fontSize = 10.sp, color = Color.White.copy(0.4f),
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun LibraryModule(
     viewModel: ReadingTrainingViewModel,
@@ -1908,7 +1947,8 @@ private fun StatsCard(title: String, content: @Composable ColumnScope.() -> Unit
 private fun ResultModule(
     wpm: Int,
     ran: ReadingTrainingModule,
-    wasRepeat: Boolean,
+    /** 재독이었는가. **null = 아직 판정 전**(아무 말도 하지 않는다). */
+    wasRepeat: Boolean?,
     onQuiz: () -> Unit,
     onAgain: () -> Unit,
     onNext: () -> Unit,
@@ -1926,12 +1966,12 @@ private fun ResultModule(
         Spacer(Modifier.height(6.dp))
         Text(ran.display, color = Color.White.copy(0.55f), fontSize = 12.sp)
         Spacer(Modifier.height(10.dp))
-        Text(if (wasRepeat) "이번 속도 (기록에는 넣지 않음)" else "이번 속도",
+        Text(if (wasRepeat == true) "이번 속도 (기록에는 넣지 않음)" else "이번 속도",
             color = Color.White.copy(0.7f), fontSize = 13.sp)
         Text("$wpm WPM", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold)
         // 🔴 **말해 주지 않으면 «앱이 고장났나»가 된다**(2026-09-14).
         //    기록이 안 올라간 데는 이유가 있고, 그 이유가 사용자를 벌주려는 것이 아님도 함께 말한다.
-        if (wasRepeat) {
+        if (wasRepeat == true) {
             Spacer(Modifier.height(6.dp))
             Text(
                 """🔁 전에 읽은 지문이에요.

@@ -172,16 +172,23 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
         lastSyncAtMs = now
         viewModelScope.launch {
             _passageSyncing.value = true
+            // 🔴 **«받아오는 중» 깃발은 목록이 실제로 채워진 뒤에 내린다**(2026-09-16).
+            //    예전에는 내려받기가 끝나자마자 내렸는데, 목록을 읽어 오는 것은 그다음
+            //    IO였다. 그 짧은 틈에 화면은 «지문 0편 + 받아오는 중 아님»을 보고
+            //    **첫 설치에서 성공한 동기화인데도 「지금은 받아오지 못했어요」 + [다시 시도]**를
+            //    번쩍였다. 09-14에 만든 그 안내가 스스로 거짓말을 하고 있었다.
             try {
-                repo.syncRemotePassages()
-                _passageSyncFailed.value = false
-            } catch (e: Exception) {
-                Log.e(TAG, "지문 동기화 실패(캐시로 계속): ${e.message}")
-                _passageSyncFailed.value = true
+                try {
+                    repo.syncRemotePassages()
+                    _passageSyncFailed.value = false
+                } catch (e: Exception) {
+                    Log.e(TAG, "지문 동기화 실패(캐시로 계속): ${e.message}")
+                    _passageSyncFailed.value = true
+                }
+                loadRemotePassages()
             } finally {
                 _passageSyncing.value = false
             }
-            loadRemotePassages()
         }
     }
 
@@ -228,14 +235,23 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
         //    그러지 않으면 지문은 일주일만 살아 있고 8일째부터 영영 오늘의 지문이 되지 않는다.
         //    ⚠️ «지난 지문이 실제로 존재할 때»만 켠다 — 전부 새것이면 다시 꺼낼 것이 없다.
         val hasOlder = freshFrom > 0
-        val revisit = hasOlder && DailyRecord.isPassageRevisitDay(today)
-        _todayIsRevisit.value = revisit
+        val revisitDay = hasOlder && DailyRecord.isPassageRevisitDay(today)
         val index = DailyRecord.pickDailyIndices(
             date = today,
             total = ordered.size,
             count = 1,
-            freshFrom = if (hasOlder && !revisit) freshFrom else 0
-        ).firstOrNull() ?: return null
+            freshFrom = if (hasOlder && !revisitDay) freshFrom else 0
+        ).firstOrNull()
+        if (index == null) {
+            _todayIsRevisit.value = false
+            return null
+        }
+        // 🔴 **배지는 «뽑힌 것»을 보고 정한다**(2026-09-16에 고쳤다).
+        //    예전에는 «오늘이 지난 지문의 날인가»만 보고 미리 정했는데, 그날의 뽑기는
+        //    신규 배려를 끈 «전체»에서 하므로 **이번 주에 온 지문이 뽑힐 수도 있다**.
+        //    그러면 새 지문에 「🔁 지난 지문」이 붙어 사용자에게 거짓말이 된다.
+        //    `ordered`는 날짜 오름차순이라 **freshFrom보다 앞 = 지난 지문**이다.
+        _todayIsRevisit.value = DailyRecord.isRevisitPick(index, freshFrom)
         return ordered.getOrNull(index)
     }
 
@@ -364,6 +380,9 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
      * @param passage 이번에 읽은 지문. 비어 있으면(워밍업·안구 추적) 재독 판정을 하지 않는다.
      */
     fun recordSession(wpm: Int, passage: String = "") {
+        // 🔴 **먼저 «모름»으로 되돌린다.** 이 줄은 결과 화면이 그려지기 전에,
+        //    코루틴 밖에서 동기적으로 실행돼야 직전 판정이 새어 나가지 않는다.
+        _lastSessionWasRepeat.value = null
         viewModelScope.launch {
             val sdf = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
             val cal = Calendar.getInstance()
@@ -386,8 +405,13 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
      * 방금 끝낸 세션이 **재독이었는가**. 결과 화면이 «왜 기록이 안 올라갔는지» 말해 주기 위해 필요하다.
      * 🔴 말해 주지 않으면 사용자는 «앱이 고장났나»로 읽는다.
      */
-    private val _lastSessionWasRepeat = MutableStateFlow(false)
-    val lastSessionWasRepeat: StateFlow<Boolean> = _lastSessionWasRepeat.asStateFlow()
+    // 🔴 **null = «아직 모른다»**(2026-09-16에 Boolean에서 바꿨다).
+    //    재독 판정은 DataStore를 한 번 다녀와야 나오는데, 결과 화면은 그 전에 그려진다.
+    //    Boolean이던 시절에는 그 한 틈에 **직전 세션의 판정**이 먼저 보였다 —
+    //    새 지문을 읽고도 「기록에는 넣지 않음」이 떴다(그 반대도 됐다).
+    //    모르는 동안에는 **아무 말도 하지 않는 것**이 맞다.
+    private val _lastSessionWasRepeat = MutableStateFlow<Boolean?>(null)
+    val lastSessionWasRepeat: StateFlow<Boolean?> = _lastSessionWasRepeat.asStateFlow()
 
     /** 지금까지 «처음» 읽은 지문 편수 — 통계 화면의 설명에 쓴다. */
     val readPassageCount: StateFlow<Int> =

@@ -24,7 +24,7 @@
 | 스토어 | 🎉 **v1.7.1 (vc9)** 라이브(09-09) — 밀린 출하·기다릴 심사 **0건** |
 | 저장소 | ✅ `main` = `origin/main` (KDailyUtil · korean_quiz_data 둘 다) |
 | 소스 버전 | 🔴 **`versionCode 9` / `1.7.1` — 일부러 안 올렸다**(사용자 지시). 다음 업로드가 **vc10** |
-| 단위 테스트 | **115건 통과 · 실패 0** |
+| 단위 테스트 | **117건 통과 · 실패 0**(09-16 실측) |
 | 다음 행동 | 🔴 **[doc/NEXT_SESSION.md §부록 F](doc/NEXT_SESSION.md)** 실기기 확인 → 그다음 vc10 출하 |
 
 ### 🔴 코드를 더 넣기 전에 실기기 확인을 하는 것이 맞다
@@ -41,6 +41,10 @@
 - **기록 신뢰성**: 🔁 **재독은 속도 기록에서 뺀다**(출석·연속은 그대로) ·
   🔴 WPM은 «측정값»이 아니라 «슬라이더로 정한 값»임을 화면에 적었다
 - **첫 설치**: 빈 자리 대신 «받아오는 중 / 못 받음 / 다 숨김»을 말한다
+- 🔴 **지문 메뉴 정리(09-16)**: 「📖 지문 고르기」를 **별도 화면**으로 빼고(「전체 N편 보기」가
+  «죽은 링크»였다), 허브의 지문 입구를 **세 줄로 모았다**(고르기·내 지문·숨긴 지문).
+  같이 고친 것 = 「🔁 지난 지문」 배지 오판 · 결과 화면이 직전 판정을 먼저 그리던 것 ·
+  첫 설치에서 성공한 동기화가 실패 카드를 번쩍이던 것 → [doc/NEXT_SESSION.md §할 일 0-H](doc/NEXT_SESSION.md)
 - **지문**: 🔴 **토요일에는 장문**(800~1,200자 ≈ 40~60초) · 앱은 **글자 수로** 판정해 「📜 긴 지문」 표시
 
 ### 🟡 다음 판(vc11) 후보
@@ -126,7 +130,7 @@ v1.7.1에 들어간 것 = «독서 훈련 시작까지 가는 길» 단축. 사�
 | 스토어 게시본 | 🎉 **v1.7.1 (vc9)** · 2026-09-09 라이브 |
 | 저장소 | ✅ **KDailyUtil · korean_quiz_data 둘 다 `main` = `origin/main`** (09-14 실측) |
 | 소스 버전 | 🔴 **`versionCode = 9` / `1.7.1` — 안 올렸다**(사용자 지시). vc10 코드는 들어가 있다 |
-| 단위 테스트 | **115건 통과 · 실패 0** — AiErrorMessage 15 · BriefingScheduler 7 · DailyRecord 54 · GeminiFallback 11 · ReadingTrainingModule 11 · **PassageLength 11** · **PassageKey 5** · Example 1 |
+| 단위 테스트 | **117건 통과 · 실패 0**(09-16) — AiErrorMessage 15 · BriefingScheduler 7 · **DailyRecord 56** · GeminiFallback 11 · ReadingTrainingModule 11 · PassageLength 11 · PassageKey 5 · Example 1 |
 | 서명 | `local.properties` `release.*` 4개 + 키스토어 실물. 업로드 키 SHA-256 `61:12:DE:…:A5:12:99` |
 | `family.json` 최상위 | 비상 레버 키 **0개 = 전부 기본값**(09-11 실측) · 앱 목록은 4곳 동일 |
 | 자매앱 동기화 | ✅ 3벌 문서가 세 저장소에서 **0줄 차이**(09-11 실측) |

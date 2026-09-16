@@ -496,6 +496,26 @@ class DailyRecordTest {
         assertEquals("70일이면 정확히 10번", 10, hits)
     }
 
+    // ── 「🔁 지난 지문」 배지 — «뽑힌 것»으로 정한다 (2026-09-16) ──────────────
+
+    /** 🔴 이 배지가 틀리면 **새 지문을 읽는 사람에게 «전에 읽었다»고 말한다.** */
+    @Test
+    fun `지난 지문 배지는 freshFrom 앞에서 뽑혔을 때만 붙는다`() {
+        // 30편 중 23번째부터가 이번 주에 온 것(= freshFrom 23)
+        assertTrue("22번은 지난 지문", DailyRecord.isRevisitPick(22, 23))
+        assertTrue("0번은 가장 오래된 것", DailyRecord.isRevisitPick(0, 23))
+        assertFalse("23번은 이번 주에 온 것", DailyRecord.isRevisitPick(23, 23))
+        assertFalse("29번은 가장 새것", DailyRecord.isRevisitPick(29, 23))
+    }
+
+    /** 전부 새것이면 «다시 꺼낼 지난 지문»이 아예 없다 — 무엇이 뽑혀도 배지는 안 붙는다. */
+    @Test
+    fun `지난 지문이 없으면 배지는 절대 붙지 않는다`() {
+        for (i in 0 until 10) {
+            assertFalse("freshFrom 0이면 전부 새것", DailyRecord.isRevisitPick(i, 0))
+        }
+    }
+
     // ── 지문이 하나도 없을 때 «왜 없는지» (2026-09-14) ──────────────────────
 
     private fun reason(total: Int, hidden: Int, syncing: Boolean, failed: Boolean) =

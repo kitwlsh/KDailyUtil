@@ -304,6 +304,20 @@ object DailyRecord {
         REVISIT_EVERY_DAYS > 0L && date.toEpochDay() % REVISIT_EVERY_DAYS == 0L
 
     /**
+     * 「오늘의 지문」으로 **뽑힌 것**이 «지난 지문»인가 (2026-09-16).
+     *
+     * 🔴 **«오늘이 지난 지문의 날인가»와 다르다.** 그날의 뽑기는 신규 배려를 끄고
+     * **전체에서** 하므로 «지난 지문의 날»에도 **이번 주에 온 지문이 뽑힐 수 있다**.
+     * 날짜만 보고 배지를 붙이면 새 지문에 「🔁 지난 지문」이 붙어 거짓말이 된다
+     * (편수 30편·신규 7편이면 «지난 지문의 날» 4번 중 1번꼴로 틀렸다).
+     *
+     * @param index     뽑힌 자리. 목록은 **도착일 오름차순**이어야 한다
+     * @param freshFrom «새것»이 시작되는 자리. 0이면 전부 새것 = 지난 지문이 없다
+     */
+    fun isRevisitPick(index: Int, freshFrom: Int): Boolean =
+        freshFrom > 0 && index >= 0 && index < freshFrom
+
+    /**
      * 「새 지문 N편」.
      *
      * @param createdDates 지금 가진 원격 지문들의 도착일(파싱 실패한 것은 호출자가 걸러 넣는다)
