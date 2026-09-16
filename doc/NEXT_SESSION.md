@@ -187,9 +187,10 @@
 
 ---
 
-## 📋 Play 콘솔 «출시 대시보드» 권장 조치 4건 — 판정 (2026-09-07 조사 완료)
+## 📋 Play 콘솔 권장 조치·경고 — 판정 (2026-09-07 조사 · **09-16에 ⑤ 추가**)
 
-vc7(1.6.1) 기준으로 4건이 떠 있었다. **넷 다 업로드를 막지 않고, 셋은 우리가 고칠 것이 없다.**
+vc7(1.6.1) 기준으로 4건이 떠 있었고, **vc10 업로드 때 ⑤가 새로 붙었다.**
+**다섯 다 업로드를 막지 않는다** — ①②③은 우리가 고칠 것이 없고, ④⑤는 «비용 > 이득»이라 미뤘다.
 🔴 **다음 세션이 이 조사를 반복하지 않도록** 근거까지 남긴다.
 
 | # | 항목 | 판정 | 근거 |
@@ -198,6 +199,7 @@ vc7(1.6.1) 기준으로 4건이 떠 있었다. **넷 다 업로드를 막지 않
 | ② | 지원 중단 API `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES` | ✅ **우리 코드가 아니다** | 소스·리소스에 그 상수가 **0건**. R8 매핑에서 추적했다 — `androidx.activity.EdgeToEdgeApi26.adjustLayoutInDisplayCutoutMode`가 쓴다(대시보드의 `b.r.n` = vc7에서 난독화된 그 클래스). 즉 **①을 위해 부르는 `enableEdgeToEdge()`의 내부 구현**이다. androidx.activity 업데이트로 해소된다. 🔴 `enableEdgeToEdge()`를 빼면 ①이 나빠지므로 **손대지 않는 것이 맞다** |
 | ③ | 「네트워크 이미지를 수동 다운로드·디코딩」 | 🟡 **오탐으로 판단** | 지목된 `loadAndCompressImageForReading`은 `contentResolver.openInputStream(uri)`로 **로컬 URI만** 읽는다(촬영·갤러리). 네트워크 이미지는 전부 Coil(`AsyncImage`). 소스의 jsoup 바이너리 다운로드는 **한 곳뿐이고 이미지가 아니다** — [`StockRepository.kt`](../app/src/main/java/com/kitwlshcom/kdailyutil/data/repository/StockRepository.kt)의 **DART 고유번호 ZIP**(받아서 `ZipInputStream`으로 XML 파싱). R8 클래스 병합으로 다운로드 지점과 디코드 람다가 한 클래스로 합쳐져 위치가 잘못 붙은 것으로 보인다. 우리 디코드는 이미 `inSampleSize` 2단 샘플링(2048 상한) |
 | ④ | 「R8 최적화로 메모리·성능 개선」 | 🟡 **선택 — 이번엔 안 넣었다** | `isMinifyEnabled`·`isShrinkResources`는 **이미 true**. Play가 말하는 «최적화된 리소스 축소»는 AGP 9 기본값이고 8.13.2에서는 실험 플래그다. **실측**: `android.r8.optimizedResourceShrinking=true`로 빌드 성공, AAB **11,328,399 → 11,286,057**(약 41KB · 0.4%). 실험 플래그 경고 + 이득 미미 + **AAB 재빌드·서명 재확인 비용** → AGP 9 업그레이드 때 함께 한다(§백로그) |
+| ⑤ | 🆕 **「네이티브 디버그 기호가 없습니다」**(업로드 경고 · vc10에서 처음 봤다) | 🟡 **안 켜기로 했다(2026-09-16)** | **업로드를 막지 않는 «권고»다.** AAB를 열어 확인한 결과 네이티브 코드는 **우리 것이 하나도 없다** — `libandroidx.graphics.path.so`(Compose)와 `libdatastore_shared_counter.so`(DataStore) 둘뿐이고 4개 ABI 합쳐 **0.1 MB**다. 거기서 크래시가 나도 **우리가 고칠 코드가 아니다**(AndroidX 몫). 켜는 법은 `app/build.gradle.kts`의 release 블록에 `ndk { debugSymbolLevel = "SYMBOL_TABLE" }` 한 줄인데 🔴 **NDK 설치가 필요하고 이 기기에는 NDK가 없다**(수 GB). → **Play 「안정성」에 실제 네이티브 크래시가 보이면** 그때 켠다. 그때는 `bundleRelease` + `keytool` 서명 재확인이 따라온다 |
 
 ---
 
@@ -920,6 +922,7 @@ KDailyUtil이 K장부에서 받아 온 마지막 산출물은 **08-25의 503 대
 | **블박 신고 도우미 앱** | ⏸️ 보류. 번호판 인식 로컬 검증이 먼저 → [`SISTER_APP_DASHCAM_REPORT_PLAN.md`](SISTER_APP_DASHCAM_REPORT_PLAN.md) |
 | **출근길 교통 브리핑 앱** | 다음 신규 앱 후보 중 가장 안전·저렴 → [`SISTER_APP_IDEAS_BACKLOG.md`](SISTER_APP_IDEAS_BACKLOG.md) 아이디어 A |
 | **K운복(AI 운세)** | ⏸️ 보류(08-04 사용자 지시) |
+| **네이티브 디버그 기호 업로드** | 🟡 **안 켜기로 했다(2026-09-16 · vc10 업로드 때 Play가 경고)** — 네이티브 코드가 우리 것이 아니고 0.1 MB뿐이라 이득이 작고, 켜려면 **NDK 설치**(수 GB)가 필요하다. 판정 근거 = §Play 콘솔 권장 조치 **⑤**. 🔴 **AGP 9 업그레이드를 할 때 NDK를 깔게 되면 그때 한 줄 같이 넣는다** |
 | **AGP 9 업그레이드 + 최적화된 리소스 축소** | 🟡 미착수 — Play 대시보드 권장 조치 ④. 지금은 실험 플래그로만 가능하고 이득이 41KB(0.4%)라 미뤘다. **AGP를 올릴 때 함께** 하면 플래그 없이 기본으로 켜진다. 올린 뒤에는 **반드시 `bundleRelease` + `keytool` 서명 재확인**(빌드 도구가 바뀌면 산출물이 바뀐다) |
 | **하루 지문 2편 여부** | 🟡 판단 대기 — 지금은 **1편/일**(`PASSAGES_PER_RUN = 1`). 2편 이상으로 올리면 «못 본 지문»이 쌓여 부담이 된다는 판단으로 1편을 골랐다([FEATURE_DAILY_PASSAGES.md](FEATURE_DAILY_PASSAGES.md) §3·§9). 며칠 써 보고 «지문이 부족하다»는 느낌이 들면 그때 올린다 — 🔴 올리는 것은 쉽지만 되돌려도 이미 쌓인 것은 남는다 |
 | ~~보관함 목록도 표시 상한~~ | ✅ **이미 되어 있다(09-08)** — `savedPassages.take(libraryVisible)` + `LIBRARY_PAGE = 20` + 「더 보기」. 🔴 **이 항목이 09-14까지 «미착수»로 남아 있었다** — 아래 옛 설명은 사실과 다르니 믿지 말 것. ~~🟡 미착수(작다)~~ — 「지문 고르기」는 09-07에 20편씩으로 잘랐는데, **「📚 내 지문 보관함」은 여전히 `forEach`로 전부 그린다**. 사용자가 직접 넣는 것이라 수백 개가 되기는 어렵지만 같은 종류의 문제다(허브가 `Column + verticalScroll`이라 화면 밖도 다 구성된다). ⚠️ **LazyColumn으로 바꾸지 말 것** — 스크롤 Column 안의 LazyColumn은 무한 높이로 터진다 |
