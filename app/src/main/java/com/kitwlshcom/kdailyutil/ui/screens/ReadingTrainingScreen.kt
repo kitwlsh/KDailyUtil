@@ -1957,8 +1957,16 @@ private fun ResultModule(
     // 🔴 버튼에 **훈련 이름을 적는다**(2026-09-08). 「다음 훈련」만 적혀 있으면
     //    무엇이 열릴지 모르는 채로 눌러야 하고, 그것은 허브의 시작 버튼에서 고친 것과 같은 문제다.
     val next = ReadingTrainingModule.next(ran)
+    // 🔴 **스크롤이 없어 맨 아래 「건너뛰고 완료」가 잘렸다**(2026-09-16 · 사용자 신고).
+    //    이 화면은 만들 때부터 «한 화면에 들어간다»는 전제였는데, 그 뒤로 내용이 계속 늘었다 —
+    //    09-14에 재독 안내 3줄, 그 전에 「다시」·「다음 훈련」 버튼. 전제가 조용히 깨진 것이다.
+    //    🔴 **글자를 줄이는 쪽으로 풀지 않는다.** 기기마다 화면 높이도 글꼴 크기(접근성 설정)도
+    //       다르므로 «이번 기기에 맞추기»는 다음 기기에서 또 깨진다. 스크롤이 근본 해결이다.
+    //    ⚠️ `Arrangement.Center`는 그대로 둔다 — 내용이 짧으면 가운데, 넘치면 스크롤된다.
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier.fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -2004,6 +2012,8 @@ private fun ResultModule(
         TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
             Text("건너뛰고 완료", color = Color.White.copy(0.65f), fontSize = 13.sp)
         }
+        // 제스처 바·둥근 모서리에 마지막 버튼이 닿지 않게.
+        Spacer(Modifier.height(16.dp))
     }
 }
 
