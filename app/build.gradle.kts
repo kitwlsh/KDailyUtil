@@ -54,6 +54,17 @@ android {
     }
 
     buildTypes {
+        // 🔴 **디버그는 다른 앱으로 깔린다**(2026-09-16).
+        //    개발용 빌드는 스토어 앱과 **서명이 달라** 덮어쓰기가 안 된다. 그래서 예전에는
+        //    실기기 확인을 하려면 **스토어 앱을 지워야** 했고, 그때마다 사용자의
+        //    출석·연속·기록·보관함 지문·AI 키가 통째로 날아갔다(연속 10일이 실제로 걸려 있었다).
+        //    패키지명만 갈라 두면 둘이 **나란히** 깔려 그 대가가 사라진다.
+        //    ⚠️ release 블록은 건드리지 않는다 — **출하되는 앱의 패키지명은 그대로**다.
+        //    ⚠️ FileProvider authority도 `${applicationId}`로 따라가야 한다(매니페스트) —
+        //       고정 문자열이면 두 앱이 같은 authority를 선언해 **설치가 거부된다**.
+        debug {
+            applicationIdSuffix = ".debug"
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

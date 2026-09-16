@@ -91,7 +91,7 @@
         <!-- Secure file sharing via FileProvider -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.kitwlshcom.kdailyutil.fileprovider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
