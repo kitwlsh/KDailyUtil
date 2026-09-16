@@ -17,15 +17,15 @@
 
 ### 한 줄 요약
 
-**vc10 코드는 다 들어갔다. 남은 건 «실기기 확인» 하나다. 그게 끝나면 버전 올려 올린다.**
+**v1.7.2(vc10) AAB가 나왔다. 실기기 확인도 끝났다. 남은 건 «Play 업로드» 하나다.**
 
 | | |
 |---|---|
-| 스토어 | 🎉 **v1.7.1 (vc9)** 라이브(09-09) — 밀린 출하·기다릴 심사 **0건** |
+| 스토어 | 🎉 **v1.7.1 (vc9)** 라이브(09-09) · 🔴 **v1.7.2(vc10) 업로드 대기** |
 | 저장소 | ✅ `main` = `origin/main` (KDailyUtil · korean_quiz_data 둘 다 · 09-16 실측) |
-| 소스 버전 | 🔴 **`versionCode 9` / `1.7.1` — 일부러 안 올렸다**(사용자 지시). 다음 업로드가 **vc10** |
-| 단위 테스트 | **117건 통과 · 실패 0**(09-16 실측) |
-| 다음 행동 | 🔴 **[doc/NEXT_SESSION.md §부록 F](doc/NEXT_SESSION.md)** 실기기 확인(**F-8 포함**) → 그다음 vc10 출하 |
+| 소스 버전 | ✅ **`versionCode 10` / `1.7.2`** — 09-16에 올렸다. **AAB 빌드 완료 · 업로드 대기** |
+| 단위 테스트 | **117건 통과 · 실패 0**(09-16 실측) · ✅ 실기기 확인 **F-8까지 통과** |
+| 다음 행동 | 🔴 **Play 업로드 하나만 남았다** — [`app/release/kdailyutil-v1.7.2.aab`](app/release/kdailyutil-v1.7.2.aab) + 출시 노트(`RELEASE_NOTES.md` §v1.7.2) |
 
 ### 🔴 코드를 더 넣기 전에 실기기 확인을 하는 것이 맞다
 
@@ -129,7 +129,7 @@ v1.7.1에 들어간 것 = «독서 훈련 시작까지 가는 길» 단축. 사�
 |---|---|
 | 스토어 게시본 | 🎉 **v1.7.1 (vc9)** · 2026-09-09 라이브 |
 | 저장소 | ✅ **KDailyUtil · korean_quiz_data 둘 다 `main` = `origin/main`** (09-14 실측) |
-| 소스 버전 | 🔴 **`versionCode = 9` / `1.7.1` — 안 올렸다**(사용자 지시). vc10 코드는 들어가 있다 |
+| 소스 버전 | ✅ **`versionCode = 10` / `1.7.2`**(09-16) · 🔴 **빌드해 둔 AAB가 있다 — 올리기 전까지 앱 코드 금지** |
 | 단위 테스트 | **117건 통과 · 실패 0**(09-16) — AiErrorMessage 15 · BriefingScheduler 7 · **DailyRecord 56** · GeminiFallback 11 · ReadingTrainingModule 11 · PassageLength 11 · PassageKey 5 · Example 1 |
 | 서명 | `local.properties` `release.*` 4개 + 키스토어 실물. 업로드 키 SHA-256 `61:12:DE:…:A5:12:99` |
 | `family.json` 최상위 | 비상 레버 키 **0개 = 전부 기본값**(09-11 실측) · 앱 목록은 4곳 동일 |

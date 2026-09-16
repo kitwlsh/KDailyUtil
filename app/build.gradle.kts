@@ -26,11 +26,12 @@ android {
         //   versionCode = Play가 보는 정수(업로드마다 증가, 사용자에게 안 보임)
         //   versionName = 사람이 보는 문자열. 버그수정→PATCH / 기능추가→MINOR / 호환깨짐→MAJOR
         // 상세·전환 배경 = doc/DEVELOPER_GUIDE.md '버전 스킴'
-        // ⚠️ 1.7.1은 스킴상 PATCH지만 이번 판에는 기능 추가(지문 카드 시작 버튼 ·
-        //    마지막 훈련 기억 · 결과 화면 「다시·다음」)가 섞여 있다. 규칙대로면 1.8.0인데
-        //    **사용자가 1.7.1로 하기로 결정했다**(2026-09-08). 스킴이 바뀐 것은 아니다.
-        versionCode = 9
-        versionName = "1.7.1"
+        // ⚠️ 1.7.2도 스킴상 PATCH지만 이번 판에는 기능 추가가 여럿이다(기본 훈련 지정 ·
+        //    지문 검색 · 별도 화면 둘 · 주 1회 장문 · 429 폴백). 규칙대로면 1.8.0인데
+        //    **사용자가 1.7.2로 하기로 결정했다**(2026-09-16). 스킴이 바뀐 것은 아니다.
+        //    🔴 **두 판 연속 예외다**(1.7.1도 같은 이유였다) — 예외가 관행이 되지 않게 적어 둔다.
+        versionCode = 10
+        versionName = "1.7.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
