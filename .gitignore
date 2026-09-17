@@ -20,3 +20,7 @@ keystore.properties
 
 # 임시 실험 스크립트 — 저장소에 남기지 않는다 (2026-09-04)
 /scratch/
+
+# 파이썬 도구 스크립트 실행 산출물
+__pycache__/
+*.pyc
