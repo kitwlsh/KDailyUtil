@@ -49,7 +49,7 @@
     {
       "id": "com.kitwlshcom.kdalin",
       "name": "K달인",
-      "tagline": "우리말 맞춤법·띄어쓰기 교정 — 60초 달인 도전",
+      "tagline": "우리말 퀴즈 — 초성·뜻풀이·속담, 그리고 60초 달인 도전",
       "iconUrl": "https://raw.githubusercontent.com/kitwlsh/k-series-config/main/icons/kdalin.png",
       "storeUrl": "https://play.google.com/store/apps/details?id=com.kitwlshcom.kdalin",
       "active": false,
