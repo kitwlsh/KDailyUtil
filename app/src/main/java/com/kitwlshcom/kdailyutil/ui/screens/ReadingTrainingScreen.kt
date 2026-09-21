@@ -21,6 +21,7 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,6 +34,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import com.kitwlshcom.kdailyutil.data.DailyRecord
 import com.kitwlshcom.kdailyutil.data.PassageLength
+import com.kitwlshcom.kdailyutil.data.PassageSource
 import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
 import com.kitwlshcom.kdailyutil.data.repository.SavedPassage
 import androidx.compose.runtime.*
@@ -559,6 +561,13 @@ private fun ReadingHub(
                     Text(
                         today.text.take(70) + if (today.text.length > 70) "…" else "",
                         fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
+                    )
+                    // 🔴 **이 글이 어디서 왔는지 말한다**(2026-09-21 · 사용자 제기).
+                    //    남의 글을 옮겨 오지 않는데 화면이 그 말을 한 적이 없었다 —
+                    //    의심이 남으면 «믿고 읽는 글»이 되지 못한다. 꼬리표만 조용히 붙인다.
+                    Text(
+                        PassageSource.ofRemote().badge,
+                        fontSize = 10.sp, color = Color.White.copy(0.38f)
                     )
 
                     // 🔴 오래 비운 사용자에게는 숫자를 말하지 않는다(복귀 사면).
@@ -1098,6 +1107,54 @@ private fun PassageDrawerRow(
  *    화면을 나눈 덕에 «20편씩 더 보기»도 필요 없어져 상수와 함께 지웠다 —
  *    LazyColumn은 보이는 만큼만 그린다.
  */
+/**
+ * 길이 갈래 칩 한 줄 — 「전체 14 · 📜 긴 지문 2 · 짧은 지문 12」 (2026-09-21).
+ *
+ * 🔴 **가로 스크롤을 붙인 이유**(2026-09-14의 교훈을 그대로 적용) — 버튼 여럿을 한 Row에 두면
+ * 좁은 화면에서 Row가 줄을 바꾸는 대신 **자식을 짜부라뜨려 글자가 세로로 접힌다.**
+ * 칩 이름(「📜 긴 지문」)과 편수는 앞으로도 길어질 수 있으므로 **폭을 고정하거나 글씨를 줄여
+ * «지금은 맞게» 만들지 않는다.** 모자라면 옆으로 밀리게 둔다.
+ *
+ * ⚠️ 칩에 **편수를 함께** 적는다. 눌렀더니 빈 목록인 것은 답이 아니라 헛걸음이다.
+ */
+@Composable
+private fun LengthFilterChips(
+    selected: PassageLength.LengthFilter,
+    counts: Map<PassageLength.LengthFilter, Int>,
+    onSelect: (PassageLength.LengthFilter) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        PassageLength.LengthFilter.entries.forEach { f ->
+            val on = f == selected
+            val shape = RoundedCornerShape(14.dp)
+            Box(
+                modifier = Modifier
+                    .clip(shape)
+                    .background(if (on) Gold24K.copy(0.18f) else Color.White.copy(0.04f))
+                    .border(if (on) 1.2.dp else 0.6.dp, Gold24K.copy(if (on) 0.75f else 0.18f), shape)
+                    .clickable { onSelect(f) }
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
+            ) {
+                Text(
+                    "${f.label} ${counts[f] ?: 0}",
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                    color = if (on) Gold24K else Color.White.copy(0.62f)
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun PassagePickerModule(
     viewModel: ReadingTrainingViewModel,
@@ -1113,6 +1170,9 @@ private fun PassagePickerModule(
     val recommendedWpm by viewModel.recommendedWpm.collectAsState()
 
     var query by remember { mutableStateOf("") }
+    // 🔴 **길이 갈래**(2026-09-21 · 사용자 요청) — 장문은 토요일에 1편뿐이라
+    //    날짜순 목록에서 «일곱 줄에 하나»꼴로 흩어진다. 칩 한 번으로 그것만 남긴다.
+    var lengthFilter by remember { mutableStateOf(PassageLength.LengthFilter.ALL) }
     var pickerPassage by remember { mutableStateOf<String?>(null) }
     var pickerOpen by remember { mutableStateOf(false) }
 
@@ -1141,12 +1201,20 @@ private fun PassagePickerModule(
     //    양쪽에서 빠지고 **여기에만 남는다.** 하루 1편씩 쌓이므로 1년이면 360편이 넘는다.
     //    ⚠️ 안 읽음 배지·진행률·「N편 남음」은 **붙이지 않는다**(§6-6) —
     //       검색은 «찾는 도구»이지 «밀린 것을 세는 장치»가 아니다.
-    val shown = remember(sorted, query) {
+    // 🔴 **길이 칩과 검색은 «곱해서» 쓴다** — 「긴 지문」을 켠 채 검색하면 «긴 것 중에서» 찾는다.
+    //    둘 중 하나를 끄게 만들면 사용자는 결국 둘 다 안 쓴다.
+    val shown = remember(sorted, query, lengthFilter) {
         val q = query.trim()
-        if (q.isBlank()) sorted
-        else sorted.filter {
+        val byLength = sorted.filter { lengthFilter.matches(it.text) }
+        if (q.isBlank()) byLength
+        else byLength.filter {
             it.title.contains(q, true) || it.theme.contains(q, true) || it.text.contains(q, true)
         }
+    }
+    // 칩에 붙일 편수 — **누르기 전에** 몇 편인지 말해 준다(눌렀더니 빈 목록인 것은 헛걸음이다).
+    val counts = remember(sorted) {
+        val texts = sorted.map { it.text }
+        PassageLength.LengthFilter.entries.associateWith { PassageLength.countIn(texts, it) }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -1163,14 +1231,28 @@ private fun PassagePickerModule(
                 }
             }
         )
+        LengthFilterChips(selected = lengthFilter, counts = counts) { lengthFilter = it }
         Text(
             when {
-                query.isBlank() -> "총 ${allRemote.size}편"
-                shown.isEmpty() -> "찾는 지문이 없어요."
-                else -> "${shown.size}편 찾음"
+                shown.isNotEmpty() && query.isBlank() && lengthFilter == PassageLength.LengthFilter.ALL ->
+                    "총 ${allRemote.size}편"
+                shown.isNotEmpty() -> "${shown.size}편"
+                query.isNotBlank() -> "찾는 지문이 없어요."
+                // 🔴 «없다»로 끝내지 않는다 — 장문은 **토요일에만** 오므로
+                //    «아직 없는 것»과 «고장 난 것»을 사용자가 구별할 수 있어야 한다.
+                lengthFilter == PassageLength.LengthFilter.LONG ->
+                    "긴 지문이 아직 없어요 — 토요일마다 한 편씩 옵니다."
+                else -> "이 갈래에 지문이 없어요."
             },
             fontSize = 11.sp, color = Color.White.copy(0.55f),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+        )
+        // 🔴 **출처를 한 번 말해 준다**(2026-09-21 · 사용자 제기).
+        //    줄마다 붙이면 같은 말이 14번 반복돼 소음이 된다 → 갈래 머리에서 한 번.
+        Text(
+            PassageSource.ofRemote().notice,
+            fontSize = 10.sp, color = Color.White.copy(0.38f), lineHeight = 14.sp,
+            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 4.dp)
         )
         // 🔴 숨긴 지문을 다시 꺼내는 길. 이것이 없으면 「숨기기」는 사실상 삭제다.
         if (hiddenCount > 0) {
@@ -1253,8 +1335,9 @@ private fun PassagePickerModule(
             }
             item {
                 Text(
-                    "내장 지문 ${PRACTICE_PASSAGES.size}편은 허브의 「랜덤 지문」으로 나옵니다.",
-                    fontSize = 10.sp, color = Color.White.copy(0.4f),
+                    "내장 지문 ${PRACTICE_PASSAGES.size}편은 허브의 「랜덤 지문」으로 나옵니다 — " +
+                        PassageSource.BUILT_IN.notice,
+                    fontSize = 10.sp, color = Color.White.copy(0.4f), lineHeight = 14.sp,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             }
@@ -1384,6 +1467,14 @@ private fun LibraryModule(
             },
             fontSize = 11.sp, color = Color.White.copy(0.55f),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+        )
+        // 🔴 **여기만 출처가 앱 밖에 있다**(2026-09-21) — 넣은 사람이 곧 출처이고,
+        //    «써도 되는 글인가»의 판단도 넣은 사람 몫이다. 그래서 로봇 지문과 문구가 다르다.
+        //    ⚠️ 겁주는 경고가 아니라 **사실 한 줄**로 적는다 — 앱은 이 글을 어디에도 올리지 않는다.
+        Text(
+            PassageSource.MINE.notice,
+            fontSize = 10.sp, color = Color.White.copy(0.38f), lineHeight = 14.sp,
+            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 4.dp)
         )
         if (savedPassages.isEmpty()) {
             Text(

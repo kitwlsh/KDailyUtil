@@ -41,6 +41,39 @@ object PassageLength {
     fun isLong(text: String): Boolean = text.trim().length >= LONG_CHARS
 
     /**
+     * 목록에서 «긴 것만 / 짧은 것만» 갈라 보는 갈래 (2026-09-21 · 사용자 요청).
+     *
+     * 🔴 **왜 필요한가** — 장문은 **토요일에 1편**만 온다. 하루 1편이 쌓이는 목록에서
+     * 장문은 «일곱 줄에 한 줄»꼴이고, 3개월이면 70줄 사이에 흩어진다.
+     * 「오늘은 긴 걸 읽자」고 마음먹은 사람이 **그것을 찾는 데 훈련보다 오래 걸린다.**
+     *
+     * ⚠️ **새 필드를 만들지 않는다** — 판정은 [isLong] 하나로 끝난다([LONG_CHARS]).
+     * JSON 형식이 그대로라 구버전 앱도 영향을 받지 않고, 로봇 쪽 규격이 흔들려도
+     * 경계값(500자)이 «평소 250자 / 장문 800자» 사이의 빈 구간이라 오판하지 않는다.
+     *
+     * 🔴 **검색과 곱해서 쓴다** — 「긴 지문」을 켠 채 검색하면 «긴 것 중에서» 찾는다.
+     * 둘 중 하나를 끄게 만들면 사용자는 둘 다 안 쓰게 된다.
+     */
+    enum class LengthFilter(val label: String) {
+        ALL("전체"),
+        LONG("📜 긴 지문"),
+        SHORT("짧은 지문");
+
+        fun matches(text: String): Boolean = when (this) {
+            ALL -> true
+            LONG -> PassageLength.isLong(text)
+            SHORT -> !PassageLength.isLong(text)
+        }
+    }
+
+    /**
+     * 이 갈래에 해당하는 편수. 칩에 숫자를 붙여 **누르기 전에** 몇 편인지 말해 준다 —
+     * 눌렀더니 「찾는 지문이 없어요」만 나오는 것은 답이 아니라 헛걸음이다.
+     */
+    fun countIn(texts: List<String>, filter: LengthFilter): Int =
+        texts.count { filter.matches(it) }
+
+    /**
      * 어절 수. 🔴 `RsvpModule`이 화면에 뿌리는 단위와 **같은 규칙**이다
      * (`trim().split(Regex("""\s+""")).filter { it.isNotBlank() }`).
      */

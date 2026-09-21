@@ -98,8 +98,9 @@ KDailyUtil/
 │   │   ├── AudioCaptureService.kt          # 포그라운드 오디오 캡처/재생(MediaSession 미디어버튼·오디오포커스, 유휴 시 알림 해제)
 │   │   └── TtsManager.kt                   # TTS 낭독
 │   ├── data/
-│   │   ├── PassageLength.kt                # 🆕 지문 길이 → 「224자 · 약 12초」 · 장문 판정(2026-09-14)
+│   │   ├── PassageLength.kt                # 🆕 지문 길이·「224자 · 약 12초」·장문 판정 + 길이 필터(2026-09-21)
 │   │   ├── PassageKey.kt                   # 🆕 지문 열쇠(본문 SHA-256 앞16자) — 재독 판정(2026-09-14)
+│   │   ├── PassageSource.kt                # 🆕 지문 출처 표기(🤖AI·📗내장·📚내 글) — 2026-09-21
 │   │   ├── ReadingTrainingModule.kt        # 지문 훈련 3종 + 「기본 훈련」 초기값(2026-09-14 의미 변경)
 │   │   ├── model/
 │   │   │   ├── QuizQuestion.kt             # 퀴즈 데이터 모델 (imageUrl 필드 포함)
