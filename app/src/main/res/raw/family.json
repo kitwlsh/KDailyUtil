@@ -1,8 +1,8 @@
 {
   "_readme": "K-시리즈 자매앱 동적 레지스트리(정본). 표준 = KLOTTO_CONNECT_HANDOFF.md §8. 배포 위치 = https://raw.githubusercontent.com/kitwlsh/k-series-config/main/family.json — 각 앱이 실행 시 받아 '브랜드 & 자매앱' 카드를 동적 렌더한다. 신규 자매앱 추가/출시상태 변경은 이 파일만 고치면 전 앱에 즉시 반영된다(앱 재배포 불필요).",
-  "_rules": "① id = applicationId 대소문자 그대로 ② active=false는 카드 완전 숨김(기획 단계) ③ comingSoon=true는 '출시 예정' 비활성 카드(미출시) ④ storeUrl은 play.google.com/market: 만 허용 ⑤ iconUrl은 https + githubusercontent.com/github.io 만 허용 ⑥ 이 파일의 사본을 각 앱이 번들 기본값으로 포함(KDailyUtil = app/src/main/res/raw/family.json) ⑦ 🔴 최상위에는 앱별 비상 레버 키가 올 수 있다(aiModel=KDailyUtil, aiTrial·fscApi=K장부). 라이브를 덮어쓰기 전에 라이브의 최상위 키를 먼저 확인할 것 — 확인 없이 정본을 올리면 껐던 기능이 조용히 되살아난다. 목록·절차 = doc/family_config/README.md §3-1.",
+  "_rules": "① id = applicationId 대소문자 그대로 ② active=false는 카드 완전 숨김(기획 단계) ③ comingSoon=true는 '출시 예정' 비활성 카드(미출시) ④ storeUrl은 play.google.com/market: 만 허용 ⑤ iconUrl은 https + githubusercontent.com/github.io 만 허용 ⑥ 이 파일의 사본을 각 앱이 번들 기본값으로 포함(KDailyUtil = app/src/main/res/raw/family.json) ⑦ 🔴 최상위에는 앱별 비상 레버 키가 올 수 있다(aiModel=KDailyUtil, aiTrial·fscApi=K장부, ads=K달인). 라이브를 덮어쓰기 전에 라이브의 최상위 키를 먼저 확인할 것 — 확인 없이 이 정본을 올리면 껐던 기능이 조용히 되살아난다. 목록·절차 = doc/family_config/README.md §3-1.",
   "version": 1,
-  "updatedAt": "2026-08-10",
+  "updatedAt": "2026-09-17",
   "apps": [
     {
       "id": "com.kitwlshcom.kdailyutil",
@@ -33,7 +33,7 @@
       "active": true,
       "comingSoon": false,
       "order": 3,
-      "_note": "2026-08-10 출시 완료. 이 번들값은 원격·캐시 모두 불가할 때(첫 실행 오프라인)만 쓰이며, v1.6.1(vc7)부터 반영된다."
+      "_note": "2026-08-10 Play 스토어 출시 완료 → comingSoon=false로 전환(앱 재배포 없이 전 앱에서 활성 카드)."
     },
     {
       "id": "com.kitwlshcom.kunbok",
@@ -43,8 +43,19 @@
       "storeUrl": "https://play.google.com/store/apps/details?id=com.kitwlshcom.kunbok",
       "active": false,
       "comingSoon": true,
+      "order": 5,
+      "_note": "🔴 2026-09-15 후보에서 제외 — 사주·명리는 자격증·전문성 문제(KDalin/main/doc/03 결정 로그). 보류 상태이며 착수 계획이 없다. 항목을 지우지 않는 이유: 예약 id가 기존 3앱의 <queries>에 이미 박혀 있어 지워도 사라지지 않는다 — 기록으로 남긴다. 되살리려면 order를 다시 조정할 것."
+    },
+    {
+      "id": "com.kitwlshcom.kdalin",
+      "name": "K달인",
+      "tagline": "우리말 퀴즈 — 초성·뜻풀이·속담, 그리고 60초 달인 도전",
+      "iconUrl": "https://raw.githubusercontent.com/kitwlsh/k-series-config/main/icons/kdalin.png",
+      "storeUrl": "https://play.google.com/store/apps/details?id=com.kitwlshcom.kdalin",
+      "active": false,
+      "comingSoon": true,
       "order": 4,
-      "_note": "기획 단계(코드 미착수) → active=false로 카드 완전 숨김. 개발 착수·아이콘 업로드 후 active=true + comingSoon=true, 출시 후 comingSoon=false."
+      "_note": "2026-09-17 개발 착수(프로젝트 골격·아이콘·자매앱 레지스트리 완료). active=false로 카드 완전 숨김 → 출시 임박에 active=true, 출시 후 comingSoon=false. 🔴 예약 id(kfamily1~5)를 쓰지 않으므로 기존 3앱에서는 '설치됨 배지·직접 실행'이 동작하지 않는다(카드 노출·스토어 이동은 정상). 필요해지면 그때 3앱 <queries>에 한 줄씩 추가한다."
     }
   ],
   "_reservedQueriesPackages": [
