@@ -203,33 +203,40 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    /**
+     * 재생/일시정지 토글.
+     *
+     * 🔴 **`_isPlaybackPaused`를 여기서 «미리» 바꾸지 않는다**(2026-09-23에 걷어냈다).
+     *
+     * 예전에는 명령을 보내면서 화면 값을 먼저 바꿔 놓았다(낙관적 갱신). 서비스가 그 명령을
+     * 실제로는 수행하지 못한 경우 — **통화 중이라 오디오 포커스를 못 받은 경우가 그렇다** —
+     * 서비스가 «나는 여전히 멈춰 있다»고 알려도 소용이 없었다.
+     * `StateFlow`는 **같은 값을 다시 넣으면 알리지 않기 때문**이다(이미 true인데 true를 써도 조용하다).
+     *
+     * 그래서 화면만 «재생 중»이라고 믿고, 다음 누름에 **일시정지 명령**을 보냈다.
+     * 소리는 안 나는데 버튼만 두 번 헛도는 것 — 사용자가 신고한 「눌러도 반응 없다」의 정체다.
+     * 게다가 그 «일시정지»가 전화 끝난 뒤 자동 재개 예약까지 지웠다.
+     *
+     * → **서비스가 유일한 기준이다.** 화면은 서비스가 알려 주는 값만 따른다(observeServiceState).
+     */
     fun playAudio(item: AudioItem) {
+        val app = getApplication<Application>()
+        fun send(action: String, path: String? = null) {
+            app.startService(Intent(app, AudioCaptureService::class.java).apply {
+                this.action = action
+                path?.let { putExtra(AudioCaptureService.EXTRA_FILE_PATH, it) }
+            })
+        }
         if (_currentlyPlaying.value == item) {
-            if (_isPlaybackPaused.value) {
-                // Resume
-                val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
-                    action = AudioCaptureService.ACTION_PLAY
-                    putExtra(AudioCaptureService.EXTRA_FILE_PATH, item.path)
-                }
-                getApplication<Application>().startService(intent)
-                _isPlaybackPaused.value = false
-            } else {
-                // Pause
-                val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
-                    action = AudioCaptureService.ACTION_PAUSE
-                }
-                getApplication<Application>().startService(intent)
-                _isPlaybackPaused.value = true
-            }
+            // 🔴 **판단은 서비스의 값을 직접 본다**(화면 사본이 아니라).
+            //    사본은 흐름을 한 번 거쳐 오므로 «곡이 방금 끝난 순간»처럼 촉박한 자리에서는
+            //    아직 옛 값일 수 있다. 그 한 틈에 재생 대신 일시정지가 나간다.
+            if (AudioCaptureService.isPlaybackPaused.value) send(AudioCaptureService.ACTION_PLAY, item.path)
+            else send(AudioCaptureService.ACTION_PAUSE)
         } else {
-            // Start new playback
-            val intent = Intent(getApplication(), AudioCaptureService::class.java).apply {
-                action = AudioCaptureService.ACTION_PLAY
-                putExtra(AudioCaptureService.EXTRA_FILE_PATH, item.path)
-            }
-            getApplication<Application>().startService(intent)
+            send(AudioCaptureService.ACTION_PLAY, item.path)
+            // 어느 줄이 선택됐는지는 즉시 반영한다 — 이 값은 «명령이 먹혔는가»와 무관하다.
             _currentlyPlaying.value = item
-            _isPlaybackPaused.value = false
         }
     }
 
@@ -288,6 +295,10 @@ class AudioCaptureViewModel(application: Application) : AndroidViewModel(applica
                 if (currentIndex != -1 && currentIndex < currentList.size - 1) {
                     playAudio(currentList[currentIndex + 1])
                 } else {
+                    // 🔴 목록 끝이다 — 서비스에도 «끝났다»고 알린다(2026-09-23).
+                    //    알리지 않으면 재생 서비스가 포그라운드인 채로, 알림 그늘에 «일시정지 중»
+                    //    카드를 띄운 채로 **남는다**. 화면은 «재생 중인 것 없음»인데 알림만 사는 꼴이다.
+                    stopPlayback()
                     _currentlyPlaying.value = null
                 }
             }
