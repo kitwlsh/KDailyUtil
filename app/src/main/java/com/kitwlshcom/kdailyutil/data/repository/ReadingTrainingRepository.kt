@@ -5,9 +5,11 @@ import android.graphics.Bitmap
 import android.util.Log
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.kitwlshcom.kdailyutil.data.EffectiveWpm
 import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -71,6 +73,15 @@ class ReadingTrainingRepository(private val context: Context) {
         //    («마지막에 한 것을 앱이 기억» → «사용자가 정한 기본»). 키를 바꾸면 기존 사용자의
         //    값이 통째로 날아가 전원이 리듬 페이서로 되돌아간다.
         val LAST_MODULE = stringPreferencesKey("last_training_module")
+
+        // ── 유효 속도(EWPM)를 위한 «다리» (2026-09-23) ──────────────
+        // 🔴 속도 한 판과 이해도 점수는 **다른 화면에서 다른 시각에** 나온다.
+        //    둘을 한 판으로 묶으려면 «방금 끝낸 속도 세션»을 잠깐 들고 있어야 한다.
+        //    ⚠️ 메모리가 아니라 DataStore에 둔다 — 퀴즈 생성이 수십 초 걸리는 동안
+        //       프로세스가 죽으면(저사양 기기에서 실제로 일어난다) 점수만 남고 속도가 사라진다.
+        val PENDING_WPM = intPreferencesKey("pending_speed_wpm")
+        val PENDING_KEY = stringPreferencesKey("pending_speed_passage_key")
+        val PENDING_AT = longPreferencesKey("pending_speed_at")
     }
 
     val bestWpmFlow: Flow<Int> = context.readingDataStore.data.map { it[Keys.BEST_WPM] ?: 0 }
@@ -183,6 +194,85 @@ class ReadingTrainingRepository(private val context: Context) {
             wpmHistoryFile.writeText(arr.toString())
         } catch (e: Exception) {
             Log.e("ReadingRepo", "addWpmHistory 실패: ${e.message}")
+        }
+    }
+
+    // ── 유효 속도(EWPM) — **별도 트랙** (2026-09-23) ──────────────
+    //
+    // 🔴 **`reading_wpm_history.json`은 한 글자도 건드리지 않는다.** 거기에 이해도를 끼워
+    //    넣으려면 형식이 바뀌고 기존 사용자 데이터 이전이 따라온다. 파일을 나누면
+    //    **이전이 아예 필요 없고**, 옛 기록은 그대로 «미검증»으로 남는다(그것이 사실이다).
+
+    /** 방금 끝낸 속도 세션을 «이해도 점수를 기다리는 상태»로 들어 둔다. */
+    suspend fun setPendingSpeedSession(wpm: Int, passageKey: String, nowMs: Long) {
+        context.readingDataStore.edit { p ->
+            p[Keys.PENDING_WPM] = wpm
+            p[Keys.PENDING_KEY] = passageKey
+            p[Keys.PENDING_AT] = nowMs
+        }
+    }
+
+    /**
+     * 기다리던 속도 세션을 **꺼내면서 지운다**.
+     *
+     * 🔴 **한 판의 속도는 한 번만 검증된다** — 지우지 않으면 퀴즈를 두 번 풀어 같은 속도로
+     * 기록을 두 개 만들 수 있고, 그러면 평균이 한 판에 끌려간다.
+     *
+     * 지문이 다르거나([EffectiveWpm.PAIR_WINDOW_MS]를 넘겼으면) null. 넘긴 것은 그 자리에서 버린다 —
+     * 어제 읽은 판에 오늘 점수를 붙이면 그것은 기록이 아니라 우연이다.
+     */
+    suspend fun takePendingSpeedSession(passageKey: String, nowMs: Long): Int? {
+        var wpm: Int? = null
+        context.readingDataStore.edit { p ->
+            val savedKey = p[Keys.PENDING_KEY]
+            val savedAt = p[Keys.PENDING_AT] ?: 0L
+            val savedWpm = p[Keys.PENDING_WPM] ?: 0
+            val fresh = nowMs - savedAt in 0..EffectiveWpm.PAIR_WINDOW_MS
+            if (savedKey != null && savedKey == passageKey && fresh && savedWpm > 0) wpm = savedWpm
+            if (savedKey != null && (savedKey == passageKey || !fresh)) {
+                p.remove(Keys.PENDING_WPM); p.remove(Keys.PENDING_KEY); p.remove(Keys.PENDING_AT)
+            }
+        }
+        return wpm
+    }
+
+    private val ewpmHistoryFile: File get() = File(context.filesDir, "reading_ewpm_history.json")
+
+    @Synchronized
+    fun loadEwpmHistory(): List<EffectiveWpm.Record> {
+        if (!ewpmHistoryFile.exists()) return emptyList()
+        return try {
+            val arr = JSONArray(ewpmHistoryFile.readText())
+            (0 until arr.length()).mapNotNull { i ->
+                val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                EffectiveWpm.Record(
+                    wpm = o.optInt("wpm"),
+                    comprehension = o.optInt("comprehension"),
+                    questions = o.optInt("questions"),
+                    date = o.optString("date")
+                )
+            }
+        } catch (e: Exception) { emptyList() }
+    }
+
+    @Synchronized
+    fun addEwpmRecord(record: EffectiveWpm.Record) {
+        try {
+            val list = loadEwpmHistory().toMutableList()
+            list.add(record)
+            while (list.size > 30) list.removeAt(0)
+            val arr = JSONArray()
+            list.forEach {
+                arr.put(JSONObject().apply {
+                    put("wpm", it.wpm)
+                    put("comprehension", it.comprehension)
+                    put("questions", it.questions)
+                    put("date", it.date)
+                })
+            }
+            ewpmHistoryFile.writeText(arr.toString())
+        } catch (e: Exception) {
+            Log.e("ReadingRepo", "addEwpmRecord 실패: ${e.message}")
         }
     }
 

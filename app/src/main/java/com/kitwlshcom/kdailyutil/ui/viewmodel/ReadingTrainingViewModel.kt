@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitwlshcom.kdailyutil.data.PassageKey
 import com.kitwlshcom.kdailyutil.data.DailyRecord
+import com.kitwlshcom.kdailyutil.data.EffectiveWpm
 import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
 import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
 import com.kitwlshcom.kdailyutil.data.repository.ReadingTrainingRepository
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -80,20 +82,31 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     private val _wpmHistory = MutableStateFlow<List<Int>>(emptyList())
     val wpmHistory: StateFlow<List<Int>> = _wpmHistory.asStateFlow()
 
-    /**
-     * 난이도 자동 추천: 최근 기록(최대 5회) 평균을 약 8% 상향한 '다음 목표 속도'(WPM).
-     * 기록이 없으면 일반 성인 평균에 가까운 300으로 시작. 드릴 초기 속도·통계 화면에 사용.
-     */
-    val recommendedWpm: StateFlow<Int> = _wpmHistory
-        .map { computeRecommendedWpm(it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 300)
+    /** 이해도까지 확인된 기록(**검증된 기록** · 별도 파일). 키가 없으면 영원히 비어 있고, 그래도 괜찮다. */
+    private val _ewpmHistory = MutableStateFlow<List<EffectiveWpm.Record>>(emptyList())
+    val ewpmHistory: StateFlow<List<EffectiveWpm.Record>> = _ewpmHistory.asStateFlow()
 
-    private fun computeRecommendedWpm(history: List<Int>): Int {
-        if (history.isEmpty()) return 300
-        val recent = history.takeLast(5)
-        val target = (recent.average() * 1.08).toInt()
-        return (target / 10 * 10).coerceIn(150, 700) // 10단위 반올림 + 슬라이더 범위로 clamp
-    }
+    /**
+     * 난이도 자동 추천: 최근 기록(최대 5회) 평균을 바탕으로 한 '다음 목표 속도'(WPM).
+     *
+     * 🔴 **2026-09-23부터 «이해도가 방향을 정한다»** — 예전에는 무조건 8%씩 올렸다.
+     * 그러면 읽지 않고 넘긴 판까지 목표를 밀어 올려 **앱이 «더 빨리 넘겨라»라고 시키는 꼴**이 됐다.
+     * 이해도가 따라오면 올리고, 어중간하면 그대로 두고, 낮으면 낮춘다([EffectiveWpm.nextTarget]).
+     *
+     * ⚠️ **검증된 기록이 하나도 없으면 계산이 예전과 완전히 같다** — 키 없는 사용자는 달라지는 것이 없다.
+     */
+    val recommendedWpm: StateFlow<Int> =
+        combine(_wpmHistory, _ewpmHistory) { history, verified ->
+            EffectiveWpm.nextTarget(history, verified)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), EffectiveWpm.DEFAULT_WPM)
+
+    /**
+     * 방금 끝낸 판의 **유효 속도**. 이해도 퀴즈를 채점한 그 자리에서만 값이 생긴다.
+     * 🔴 null = «이번 판은 유효 속도를 낼 수 없다»(속도 세션과 못 묶였거나 문항이 너무 적었다).
+     *    그때는 **아무 말도 하지 않는다** — 없는 숫자를 0으로 보여 주면 거짓말이 된다.
+     */
+    private val _lastEwpm = MutableStateFlow<EffectiveWpm.Record?>(null)
+    val lastEwpm: StateFlow<EffectiveWpm.Record?> = _lastEwpm.asStateFlow()
 
     private val _isGeneratingQuiz = MutableStateFlow(false)
     val isGeneratingQuiz: StateFlow<Boolean> = _isGeneratingQuiz.asStateFlow()
@@ -149,7 +162,7 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     private val _todayIsRevisit = MutableStateFlow(false)
     val todayIsRevisit: StateFlow<Boolean> = _todayIsRevisit.asStateFlow()
 
-    init { refreshPassages(); refreshWpmHistory(); loadRemotePassages(); syncRemotePassages() }
+    init { refreshPassages(); refreshWpmHistory(); refreshEwpmHistory(); loadRemotePassages(); syncRemotePassages() }
 
     /** 기기에 있는 것만 먼저 그린다 — 통신을 기다리는 동안 화면이 비어 있으면 안 된다. */
     private fun loadRemotePassages() {
@@ -304,6 +317,10 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
         viewModelScope.launch { _wpmHistory.value = withContext(Dispatchers.IO) { repo.loadWpmHistory() } }
     }
 
+    fun refreshEwpmHistory() {
+        viewModelScope.launch { _ewpmHistory.value = withContext(Dispatchers.IO) { repo.loadEwpmHistory() } }
+    }
+
     /** 촬영/추출한 페이지를 이미지 썸네일과 함께 보관함에 저장 */
     fun savePassageFromImage(bitmap: android.graphics.Bitmap, text: String) {
         viewModelScope.launch {
@@ -383,6 +400,8 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
         // 🔴 **먼저 «모름»으로 되돌린다.** 이 줄은 결과 화면이 그려지기 전에,
         //    코루틴 밖에서 동기적으로 실행돼야 직전 판정이 새어 나가지 않는다.
         _lastSessionWasRepeat.value = null
+        // 지난 판의 유효 속도가 새 판의 결과 화면에 새어 나가지 않게 — `_lastSessionWasRepeat`과 같은 이유다.
+        _lastEwpm.value = null
         viewModelScope.launch {
             val sdf = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
             val cal = Calendar.getInstance()
@@ -397,6 +416,10 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
             if (wpm > 0 && firstRead) {
                 withContext(Dispatchers.IO) { repo.addWpmHistory(wpm) }
                 refreshWpmHistory()
+                // 🔴 **이 판을 «이해도 점수를 기다리는 상태»로 들어 둔다**(2026-09-23 · 유효 속도).
+                //    재독(!firstRead)은 여기 들어오지 않는다 — 속도 기록에서 빼기로 한 판을
+                //    유효 속도로는 세는 것은 앞뒤가 안 맞는다.
+                repo.setPendingSpeedSession(wpm, PassageKey.of(passage), System.currentTimeMillis())
             }
         }
     }
@@ -417,9 +440,33 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     val readPassageCount: StateFlow<Int> =
         repo.readPassageCountFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    /** 이해도 점수(0~100) 최고치 기록 */
-    fun recordComprehension(scorePercent: Int) {
-        viewModelScope.launch { repo.recordComprehension(scorePercent) }
+    /**
+     * 이해도 점수(0~100)를 기록하고, **방금 읽은 속도 세션과 한 판으로 묶는다**(2026-09-23).
+     *
+     * 최고치 갱신은 예전 그대로다. 달라진 것은 «묶기»뿐이고, 묶이지 않으면 조용히 지나간다 —
+     * 퀴즈만 따로 풀어 본 경우(허브에서 바로 들어온 경우)에는 속도가 없어 유효 속도를 낼 수 없다.
+     *
+     * @param questions 문항 수. [EffectiveWpm.MIN_QUESTIONS] 미만이면 **기록하지 않는다**
+     *   — 2문항짜리 점수를 속도에 곱하면 유효 속도가 문항 하나에 출렁인다.
+     * @param passage 이 점수를 낸 지문. 속도 세션과 **같은 글일 때만** 묶는다.
+     */
+    fun recordComprehension(scorePercent: Int, questions: Int = 0, passage: String = "") {
+        viewModelScope.launch {
+            repo.recordComprehension(scorePercent)
+            if (passage.isBlank()) return@launch
+            val wpm = repo.takePendingSpeedSession(PassageKey.of(passage), System.currentTimeMillis())
+                ?: return@launch
+            if (!EffectiveWpm.isRecordable(wpm, questions)) return@launch
+            val record = EffectiveWpm.Record(
+                wpm = wpm,
+                comprehension = scorePercent,
+                questions = questions,
+                date = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Calendar.getInstance().time)
+            )
+            withContext(Dispatchers.IO) { repo.addEwpmRecord(record) }
+            _lastEwpm.value = record
+            refreshEwpmHistory()
+        }
     }
 
     /**

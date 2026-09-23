@@ -33,7 +33,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import com.kitwlshcom.kdailyutil.data.DailyRecord
+import com.kitwlshcom.kdailyutil.data.EffectiveWpm
 import com.kitwlshcom.kdailyutil.data.PassageLength
+import com.kitwlshcom.kdailyutil.data.AiContentReport
 import com.kitwlshcom.kdailyutil.data.PassageSource
 import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
 import com.kitwlshcom.kdailyutil.data.repository.SavedPassage
@@ -565,10 +567,20 @@ private fun ReadingHub(
                     // 🔴 **이 글이 어디서 왔는지 말한다**(2026-09-21 · 사용자 제기).
                     //    남의 글을 옮겨 오지 않는데 화면이 그 말을 한 적이 없었다 —
                     //    의심이 남으면 «믿고 읽는 글»이 되지 못한다. 꼬리표만 조용히 붙인다.
-                    Text(
-                        PassageSource.ofRemote().badge,
-                        fontSize = 10.sp, color = Color.White.copy(0.38f)
-                    )
+                    // 🔴 **출처를 밝혔으면 «이상하면 알려 달라»까지가 한 벌이다**(2026-09-23).
+                    //    「🤖 AI가 지은 글」이라고만 말하고 알릴 길을 안 주면 «면책 문구»가 된다.
+                    //    Play 정책도 «앱을 나가지 않고 신고할 수단»을 요구한다(§할 일 0-J).
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            PassageSource.ofRemote().badge,
+                            fontSize = 10.sp, color = Color.White.copy(0.38f)
+                        )
+                        Spacer(Modifier.weight(1f))
+                        ReportLink(
+                            subject = AiContentReport.subject(today.id, today.title),
+                            body = AiContentReport.body(today.id, today.title, today.text, PassageSource.ofRemote())
+                        )
+                    }
 
                     // 🔴 오래 비운 사용자에게는 숫자를 말하지 않는다(복귀 사면).
                     // 「밀린 12편」은 초대가 아니라 청구서이고, 오늘 할 일은 어느 쪽이든 한 편이다.
@@ -1329,6 +1341,12 @@ private fun PassagePickerModule(
                                 onStart = { onStartTraining(item.text, defaultModule) },
                                 onPick = { pickerPassage = item.text; pickerOpen = true }
                             )
+                            // 🔴 시작 버튼과 **같은 조건**으로 붙인다 — 모든 줄에 달면 14줄이 전부
+                            //    한 칸씩 길어져 이번 판에서 줄이려던 스크롤이 도로 늘어난다.
+                            ReportLink(
+                                subject = AiContentReport.subject(item.id, item.title),
+                                body = AiContentReport.body(item.id, item.title, item.text, PassageSource.ofRemote())
+                            )
                         }
                     }
                 }
@@ -1918,6 +1936,13 @@ private fun StatsModule(viewModel: ReadingTrainingViewModel, onExit: () -> Unit)
     val trainedDates by viewModel.trainedDates.collectAsState()
     val recommended by viewModel.recommendedWpm.collectAsState()
     val readCount by viewModel.readPassageCount.collectAsState()
+    val verified by viewModel.ewpmHistory.collectAsState()
+
+    // 🔴 **«검증된 기록»은 별도 트랙이다**(2026-09-23). 기존 WPM 기록과 섞지 않는다 —
+    //    옛 기록에는 이해도가 붙어 있지 않고, 없는 것을 0%로 치면 전부 유효 속도 0이 된다.
+    val avgEwpm = EffectiveWpm.averageEwpm(verified)
+    val avgComp = EffectiveWpm.averageComprehension(verified)
+    val pace = EffectiveWpm.paceOf(verified)
 
     val avg = if (history.isNotEmpty()) history.average().toInt() else 0
     val latest = history.lastOrNull() ?: 0
@@ -1977,6 +2002,37 @@ private fun StatsModule(viewModel: ReadingTrainingViewModel, onExit: () -> Unit)
                     }
                 }
             }
+            // ── 🎯 유효 속도(EWPM) — **검증된 기록** (2026-09-23) ──────────────
+            //    🔴 «빠르게만»이 이득이 아니게 만드는 유일한 제대로 된 방법이다.
+            //    ⚠️ **카드를 언제나 그린다** — 기록이 없을 때 숨기면 사용자는 이 기능이
+            //       있는 줄도 모르고, «퀴즈를 풀면 뭐가 좋은가»에 답이 없어진다(09-14 §0-G와 같은 판단).
+            item {
+                StatsCard("🎯 유효 속도 (EWPM = 속도 × 이해도)") {
+                    if (verified.isEmpty()) {
+                        Text(
+                            "아직 검증된 기록이 없어요. 훈련을 끝내고 그 자리에서 「📝 이해도 퀴즈 풀기」를 누르면, " +
+                                "그 판의 속도에 이해도를 곱한 «유효 속도»가 여기에 쌓여요.",
+                            fontSize = 12.sp, color = Color.White.copy(0.65f), lineHeight = 18.sp
+                        )
+                        Text(
+                            "※ 이해도 퀴즈는 Gemini API Key가 있어야 만들어져요. 키가 없어도 " +
+                                "속도·출석·연속 기록은 지금까지처럼 그대로 쌓입니다.",
+                            fontSize = 11.sp, color = Color.White.copy(0.45f), lineHeight = 16.sp
+                        )
+                    } else {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                            StatItem("평균", "$avgEwpm", "EWPM")
+                            StatItem("이해도", "$avgComp%", "평균")
+                            StatItem("검증", "${verified.size}", "판")
+                        }
+                        Text(
+                            "최근 ${minOf(verified.size, EffectiveWpm.RECENT)}판 기준이에요. " +
+                                "500 WPM으로 읽고 60%를 이해했다면 유효 속도는 300 — 이해하지 못한 속도는 세지 않아요.",
+                            fontSize = 12.sp, color = Color.White.copy(0.65f), lineHeight = 18.sp
+                        )
+                    }
+                }
+            }
             // 🔴 **이 숫자들이 무엇인지 한 곳에서 제대로 설명한다**(2026-09-14 · 사용자 지적).
             //    사용자가 물었다: 「연습만 하면 속도가 올라가는 거죠? 퀴즈 안 풀어도?
             //    같은 지문을 계속 보면 암기가 돼서 빨라질 텐데요?」 — 둘 다 맞는 말이었다.
@@ -1998,6 +2054,11 @@ private fun StatsModule(viewModel: ReadingTrainingViewModel, onExit: () -> Unit)
                         fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
                     )
                     Text(
+                        "• 🎯 유효 속도(EWPM)는 «속도 × 이해도»예요. 이해도 퀴즈를 푼 판만 여기에 들어가고, " +
+                            "문항이 ${EffectiveWpm.MIN_QUESTIONS}개보다 적으면 한 문제에 점수가 출렁여서 세지 않아요.",
+                        fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
+                    )
+                    Text(
                         "지금까지 처음 읽은 지문 ${readCount}편",
                         fontSize = 11.sp, color = Gold24K.copy(0.8f)
                     )
@@ -2007,11 +2068,22 @@ private fun StatsModule(viewModel: ReadingTrainingViewModel, onExit: () -> Unit)
                 StatsCard("🎯 다음 목표 (난이도 추천)") {
                     Text("$recommended WPM · ${difficultyLabel(recommended)}", fontSize = 22.sp,
                         fontWeight = FontWeight.Bold, color = Gold24K)
+                    // 🔴 **목표가 왜 그 값인지 말한다**(2026-09-23). 2026-09-23부터 이 목표는
+                    //    이해도에 따라 «올림 / 유지 / 낮춤»으로 갈린다. 말해 주지 않으면
+                    //    「왜 목표가 안 오르지? 고장인가」가 된다 — 재독 안내에서 배운 것과 같다.
                     Text(
-                        if (history.isEmpty())
-                            "아직 기록이 없어 기본값(300 WPM)으로 시작해요. 리듬 페이서·단어 점멸·묶어 읽기를 하면 최근 실력에 맞춰 목표가 자동 조정됩니다."
-                        else
-                            "최근 실력(평균 $avg WPM)을 약간 상향한 목표예요. 드릴을 시작하면 이 속도로 맞춰지고, 슬라이더로 언제든 조절할 수 있어요.",
+                        when {
+                            history.isEmpty() ->
+                                "아직 기록이 없어 기본값(${EffectiveWpm.DEFAULT_WPM} WPM)으로 시작해요. 리듬 페이서·단어 점멸·묶어 읽기를 하면 최근 실력에 맞춰 목표가 자동 조정됩니다."
+                            pace == EffectiveWpm.Pace.RAISE ->
+                                "최근 실력(평균 $avg WPM)에 이해도(평균 $avgComp%)가 따라오고 있어서 목표를 올렸어요."
+                            pace == EffectiveWpm.Pace.HOLD ->
+                                "속도는 올라갔지만 이해도가 평균 $avgComp%예요. 목표를 더 올리지 않고 이 속도에서 다지는 중이에요."
+                            pace == EffectiveWpm.Pace.SLOW ->
+                                "이해도가 평균 $avgComp%로 낮아서 목표를 조금 낮췄어요. 🔴 이해되지 않는 속도는 기록이 아니라 그냥 넘긴 것이에요."
+                            else ->
+                                "최근 실력(평균 $avg WPM)을 약간 상향한 목표예요. 이해도 퀴즈를 풀면 그 점수에 맞춰 목표가 오르내립니다. 드릴을 시작하면 이 속도로 맞춰지고, 슬라이더로 언제든 조절할 수 있어요."
+                        },
                         fontSize = 12.sp, color = Color.White.copy(0.65f), lineHeight = 18.sp
                     )
                 }
@@ -2108,12 +2180,55 @@ private fun ResultModule(
     }
 }
 
+/**
+ * 「🚩 신고」 한 줄 — **앱을 나가지 않고** 우리에게 알리는 길 (2026-09-23 · §할 일 0-J).
+ *
+ * 🔴 **새 기능이 아니다** — 뉴스 브리핑·퀴즈에 이미 있는 것을 지문에 옮겨 붙였다.
+ * 같은 주소로 가고, 식별 정보는 우리가 채운다([AiContentReport]).
+ *
+ * ⚠️ **글씨는 작게, 자리는 끝에.** 읽기를 방해하면 안전장치가 아니라 소음이 된다 —
+ * 출처 문구에 적용한 것과 같은 기준이다.
+ */
+@Composable
+private fun ReportLink(
+    subject: String,
+    body: String,
+    label: String = AiContentReport.LABEL,
+    modifier: Modifier = Modifier
+) {
+    val ctx = LocalContext.current
+    Text(
+        label,
+        fontSize = 10.sp,
+        color = Color.White.copy(0.4f),
+        modifier = modifier
+            .clickable {
+                val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                    data = Uri.parse("mailto:")
+                    putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf(AiContentReport.EMAIL))
+                    putExtra(android.content.Intent.EXTRA_SUBJECT, subject)
+                    putExtra(android.content.Intent.EXTRA_TEXT, body)
+                }
+                // 🔴 메일 앱이 없는 기기가 실제로 있다 — 퀴즈 신고도 같은 방어를 한다.
+                //    잡지 않으면 신고하려다 앱이 죽는다.
+                try {
+                    ctx.startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(ctx, "이메일 앱을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .padding(vertical = 3.dp)
+    )
+}
+
 // ────────────────────────────────────────────────────────────────
 // AI 이해도 퀴즈
 // ────────────────────────────────────────────────────────────────
 @Composable
 private fun ComprehensionModule(viewModel: ReadingTrainingViewModel, passage: String, onDone: () -> Unit) {
     val isLoading by viewModel.isGeneratingQuiz.collectAsState()
+    // 채점한 그 자리에서만 생기는 값. null이면 **아무 말도 하지 않는다**(없는 숫자를 0으로 보이지 않게).
+    val lastEwpm by viewModel.lastEwpm.collectAsState()
     var questions by remember { mutableStateOf<List<ComprehensionQuestion>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var answers by remember { mutableStateOf<Map<Int, Int>>(emptyMap()) }
@@ -2161,8 +2276,41 @@ private fun ComprehensionModule(viewModel: ReadingTrainingViewModel, passage: St
                             Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text("이해도 $percent%", color = Gold24K, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
                                 Text("$score / ${qs.size} 정답", color = Color.White.copy(0.7f), fontSize = 13.sp)
+                                // ── 🎯 유효 속도(EWPM) — 이 판의 «진짜 속도» (2026-09-23) ──
+                                //    🔴 **여기가 이 기능이 사는 자리다.** 속도와 이해도가 처음으로
+                                //       한 화면에서 만나는 순간이고, 곱셈의 뜻이 저절로 보인다.
+                                lastEwpm?.let { r ->
+                                    Spacer(Modifier.height(10.dp))
+                                    Text(
+                                        "🎯 유효 속도 ${r.ewpm} WPM",
+                                        color = Gold24K, fontSize = 18.sp, fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "${r.wpm} WPM × 이해도 ${r.comprehension}% — 이해한 만큼만 센 속도예요.",
+                                        color = Color.White.copy(0.7f), fontSize = 12.sp,
+                                        textAlign = TextAlign.Center, lineHeight = 17.sp
+                                    )
+                                }
+                                // 🔴 **못 센 이유도 말한다** — 말없이 숫자가 안 나오면 «고장»으로 읽힌다.
+                                if (lastEwpm == null && qs.size < EffectiveWpm.MIN_QUESTIONS) {
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        "문항이 ${qs.size}개뿐이라 유효 속도로는 세지 않았어요 — " +
+                                            "한 문제 차이로 점수가 크게 흔들리거든요.",
+                                        color = Color.White.copy(0.55f), fontSize = 11.sp,
+                                        textAlign = TextAlign.Center, lineHeight = 16.sp
+                                    )
+                                }
                             }
                         }
+                        // 🔴 **문제도 AI가 그 자리에서 만든 것이다** — 지문보다 오히려 여기가
+                        //    Play 정책이 말하는 «AI가 만들어 주는 콘텐츠»에 더 가깝다(§할 일 0-J).
+                        ReportLink(
+                            subject = AiContentReport.quizSubject(),
+                            body = AiContentReport.quizBody(passage, qs.map { it.question }),
+                            label = "🚩 이 문제 신고",
+                            modifier = Modifier.align(Alignment.End)
+                        )
                     }
                     qs.forEachIndexed { qi, q ->
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -2193,7 +2341,7 @@ private fun ComprehensionModule(viewModel: ReadingTrainingViewModel, passage: St
                 Column(Modifier.fillMaxWidth().padding(16.dp).padding(bottom = 80.dp)) {
                     if (!submitted) {
                         Button(
-                            onClick = { submitted = true; viewModel.recordComprehension(percent) },
+                            onClick = { submitted = true; viewModel.recordComprehension(percent, qs.size, passage) },
                             enabled = answers.size == qs.size,
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = Gold24K, contentColor = Color.Black)

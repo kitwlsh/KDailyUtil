@@ -61,6 +61,7 @@ import com.kitwlshcom.kdailyutil.data.model.ExpectedEarnings
 import com.kitwlshcom.kdailyutil.data.model.StockChartData
 import com.kitwlshcom.kdailyutil.data.model.StockPriceItem
 import com.kitwlshcom.kdailyutil.ui.components.MarkdownText
+import com.kitwlshcom.kdailyutil.data.AiContentReport
 import com.kitwlshcom.kdailyutil.ui.theme.DeepCharcoal
 import com.kitwlshcom.kdailyutil.ui.theme.Gold24K
 import com.kitwlshcom.kdailyutil.ui.viewmodel.StockViewModel
@@ -1215,6 +1216,8 @@ fun DisclosuresTab(viewModel: StockViewModel, isLoading: Boolean) {
                             }
                         }
                     }
+                    // 🔴 AI가 쓴 글 끝에 «이상하면 알려 달라»를 둔다(2026-09-23 · Play 정책 대응).
+                    AiReportLink(what = "${activeDisclosure?.corp_name ?: ""} AI 실적 요약", content = reportContent)
                 }
             },
             confirmButton = {
@@ -1769,6 +1772,8 @@ fun ExpectedCalendarTab(viewModel: StockViewModel, isLoading: Boolean) {
                             }
                         }
                     }
+                    // 🔴 AI가 쓴 글 끝에 «이상하면 알려 달라»를 둔다(2026-09-23 · Play 정책 대응).
+                    AiReportLink(what = "$reportTitle AI 사전 전망", content = reportContent)
                 }
             },
             confirmButton = {
@@ -1912,4 +1917,37 @@ fun ExpectedEarningsCard(item: ExpectedEarnings, onNews: () -> Unit, onReport: (
         }
       }
     }
+}
+
+/**
+ * 「🚩 이 분석 신고」 — AI가 쓴 글 옆에 **앱을 나가지 않고** 알릴 길을 둔다 (2026-09-23).
+ *
+ * 🔴 **이 화면에는 그 길이 한 곳도 없었다.** 뉴스 브리핑·퀴즈에는 2024년부터 있었는데
+ * 증시 AI 분석만 빠져 있었다(지문에 신고를 붙이다가 화면들을 훑어 확인했다).
+ * 이쪽은 «사실을 말하는 글»이라 틀린 숫자가 나가면 지문보다 해가 크다.
+ */
+@Composable
+private fun AiReportLink(what: String, content: String) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    Text(
+        "🚩 이 분석 신고",
+        fontSize = 11.sp,
+        color = Color.White.copy(alpha = 0.4f),
+        modifier = Modifier
+            .clickable {
+                val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                    data = android.net.Uri.parse("mailto:")
+                    putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf(AiContentReport.EMAIL))
+                    putExtra(android.content.Intent.EXTRA_SUBJECT, AiContentReport.aiSubject(what))
+                    putExtra(android.content.Intent.EXTRA_TEXT, AiContentReport.aiBody(what, content))
+                }
+                // 메일 앱이 없는 기기가 실제로 있다 — 잡지 않으면 신고하려다 앱이 죽는다.
+                try {
+                    ctx.startActivity(intent)
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(ctx, "이메일 앱을 찾을 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            .padding(top = 10.dp, bottom = 2.dp)
+    )
 }
