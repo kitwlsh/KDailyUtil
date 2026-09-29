@@ -12,10 +12,10 @@
 
 | 항목 | 값 |
 |---|---|
-| **스토어 게시본** | **v1.7.2 (versionCode 10)** — 🎉 **2026-09-17 출시·라이브**(09-16 업로드 → 다음날) |
-| 🕐 **업로드 완료 · 검토 중** | **v1.7.3 (versionCode 11)** — 2026-09-29 빌드·업로드. 🔴 **vc11 소모 → 다음은 vc12**. [`app/release/kdailyutil-v1.7.3.aab`](app/release/kdailyutil-v1.7.3.aab) (11,419,515 bytes) · 서명 SHA-256 `61:12:DE:…:A5:12:99` 확인 완료. 출시 노트 = [`RELEASE_NOTES.md`](app/release/RELEASE_NOTES.md) §v1.7.3 |
+| **스토어 게시본** | 🎉 **v1.7.3 (versionCode 11)** — **2026-09-29 출시·라이브**(업로드 당일). 그 전 = v1.7.2(vc10, 09-17) |
+| 산출물 | **v1.7.3 (versionCode 11)** — 2026-09-29 빌드·업로드. 🔴 **vc11 소모 → 다음은 vc12**. [`app/release/kdailyutil-v1.7.3.aab`](app/release/kdailyutil-v1.7.3.aab) (11,419,515 bytes) · 서명 SHA-256 `61:12:DE:…:A5:12:99` 확인 완료. 출시 노트 = [`RELEASE_NOTES.md`](app/release/RELEASE_NOTES.md) §v1.7.3 |
 | 빌드 상태 | 단위 테스트 **151건 통과** · `:app:bundleRelease` 성공 |
-| 남은 일 | 라이브 확인 · 라이브 후 오디오 전화 확인(F-11) — [doc/NEXT_SESSION.md](doc/NEXT_SESSION.md) |
+| 남은 일 | 오디오 전화 확인(F-11) · `.debug` 설정 결정 — [doc/NEXT_SESSION.md](doc/NEXT_SESSION.md) |
 
 **(옛 기록) v1.7.1(vc9)에 들어 있는 것 — 독서 훈련 「시작까지 가는 길」을 줄였다(2026-09-08)**
 1. 📌 **지문을 고른 그 자리에서 훈련이 시작된다** — 예전 「이 지문으로 훈련하기」는
