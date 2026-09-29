@@ -26,10 +26,10 @@ android {
         //   versionCode = Play가 보는 정수(업로드마다 증가, 사용자에게 안 보임)
         //   versionName = 사람이 보는 문자열. 버그수정→PATCH / 기능추가→MINOR / 호환깨짐→MAJOR
         // 상세·전환 배경 = doc/DEVELOPER_GUIDE.md '버전 스킴'
-        // 1.8.0 = 스킴대로 MINOR(장문 필터 · 출처 표기 · 신고 · 유효 속도 · 오디오 복구).
-        //    1.7.1 · 1.7.2는 기능 추가인데도 PATCH로 낸 예외였고, 이번 판에서 스킴으로 돌아왔다.
+        // ⚠️ 1.7.3도 기능 추가판이라 스킴대로면 1.8.0인데 **사용자가 1.7.3으로 결정했다**(2026-09-29).
+        //    🔴 **세 판 연속 예외다**(1.7.1 · 1.7.2도 같은 이유였다). 스킴이 바뀐 것은 아니다.
         versionCode = 11
-        versionName = "1.8.0"
+        versionName = "1.7.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
