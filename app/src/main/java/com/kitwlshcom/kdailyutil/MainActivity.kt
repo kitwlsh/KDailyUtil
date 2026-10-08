@@ -14,6 +14,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
@@ -21,6 +23,8 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitwlshcom.kdailyutil.audio.AudioCaptureService
 import com.kitwlshcom.kdailyutil.ui.MainScreen
+import com.kitwlshcom.kdailyutil.ui.components.UpdateReadyBanner
+import com.kitwlshcom.kdailyutil.update.InAppUpdateController
 import com.kitwlshcom.kdailyutil.ui.screens.SplashScreen
 import com.kitwlshcom.kdailyutil.ui.theme.KDailyUtilTheme
 import com.kitwlshcom.kdailyutil.ui.viewmodel.AudioCaptureViewModel
@@ -30,6 +34,13 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class MainActivity : ComponentActivity() {
     private lateinit var audioViewModel: AudioCaptureViewModel
+
+    /**
+     * 「새 버전이 있어요」 — 유연 인앱 업데이트(2026-10-08).
+     * 🔴 Play 설치본에서만 동작하고 개발용 빌드에서는 **조용히 아무 일도 하지 않는다**
+     * → [InAppUpdateController]의 머리말 참고.
+     */
+    private val inAppUpdate by lazy { InAppUpdateController(this) }
     private var startAutoBriefing by mutableStateOf(false)
     private var showSplash by mutableStateOf(true)
     // 알림 탭으로 요청된 증시 서브탭 (null = 요청 없음)
@@ -60,6 +71,9 @@ class MainActivity : ComponentActivity() {
         
         checkAndRequestPermissions()
         primeRemoteConfig()
+        // 🔴 **setContent보다 먼저** 등록해야 한다 — ActivityResult 등록은 STARTED 전에만 된다.
+        inAppUpdate.register()
+        inAppUpdate.checkForUpdate()
         startAutoBriefing = intent.getBooleanExtra("START_AUTO_BRIEFING", false)
         navigateToStockSubTab = if (intent.getStringExtra("NAVIGATE_TO") == "stock")
             intent.getIntExtra("STOCK_SUBTAB", 1) else null
@@ -80,13 +94,25 @@ class MainActivity : ComponentActivity() {
                     if (showSplash) {
                         SplashScreen(theme = splashTheme, onFinished = { showSplash = false })
                     } else {
-                        MainScreen(
-                            audioViewModel = audioViewModel,
-                            startAutoBriefing = startAutoBriefing,
-                            onAutoBriefingHandled = { startAutoBriefing = false },
-                            navigateToStockSubTab = navigateToStockSubTab,
-                            onStockNavHandled = { navigateToStockSubTab = null }
-                        )
+                        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+                            MainScreen(
+                                audioViewModel = audioViewModel,
+                                startAutoBriefing = startAutoBriefing,
+                                onAutoBriefingHandled = { startAutoBriefing = false },
+                                navigateToStockSubTab = navigateToStockSubTab,
+                                onStockNavHandled = { navigateToStockSubTab = null }
+                            )
+                            // 🔴 다 받았을 때만 뜬다. 화면을 막지 않고 **위에 얹는다**.
+                            val updateReady by inAppUpdate.readyToInstall.collectAsState()
+                            if (updateReady) {
+                                UpdateReadyBanner(
+                                    onRestart = { inAppUpdate.completeUpdate() },
+                                    onLater = { inAppUpdate.dismissReady() },
+                                    modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter)
+                                        .padding(bottom = 96.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -96,6 +122,8 @@ class MainActivity : ComponentActivity() {
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
                     if (::audioViewModel.isInitialized) audioViewModel.loadRecordings()
+                    // 앱이 꺼져 있는 동안 내려받기가 끝났을 수 있다 — 돌아올 때 한 번 더 본다.
+                    inAppUpdate.checkForUpdate()
                     startService(Intent(this, AudioCaptureService::class.java).apply {
                         action = AudioCaptureService.ACTION_HIDE_FLOATING
                     })
@@ -117,6 +145,11 @@ class MainActivity : ComponentActivity() {
     // MainScreen이 viewModel()로 얻는 것과 동일한(Activity 스코프) StockViewModel 인스턴스
     private fun stockViewModelRef(): StockViewModel =
         ViewModelProvider(this)[StockViewModel::class.java]
+
+    override fun onDestroy() {
+        inAppUpdate.unregister()
+        super.onDestroy()
+    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

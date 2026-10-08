@@ -121,6 +121,9 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.coil.compose)
     implementation(libs.androidx.documentfile)
+    // 🔴 「새 버전이 있어요」 인앱 업데이트(FLEXIBLE). Play 설치본에서만 동작하고,
+    //    개발용 빌드에서는 조용히 아무 일도 하지 않는다 → update/InAppUpdateController.kt
+    implementation(libs.play.app.update.ktx)
 
 
     testImplementation(libs.junit)

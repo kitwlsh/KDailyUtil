@@ -17,6 +17,7 @@ generativeai = "0.9.0"
 splashscreen = "1.0.1"
 coil = "2.6.0"
 documentfile = "1.0.1"
+appUpdate = "2.1.0"
 
 
 [libraries]
@@ -45,6 +46,7 @@ androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscree
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 
+play-app-update-ktx = { group = "com.google.android.play", name = "app-update-ktx", version.ref = "appUpdate" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

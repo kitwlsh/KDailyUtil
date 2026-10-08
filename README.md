@@ -145,6 +145,7 @@ release.key.password=<비밀번호>
 | **콘솔 기입 정보 엑셀** | [google_play_release_info.xlsx](doc/google_play_release_info.xlsx) | 구글 플레이에 제출한 27개 질문과 상세 텍스트 기록 보관함 |
 | **디자인 & 브랜딩** | [BRANDING_GUIDE.md](doc/BRANDING_GUIDE.md) | 로고 아이콘 규격, 색상 파레트 및 다크 테마 가이드라인 |
 | **K-시리즈 아이콘 표준** | [K_SERIES_ICON_RECIPE.md](doc/K_SERIES_ICON_RECIPE.md) | 형제 앱(KDailyUtil·KLotto645 등) 아이콘·스플래시·워터마크 패밀리 통일 규격 및 신규 앱 제작 절차(단일 기준 문서) |
+| **K-시리즈 인앱 업데이트 표준** | [K_SERIES_INAPP_UPDATE.md](doc/K_SERIES_INAPP_UPDATE.md) | 「새 버전이 있어요」 유연(FLEXIBLE) 인앱 업데이트 — 네 앱이 같은 방식으로 안내하기 위한 절차·함정·확인법(**4벌 동기화 문서**) |
 | **자매앱 상호연결 표준** | [KLOTTO_CONNECT_HANDOFF.md](doc/KLOTTO_CONNECT_HANDOFF.md) | K-시리즈 자매앱 상호 설치링크 표준 + 신규앱 편입 절차(§7 정적) + **동적 레지스트리(원격 구성) §8 — ✅ KDailyUtil 구현 완료(2026-07-29)**, 신규앱 JSON 편입(§8-9)·자매앱 이식 체크리스트(§8-10)·호스팅 절차(§8-11) + KLotto645↔KDailyUtil 핸드오프 |
 | **자매앱 레지스트리 정본** | [family_config/README.md](doc/family_config/README.md) | 원격 `family.json` 정본 + 아이콘(384²) + `k-series-config` 레포 업로드·편집 가이드(앱 재배포 없이 자매앱 추가하는 절차) + **🔴 §3-1 최상위 레버 키 레지스트리**(`aiModel`·`aiTrial`·`fscApi` — 라이브를 덮어쓰기 전에 필히 확인, 안 하면 껐던 기능이 되살아난다) |
 | **AI 키 현황·남은 일** | [AI_KEY_NOTES.md](doc/AI_KEY_NOTES.md) | 🔴 **모델 하드코딩 장애**(신규 사용자 AI 전면 실패)와 4중 방어·키 안내 개선 + **모델 실측표 2종**(§3 08-07 / **§3-1 08-25 — 503은 상시가 아니라 간헐적(21회 중 4회)이라는 실측, 무료 등급 분당 한도 실측**) + 🔴 **§3-2(09-08) — 별칭이 «한도가 짠 모델»로 옜겨가 로봇이 3연속 실패한 건**(429 일일 한도 · 한도 리셋 = 한국시간 오후 4시 · **429 폴백을 켜야 하는가의 실측 절차**) + **남은 일**(✅v1.6.1 출시완료 / ⏳`aiModel` 레버 검증 · 체험/킬스위치 이식 시 주의). 정책 단일 기준은 `KJangbu/doc/AI_KEY_POLICY.md` |
