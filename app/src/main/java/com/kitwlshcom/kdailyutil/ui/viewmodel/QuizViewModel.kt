@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.kitwlshcom.kdailyutil.data.ai.AiAccess
 import com.kitwlshcom.kdailyutil.data.ai.AiArea
 import com.kitwlshcom.kdailyutil.data.ai.AiKeyProvider
+import com.kitwlshcom.kdailyutil.data.ai.errorMessage
+import com.kitwlshcom.kdailyutil.data.ai.unavailableMessage
 import com.kitwlshcom.kdailyutil.data.model.QuizQuestion
 import com.kitwlshcom.kdailyutil.data.model.QuizType
 import com.kitwlshcom.kdailyutil.data.repository.QuizRepository
@@ -354,7 +356,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             val apiKey = aiAccess.keyOrNull
             if (apiKey.isNullOrBlank()) {
                 _quizState.value = QuizState.CATEGORY_SELECTION
-                onError("설정 > AI·키 에서 Gemini API Key를 먼저 등록해 주세요.")
+                onError(aiAccess.unavailableMessage("설정 > AI·키 에서 Gemini API Key를 먼저 등록해 주세요."))
                 return@launch
             }
             _quizState.value = QuizState.GENERATING
@@ -399,7 +401,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                 Log.e("QuizViewModel", "❌ AI Quiz Generation Failed: ${e.message}", e)
                 // 에러 발생 시 초기 화면으로 — 사유는 사용자에게 알린다(조용히 삼키지 않는다)
                 _quizState.value = QuizState.CATEGORY_SELECTION
-                onError("AI 퀴즈를 만들지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))
+                onError("AI 퀴즈를 만들지 못했습니다.\n" + aiAccess.errorMessage(e))
             }
         }
     }
@@ -801,7 +803,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             val apiKey = aiAccess.keyOrNull
             if (apiKey.isNullOrBlank())
             {
-                onComplete(null, "API 키가 필요합니다.")
+                onComplete(null, aiAccess.unavailableMessage("API 키가 필요합니다."))
                 return@launch
             }
 
@@ -826,7 +828,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             catch (e: Exception)
             {
                 Log.e("QuizViewModel", "❌ AI Option Generation Failed: ${e.message}", e)
-                onComplete(null, "보기를 만들지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))
+                onComplete(null, "보기를 만들지 못했습니다.\n" + aiAccess.errorMessage(e))
             }
         }
     }

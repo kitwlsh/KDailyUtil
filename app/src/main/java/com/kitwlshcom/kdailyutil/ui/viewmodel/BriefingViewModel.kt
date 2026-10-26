@@ -9,6 +9,8 @@ import com.kitwlshcom.kdailyutil.audio.TtsManager
 import com.google.ai.client.generativeai.Chat
 import com.kitwlshcom.kdailyutil.data.ai.AiArea
 import com.kitwlshcom.kdailyutil.data.ai.AiKeyProvider
+import com.kitwlshcom.kdailyutil.data.ai.errorMessage
+import com.kitwlshcom.kdailyutil.data.ai.unavailableMessage
 import com.kitwlshcom.kdailyutil.data.model.AiChatSession
 import com.kitwlshcom.kdailyutil.data.model.ChatMessage
 import com.kitwlshcom.kdailyutil.data.model.ChatRole
@@ -43,6 +45,19 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     val briefingTime = settingsRepository.briefingTimeFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), Pair(7, 0))
     val isBriefingEnabled = settingsRepository.isBriefingEnabledFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
     val geminiApiKey = settingsRepository.geminiApiKeyFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
+    /**
+     * 🎁 분야별 남은 AI 체험 횟수(2026-10-26). **null = 체험을 보여 줄 상황이 아니다**
+     * (본인 키가 있다 · 체험 키가 없는 빌드다 · 원격으로 꺼졌다) → 화면은 예전 그대로 그린다.
+     * 키·사용 횟수가 바뀔 때마다 다시 계산한다.
+     */
+    val aiTrialRemaining: StateFlow<Map<AiArea, Int>?> = combine(
+        settingsRepository.geminiApiKeyFlow,
+        settingsRepository.aiTrialUsedFlow(AiArea.NEWS),
+        settingsRepository.aiTrialUsedFlow(AiArea.LEARNING),
+        settingsRepository.aiTrialUsedFlow(AiArea.STOCK),
+    ) { _, _, _, _ -> Unit }
+        .map { aiKeys.trialRemaining() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
     val dartApiKey = settingsRepository.dartApiKeyFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY)
     
     val aiBriefingCommand = settingsRepository.aiBriefingCommandFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
@@ -422,7 +437,9 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 NewsItem(
                     title = "AI 브리핑 안내",
                     link = "",
-                    description = "설정에서 명령어를 등록하고 API 키를 확인해 주세요.",
+                    description = "설정에서 명령어를 등록하고 API 키를 확인해 주세요.".let {
+                        if (targetCommand.isBlank()) it else aiAccess.unavailableMessage(it)
+                    },
                     pubDate = "-",
                     source = "System"
                 )
@@ -493,7 +510,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 NewsItem(
                     title = "분석 오류",
                     link = "error",
-                    description = "AI 분석 중 오류가 발생했습니다.\n" + GeminiManager.aiErrorMessage(e),
+                    description = "AI 분석 중 오류가 발생했습니다.\n" + aiAccess.errorMessage(e),
                     pubDate = "-",
                     source = "Error"
                 )
@@ -785,7 +802,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
             val apiKey = aiAccess.keyOrNull
             if (apiKey.isNullOrBlank()) {
                 _chatMessages.value = _chatMessages.value +
-                    ChatMessage(ChatRole.AI, "API 키가 설정되지 않았습니다. 설정에서 Gemini 키를 입력해 주세요.")
+                    ChatMessage(ChatRole.AI, aiAccess.unavailableMessage("API 키가 설정되지 않았습니다. 설정에서 Gemini 키를 입력해 주세요."))
                 _isChatResponding.value = false
                 return@launch
             }
@@ -820,7 +837,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 Log.e(TAG, "❌ Chat error: ${e.message}", e)
                 // sendChatMessage가 이제 던진다(2026-10-26) — 예전에 그 안에서 만들던 문구를 여기서 낸다
                 _chatMessages.value = _chatMessages.value +
-                    ChatMessage(ChatRole.AI, "응답 생성 중 오류가 발생했습니다.\n" + GeminiManager.aiErrorMessage(e))
+                    ChatMessage(ChatRole.AI, "응답 생성 중 오류가 발생했습니다.\n" + aiAccess.errorMessage(e))
             } finally {
                 _isChatResponding.value = false
             }

@@ -123,4 +123,59 @@ class AiKeyProvider(
     suspend fun recordUse(access: AiAccess) {
         if (access is AiAccess.Trial) addTrialUse(access.area)
     }
+
+    /**
+     * 화면 표시용 — 분야별 남은 체험 횟수. **체험을 보여 줄 상황이 아니면 null**이다
+     * (본인 키가 있다 · 체험 키가 없는 빌드다 · 원격으로 꺼졌다). null이면 화면은 예전 그대로 그린다.
+     */
+    suspend fun trialRemaining(): Map<AiArea, Int>? {
+        if (!userKey().isNullOrBlank() || trialKey == null) return null
+        val cfg = trialConfig()
+        if (!cfg.enabled) return null
+        return AiArea.values().associateWith { (cfg.limitOf(it) - trialUsed(it)).coerceAtLeast(0) }
+    }
+}
+
+/**
+ * 키가 없을 때의 안내 — **«왜 못 쓰는지»를 구분한다**(2026-10-26 · 체험판 3단계).
+ *
+ * 체험을 다 쓴 사람에게 «키를 등록해 주세요»만 말하면 «방금까지 됐는데 왜?»가 된다.
+ * 체험이 없는 빌드(지금)에서는 [noKey]를 그대로 돌려준다 — **화면마다 쓰던 문구가 하나도 안 바뀐다.**
+ *
+ * @param noKey 그 화면이 원래 쓰던 «키를 등록해 주세요» 문구
+ */
+fun AiAccess.unavailableMessage(noKey: String): String =
+    when ((this as? AiAccess.Unavailable)?.reason) {
+        AiAccess.Reason.TRIAL_EXHAUSTED ->
+            "이 분야의 AI 체험을 모두 썼어요. Google AI Studio에서 무료 키를 발급받아 설정 > AI·키 에 넣으면 " +
+                "계속 쓸 수 있어요(발급 약 3분 · 요금 없음)."
+        AiAccess.Reason.TRIAL_DISABLED ->
+            "지금은 AI 체험을 쓸 수 없어요. 무료 키를 발급받아 설정 > AI·키 에 넣으면 바로 쓸 수 있어요."
+        else -> noKey
+    }
+
+/**
+ * AI 호출 실패 안내 — 체험 키로 불렀을 때만 두 경우를 다르게 말한다(2026-10-26).
+ *
+ * - **429(한도):** 기본 문구는 «이 키의 사용 한도»라고 말하는데 체험 사용자에게는 «이 키»가 없다.
+ *   체험은 **여러 사람이 한 통로를 나눠 쓰므로** 적게 써도 걸릴 수 있다 — 그 사실과 할 일(본인 키)을 덧붙인다.
+ *   🔴 **«체험 소진»으로 말하면 안 된다** — 횟수가 남은 사람에게 거짓말이 된다(K장부 §8-4).
+ * - **키 오류·권한:** 기본 문구는 «붙여넣은 키를 확인하라»인데 체험 사용자는 고칠 키가 없다.
+ *   체험 키가 막힌 것이니 본인 키를 안내한다.
+ *
+ * 본인 키(또는 키 없음)이면 예전 [GeminiManager.aiErrorMessage] 그대로다.
+ */
+fun AiAccess.errorMessage(e: Throwable): String {
+    val base = com.kitwlshcom.kdailyutil.data.remote.GeminiManager.aiErrorMessage(e)
+    if (this !is AiAccess.Trial) return base
+    val m = (e.message ?: "") + (e.cause?.message ?: "")
+    return when {
+        m.contains("API_KEY_INVALID", true) || m.contains("API key not valid", true) ||
+            m.contains("PERMISSION", true) ->
+            "지금은 AI 체험 통로에 문제가 있어요. 무료 키를 발급받아 설정 > AI·키 에 넣으면 바로 쓸 수 있어요."
+        com.kitwlshcom.kdailyutil.data.remote.GeminiManager.looksRateLimited(m) ->
+            "$base\n체험은 여러 사람이 한 통로를 함께 써서 많이 쓰지 않았어도 걸릴 수 있어요. " +
+                "본인 키를 넣으면 이런 대기가 거의 없어집니다. (체험 횟수는 줄지 않았어요)"
+        else -> base
+    }
 }

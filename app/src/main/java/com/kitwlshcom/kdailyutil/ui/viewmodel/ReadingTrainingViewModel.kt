@@ -11,6 +11,8 @@ import com.kitwlshcom.kdailyutil.data.EffectiveWpm
 import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
 import com.kitwlshcom.kdailyutil.data.ai.AiArea
 import com.kitwlshcom.kdailyutil.data.ai.AiKeyProvider
+import com.kitwlshcom.kdailyutil.data.ai.errorMessage
+import com.kitwlshcom.kdailyutil.data.ai.unavailableMessage
 import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
 import com.kitwlshcom.kdailyutil.data.repository.ReadingTrainingRepository
 import com.kitwlshcom.kdailyutil.data.repository.RemotePassage
@@ -363,11 +365,11 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     fun extractTextFromImage(bitmap: Bitmap, onResult: (String?, String?) -> Unit) {
         viewModelScope.launch {
             _isExtractingText.value = true
+            val aiAccess = aiKeys.resolve(AiArea.LEARNING)
             try {
-                val aiAccess = aiKeys.resolve(AiArea.LEARNING)
                 val key = aiAccess.keyOrNull
                 if (key.isNullOrBlank()) {
-                    onResult(null, "설정 > AI·키 에서 Gemini API Key를 먼저 등록해 주세요.")
+                    onResult(null, aiAccess.unavailableMessage("설정 > AI·키 에서 Gemini API Key를 먼저 등록해 주세요."))
                     return@launch
                 }
                 val text = GeminiManager(key).extractTextFromImage(bitmap)
@@ -378,7 +380,7 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ extractTextFromImage 실패: ${e.message}")
-                onResult(null, "글자를 추출하지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))
+                onResult(null, "글자를 추출하지 못했습니다.\n" + aiAccess.errorMessage(e))
             } finally {
                 _isExtractingText.value = false
             }
@@ -483,11 +485,11 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
     fun generateComprehension(passage: String, onResult: (List<ComprehensionQuestion>?, String?) -> Unit) {
         viewModelScope.launch {
             _isGeneratingQuiz.value = true
+            val aiAccess = aiKeys.resolve(AiArea.LEARNING)
             try {
-                val aiAccess = aiKeys.resolve(AiArea.LEARNING)
                 val key = aiAccess.keyOrNull
                 if (key.isNullOrBlank()) {
-                    onResult(null, "설정 > AI·키 에서 Gemini API Key를 먼저 등록해 주세요.")
+                    onResult(null, aiAccess.unavailableMessage("설정 > AI·키 에서 Gemini API Key를 먼저 등록해 주세요."))
                     return@launch
                 }
                 val raw = GeminiManager(key).generateComprehensionQuiz(passage)
@@ -516,7 +518,7 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ generateComprehension 실패: ${e.message}")
-                onResult(null, "이해도 문제를 만들지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))
+                onResult(null, "이해도 문제를 만들지 못했습니다.\n" + aiAccess.errorMessage(e))
             } finally {
                 _isGeneratingQuiz.value = false
             }

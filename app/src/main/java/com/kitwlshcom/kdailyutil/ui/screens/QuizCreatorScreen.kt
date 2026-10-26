@@ -1,6 +1,8 @@
 package com.kitwlshcom.kdailyutil.ui.screens
 
 import android.Manifest
+import com.kitwlshcom.kdailyutil.data.ai.errorMessage
+import com.kitwlshcom.kdailyutil.data.ai.unavailableMessage
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -857,14 +859,14 @@ fun ImageScannerTab(
 
                     isScanningInProgress = true
                     scope.launch {
+                        val aiAccess = viewModel.resolveAi()
                         try
                         {
-                            val aiAccess = viewModel.resolveAi()
                             val apiKey = aiAccess.keyOrNull
 
                             if (apiKey.isNullOrBlank())
                             {
-                                Toast.makeText(context, "API 키가 설정되지 않았습니다. 설정에서 등록하세요.", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, aiAccess.unavailableMessage("API 키가 설정되지 않았습니다. 설정에서 등록하세요."), Toast.LENGTH_LONG).show()
                                 isScanningInProgress = false
                                 return@launch
                             }
@@ -967,7 +969,7 @@ fun ImageScannerTab(
                         }
                         catch (e: Exception)
                         {
-                            Toast.makeText(context, com.kitwlshcom.kdailyutil.data.remote.GeminiManager.aiErrorMessage(e), Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, aiAccess.errorMessage(e), Toast.LENGTH_LONG).show()
                         }
                         finally
                         {
@@ -1166,6 +1168,7 @@ fun WebCrawlingTab(
 
                     isCrawlingInProgress = true
                     scope.launch {
+                        val aiAccess = viewModel.resolveAi()
                         try
                         {
                             var scannedContent = fallbackTextContent.trim()
@@ -1210,12 +1213,11 @@ fun WebCrawlingTab(
                                 return@launch
                             }
 
-                            val aiAccess = viewModel.resolveAi()
                             val apiKey = aiAccess.keyOrNull
 
                             if (apiKey.isNullOrBlank())
                             {
-                                Toast.makeText(context, "API 키가 설정되지 않았습니다.", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, aiAccess.unavailableMessage("API 키가 설정되지 않았습니다."), Toast.LENGTH_LONG).show()
                                 isCrawlingInProgress = false
                                 return@launch
                             }
@@ -1268,7 +1270,7 @@ fun WebCrawlingTab(
                         }
                         catch (e: Exception)
                         {
-                            Toast.makeText(context, com.kitwlshcom.kdailyutil.data.remote.GeminiManager.aiErrorMessage(e), Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, aiAccess.errorMessage(e), Toast.LENGTH_LONG).show()
                         }
                         finally
                         {

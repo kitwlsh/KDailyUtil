@@ -71,6 +71,7 @@ fun NewsBriefingScreen(
     // AI 키 미등록 안내 배너 — 키가 등록되면 자동으로 사라진다.
     val geminiKey by viewModel.geminiApiKey.collectAsState()
     val needsAiKey = geminiKey.isNullOrBlank()
+    val aiTrialRemaining by viewModel.aiTrialRemaining.collectAsState()
     var showAiKeyGuide by remember { mutableStateOf(false) }
     if (showAiKeyGuide) {
         com.kitwlshcom.kdailyutil.ui.components.AiKeyGuideDialog(onDismiss = { showAiKeyGuide = false })
@@ -228,14 +229,25 @@ fun NewsBriefingScreen(
                 // 최초 설치 안내 — 키가 없을 때만. 지금까지는 설정에 들어가 보거나
                 // AI 기능을 한 번 실패해봐야 키가 필요한 걸 알 수 있었다.
                 if (needsAiKey) {
-                    com.kitwlshcom.kdailyutil.ui.components.AiKeyOnboardingBanner(
-                        onShowGuide = { showAiKeyGuide = true },
-                        onOpenSettings = {
-                            navController.navigate(
-                                com.kitwlshcom.kdailyutil.ui.navigation.NavScreen.MorningSettings.route
-                            )
-                        }
-                    )
+                    val openSettings = {
+                        navController.navigate(
+                            com.kitwlshcom.kdailyutil.ui.navigation.NavScreen.MorningSettings.route
+                        )
+                    }
+                    // 체험 중이면 «키가 필요합니다» 대신 «체험 중 · 남은 횟수»를 말한다(체험 없는 빌드면 예전 배너 그대로)
+                    val trial = aiTrialRemaining
+                    if (trial != null) {
+                        com.kitwlshcom.kdailyutil.ui.components.AiTrialBanner(
+                            remaining = trial,
+                            onShowGuide = { showAiKeyGuide = true },
+                            onOpenSettings = openSettings
+                        )
+                    } else {
+                        com.kitwlshcom.kdailyutil.ui.components.AiKeyOnboardingBanner(
+                            onShowGuide = { showAiKeyGuide = true },
+                            onOpenSettings = openSettings
+                        )
+                    }
                 }
 
                 Row(

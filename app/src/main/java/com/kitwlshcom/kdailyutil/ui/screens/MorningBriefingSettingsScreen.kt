@@ -538,6 +538,18 @@ fun MorningBriefingSettingsScreen(
             )
         }
 
+        // 🎁 체험 남은 횟수 — 본인 키가 없고 체험이 켜져 있을 때만(체험 없는 빌드면 이 줄이 없다)
+        val aiTrialRemaining by viewModel.aiTrialRemaining.collectAsState()
+        aiTrialRemaining?.let { trial ->
+            Text(
+                text = "🎁 키 없이 AI 체험 중 — 남은 횟수 ${com.kitwlshcom.kdailyutil.ui.components.aiTrialRemainingText(trial)}\n" +
+                    "본인 키를 넣으면 체험은 멈추고 횟수 제한 없이 씁니다(지우면 남은 횟수부터 이어집니다).",
+                style = MaterialTheme.typography.bodySmall,
+                color = com.kitwlshcom.kdailyutil.ui.theme.Gold24K,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
         HorizontalDivider()
         Spacer(modifier = Modifier.height(24.dp))

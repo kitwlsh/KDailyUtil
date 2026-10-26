@@ -4,6 +4,9 @@ import com.kitwlshcom.kdailyutil.data.ai.AiAccess
 import com.kitwlshcom.kdailyutil.data.ai.AiArea
 import com.kitwlshcom.kdailyutil.data.ai.AiKeyProvider
 import com.kitwlshcom.kdailyutil.data.ai.AiTrialConfig
+import com.kitwlshcom.kdailyutil.data.ai.errorMessage
+import com.kitwlshcom.kdailyutil.data.ai.unavailableMessage
+import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -129,6 +132,57 @@ class AiKeyProviderTest {
         val c = Counter()
         val off = AiTrialConfig.DEFAULT.copy(enabled = false)
         assertEquals(AiAccess.UserKey("MINE"), c.provider(userKey = "MINE", cfg = off).resolve(AiArea.NEWS))
+    }
+
+    // ── 안내 ──
+
+    @Test
+    fun `체험 없는 빌드에서는 화면마다 쓰던 «키 등록» 문구가 그대로다`() = runBlocking {
+        val access = Counter().provider(trialKey = null).resolve(AiArea.NEWS)
+        assertEquals("원래 문구", access.unavailableMessage("원래 문구"))
+    }
+
+    @Test
+    fun `소진과 꺼짐은 «키 등록»이 아니라 그 사유를 말한다`() = runBlocking {
+        val c = Counter()
+        c.used[AiArea.STOCK] = 6
+        val exhausted = c.provider().resolve(AiArea.STOCK).unavailableMessage("원래 문구")
+        assertTrue(exhausted, exhausted.contains("체험을 모두 썼어요"))
+        val off = c.provider(cfg = AiTrialConfig.DEFAULT.copy(enabled = false))
+            .resolve(AiArea.NEWS).unavailableMessage("원래 문구")
+        assertTrue(off, off.contains("체험을 쓸 수 없어요"))
+    }
+
+    @Test
+    fun `체험 중 429는 «소진»이라 말하지 않고 횟수가 줄지 않았다고 말한다`() = runBlocking {
+        val access = Counter().provider().resolve(AiArea.NEWS)
+        val msg = access.errorMessage(Exception("429 RESOURCE_EXHAUSTED Please retry in 12.3s"))
+        assertTrue(msg, msg.contains("체험 횟수는 줄지 않았어요"))
+        assertTrue(msg, !msg.contains("모두 썼어요"))
+    }
+
+    @Test
+    fun `체험 키가 막히면 «내 키를 확인하라»가 아니라 본인 키를 안내한다`() = runBlocking {
+        val access = Counter().provider().resolve(AiArea.NEWS)
+        val msg = access.errorMessage(Exception("API key not valid. Please pass a valid API key."))
+        assertTrue(msg, msg.contains("체험 통로에 문제"))
+    }
+
+    @Test
+    fun `본인 키의 오류 문구는 예전 그대로다`() = runBlocking {
+        val e = Exception("429 RESOURCE_EXHAUSTED Please retry in 12.3s")
+        val access = Counter().provider(userKey = "MINE").resolve(AiArea.NEWS)
+        assertEquals(GeminiManager.aiErrorMessage(e), access.errorMessage(e))
+    }
+
+    @Test
+    fun `남은 횟수 표시는 체험 중일 때만 나온다`() = runBlocking {
+        val c = Counter()
+        c.used[AiArea.NEWS] = 2
+        assertEquals(mapOf(AiArea.NEWS to 5, AiArea.LEARNING to 7, AiArea.STOCK to 6), c.provider().trialRemaining())
+        assertNull(c.provider(userKey = "MINE").trialRemaining())
+        assertNull(c.provider(trialKey = null).trialRemaining())
+        assertNull(c.provider(cfg = AiTrialConfig.DEFAULT.copy(enabled = false)).trialRemaining())
     }
 
     @Test

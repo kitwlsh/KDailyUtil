@@ -124,6 +124,75 @@ fun AiKeyGuideDialog(onDismiss: () -> Unit) {
     )
 }
 
+/** «뉴스 7 · 배움터 7 · 증시 6회» — 체험 남은 횟수를 한 줄로. */
+fun aiTrialRemainingText(remaining: Map<com.kitwlshcom.kdailyutil.data.ai.AiArea, Int>): String {
+    fun n(a: com.kitwlshcom.kdailyutil.data.ai.AiArea) = remaining[a] ?: 0
+    return "뉴스 ${n(com.kitwlshcom.kdailyutil.data.ai.AiArea.NEWS)} · " +
+        "배움터 ${n(com.kitwlshcom.kdailyutil.data.ai.AiArea.LEARNING)} · " +
+        "증시 ${n(com.kitwlshcom.kdailyutil.data.ai.AiArea.STOCK)}회"
+}
+
+/**
+ * 🎁 체험 중일 때 [AiKeyOnboardingBanner] 대신 띄우는 배너(2026-10-26).
+ *
+ * 🔴 **데이터 고지를 여기서 한 번 더 한다**(K장부 AI_KEY_POLICY §9-5 «체험 시작 시 안내»).
+ * 본인 키는 사용자가 알고 발급하지만, 체험은 **개발자가 «제 키로 써 보세요»라고 권하는 것**이라
+ * 무료 등급 조건(Google 제품 개선에 쓰일 수 있음)을 모르고 쓰게 하면 안 된다.
+ */
+@Composable
+fun AiTrialBanner(
+    remaining: Map<com.kitwlshcom.kdailyutil.data.ai.AiArea, Int>,
+    onShowGuide: () -> Unit,
+    onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = Gold24K.copy(alpha = 0.10f)),
+        border = BorderStroke(0.8.dp, Gold24K.copy(alpha = 0.45f))
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text(
+                "🎁 AI 체험 중 — 키 없이 바로 써 보세요",
+                fontWeight = FontWeight.Bold,
+                color = Gold24K,
+                fontSize = 13.5.sp
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "남은 횟수: ${aiTrialRemainingText(remaining)} (성공했을 때만 줄어요)",
+                fontSize = 11.5.sp,
+                color = Color.White.copy(alpha = 0.8f)
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                "계속 쓰려면 Google AI Studio에서 무료 키를 발급받아 넣으세요(약 3분). 넣으면 횟수 제한이 없어요.",
+                fontSize = 11.sp,
+                color = Color.White.copy(alpha = 0.65f)
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                "ℹ️ 체험은 무료 등급이라 보낸 글·사진이 Google 제품 개선에 쓰이거나 사람이 검토할 수 있어요. " +
+                    "개인정보가 담긴 자료는 올리지 마세요.",
+                fontSize = 10.5.sp,
+                color = Color.White.copy(alpha = 0.5f)
+            )
+            Spacer(Modifier.height(8.dp))
+            androidx.compose.foundation.layout.Row {
+                androidx.compose.material3.TextButton(onClick = onShowGuide) {
+                    Text("발급 방법 보기", color = Gold24K, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.padding(horizontal = 2.dp))
+                androidx.compose.material3.TextButton(onClick = onOpenSettings) {
+                    Text("설정으로 이동", color = Color.White.copy(alpha = 0.75f), fontSize = 12.5.sp)
+                }
+            }
+        }
+    }
+}
+
 /**
  * 키가 없을 때 첫 화면 최상단에 띄우는 안내 배너.
  *

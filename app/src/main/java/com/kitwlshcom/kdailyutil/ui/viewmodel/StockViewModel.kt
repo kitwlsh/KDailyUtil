@@ -6,6 +6,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitwlshcom.kdailyutil.data.ai.AiArea
 import com.kitwlshcom.kdailyutil.data.ai.AiKeyProvider
+import com.kitwlshcom.kdailyutil.data.ai.errorMessage
+import com.kitwlshcom.kdailyutil.data.ai.unavailableMessage
 import com.kitwlshcom.kdailyutil.data.model.ChartRange
 import com.kitwlshcom.kdailyutil.data.model.EarningsDisclosure
 import com.kitwlshcom.kdailyutil.data.model.ExpectedEarnings
@@ -447,11 +449,11 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
         if (!forceRefresh && !_financialTrendComment.value.isNullOrBlank()) return // 이미 생성됨
         viewModelScope.launch {
             _financialTrendLoading.value = true
+            val aiAccess = aiKeys.resolve(AiArea.STOCK)
             try {
-                val aiAccess = aiKeys.resolve(AiArea.STOCK)
                 val geminiKey = aiAccess.keyOrNull
                 if (geminiKey.isNullOrBlank()) {
-                    _financialTrendComment.value = "설정에서 Gemini API Key를 먼저 입력해야 추세 코멘트를 생성할 수 있습니다."
+                    _financialTrendComment.value = aiAccess.unavailableMessage("설정에서 Gemini API Key를 먼저 입력해야 추세 코멘트를 생성할 수 있습니다.")
                     return@launch
                 }
                 fun won(v: Long): String = "%,d원".format(v)
@@ -469,7 +471,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 aiKeys.recordUse(aiAccess)   // 체험이면 1회(실패하면 위에서 던져 여기 안 온다)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 추세 코멘트 생성 실패: ${e.message}")
-                _financialTrendComment.value = "추세 코멘트를 만들지 못했습니다.\n" + GeminiManager.aiErrorMessage(e)
+                _financialTrendComment.value = "추세 코멘트를 만들지 못했습니다.\n" + aiAccess.errorMessage(e)
             } finally {
                 _financialTrendLoading.value = false
             }
@@ -494,11 +496,11 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
             }
             _portfolioLoading.value = true
             _portfolioAnalysis.value = null
+            val aiAccess = aiKeys.resolve(AiArea.STOCK)
             try {
-                val aiAccess = aiKeys.resolve(AiArea.STOCK)
                 val geminiKey = aiAccess.keyOrNull
                 if (geminiKey.isNullOrBlank()) {
-                    _portfolioAnalysis.value = "설정 > AI·키 에서 Gemini API Key를 먼저 입력해 주세요."
+                    _portfolioAnalysis.value = aiAccess.unavailableMessage("설정 > AI·키 에서 Gemini API Key를 먼저 입력해 주세요.")
                     return@launch
                 }
                 val dartKey = settingsRepository.dartApiKeyFlow.first()
@@ -547,7 +549,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 aiKeys.recordUse(aiAccess)   // 체험이면 1회
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 포트폴리오 분석 실패: ${e.message}", e)
-                _portfolioAnalysis.value = "포트폴리오 분석을 하지 못했습니다.\n" + GeminiManager.aiErrorMessage(e)
+                _portfolioAnalysis.value = "포트폴리오 분석을 하지 못했습니다.\n" + aiAccess.errorMessage(e)
             } finally {
                 _portfolioLoading.value = false
             }
@@ -711,7 +713,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
 
             if (geminiKey.isNullOrBlank()) {
                 _isAiSummarizing.value = false
-                onComplete(false, "설정에서 Gemini API Key를 등록해 주세요.")
+                onComplete(false, aiAccess.unavailableMessage("설정에서 Gemini API Key를 등록해 주세요."))
                 return@launch
             }
 
@@ -798,7 +800,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to summarize disclosure: ${e.message}", e)
-                onComplete(false, "실적 분석을 하지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))
+                onComplete(false, "실적 분석을 하지 못했습니다.\n" + aiAccess.errorMessage(e))
             } finally {
                 _isAiSummarizing.value = false
             }
@@ -819,7 +821,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
             val aiAccess = aiKeys.resolve(AiArea.STOCK)
             val geminiKey = aiAccess.keyOrNull
             if (geminiKey.isNullOrBlank()) {
-                onComplete("설정에서 Gemini API Key를 먼저 입력해야 사전 리포트를 생성할 수 있습니다.")
+                onComplete(aiAccess.unavailableMessage("설정에서 Gemini API Key를 먼저 입력해야 사전 리포트를 생성할 수 있습니다."))
                 return@launch
             }
 
@@ -848,7 +850,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 onComplete(report)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to generate pre-report: ${e.message}")
-                onComplete("사전 리포트를 만들지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))
+                onComplete("사전 리포트를 만들지 못했습니다.\n" + aiAccess.errorMessage(e))
             }
         }
     }
