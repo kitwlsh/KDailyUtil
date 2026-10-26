@@ -4,6 +4,8 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kitwlshcom.kdailyutil.data.ai.AiArea
+import com.kitwlshcom.kdailyutil.data.ai.AiKeyProvider
 import com.kitwlshcom.kdailyutil.data.model.QuizQuestion
 import com.kitwlshcom.kdailyutil.data.model.QuizType
 import com.kitwlshcom.kdailyutil.data.repository.QuizRepository
@@ -32,6 +34,10 @@ enum class QuizState
 class QuizViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = QuizRepository()
     private val settingsRepository = SettingsRepository(application)
+    private val aiKeys = AiKeyProvider(settingsRepository)
+
+    /** 퀴즈 만들기 화면(`QuizCreatorScreen`)이 직접 AI를 부를 때 쓰는 키 — 화면이 키를 따로 읽지 않게 여기로 모은다. */
+    suspend fun resolveAi() = aiKeys.resolve(AiArea.LEARNING)
 
     private val soundPool: android.media.SoundPool
     private var correctSoundId: Int = 0
@@ -340,7 +346,8 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun generateAiQuiz(topic: String, onError: (String) -> Unit = {}) {
         viewModelScope.launch {
-            val apiKey = settingsRepository.geminiApiKeyFlow.first()
+            val aiAccess = aiKeys.resolve(AiArea.LEARNING)
+            val apiKey = aiAccess.keyOrNull
             if (apiKey.isNullOrBlank()) {
                 _quizState.value = QuizState.CATEGORY_SELECTION
                 onError("설정 > AI·키 에서 Gemini API Key를 먼저 등록해 주세요.")
@@ -491,7 +498,8 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                     correct = true
                 } else {
                     // 2단계: Gemini AI 채점 (API 키가 존재할 때에만 비동기로 실행)
-                    val apiKey = settingsRepository.geminiApiKeyFlow.first()
+                    val aiAccess = aiKeys.resolve(AiArea.LEARNING)
+                    val apiKey = aiAccess.keyOrNull
                     if (!apiKey.isNullOrBlank()) {
                         try {
                             val gemini = GeminiManager(apiKey)
@@ -781,7 +789,8 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     )
     {
         viewModelScope.launch {
-            val apiKey = settingsRepository.geminiApiKeyFlow.first()
+            val aiAccess = aiKeys.resolve(AiArea.LEARNING)
+            val apiKey = aiAccess.keyOrNull
             if (apiKey.isNullOrBlank())
             {
                 onComplete(null, "API 키가 필요합니다.")
@@ -820,7 +829,8 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     {
         viewModelScope.launch {
             _quizState.value = QuizState.GENERATING
-            val apiKey = settingsRepository.geminiApiKeyFlow.first()
+            val aiAccess = aiKeys.resolve(AiArea.LEARNING)
+            val apiKey = aiAccess.keyOrNull
             if (apiKey.isNullOrBlank())
             {
                 _quizState.value = QuizState.CATEGORY_SELECTION

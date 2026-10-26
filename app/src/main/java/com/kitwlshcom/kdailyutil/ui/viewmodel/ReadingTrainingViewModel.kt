@@ -9,6 +9,8 @@ import com.kitwlshcom.kdailyutil.data.PassageKey
 import com.kitwlshcom.kdailyutil.data.DailyRecord
 import com.kitwlshcom.kdailyutil.data.EffectiveWpm
 import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
+import com.kitwlshcom.kdailyutil.data.ai.AiArea
+import com.kitwlshcom.kdailyutil.data.ai.AiKeyProvider
 import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
 import com.kitwlshcom.kdailyutil.data.repository.ReadingTrainingRepository
 import com.kitwlshcom.kdailyutil.data.repository.RemotePassage
@@ -55,6 +57,7 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
 
     private val repo = ReadingTrainingRepository(application)
     private val settingsRepository = SettingsRepository(application)
+    private val aiKeys = AiKeyProvider(settingsRepository)
 
     val bestWpm: StateFlow<Int> = repo.bestWpmFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val streak: StateFlow<Int> = repo.streakFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
@@ -361,7 +364,8 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
         viewModelScope.launch {
             _isExtractingText.value = true
             try {
-                val key = settingsRepository.geminiApiKeyFlow.first()
+                val aiAccess = aiKeys.resolve(AiArea.LEARNING)
+                val key = aiAccess.keyOrNull
                 if (key.isNullOrBlank()) {
                     onResult(null, "설정 > AI·키 에서 Gemini API Key를 먼저 등록해 주세요.")
                     return@launch
@@ -477,7 +481,8 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
         viewModelScope.launch {
             _isGeneratingQuiz.value = true
             try {
-                val key = settingsRepository.geminiApiKeyFlow.first()
+                val aiAccess = aiKeys.resolve(AiArea.LEARNING)
+                val key = aiAccess.keyOrNull
                 if (key.isNullOrBlank()) {
                     onResult(null, "설정 > AI·키 에서 Gemini API Key를 먼저 등록해 주세요.")
                     return@launch

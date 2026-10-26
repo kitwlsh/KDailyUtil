@@ -859,10 +859,9 @@ fun ImageScannerTab(
                     scope.launch {
                         try
                         {
-                            val apiKey = viewModel.getApplication<android.app.Application>()
-                                .let { app -> com.kitwlshcom.kdailyutil.data.repository.SettingsRepository(app) }
-                                .geminiApiKeyFlow.first()
-                            
+                            val aiAccess = viewModel.resolveAi()
+                            val apiKey = aiAccess.keyOrNull
+
                             if (apiKey.isNullOrBlank())
                             {
                                 Toast.makeText(context, "API 키가 설정되지 않았습니다. 설정에서 등록하세요.", Toast.LENGTH_LONG).show()
@@ -1209,9 +1208,8 @@ fun WebCrawlingTab(
                                 return@launch
                             }
 
-                            val apiKey = viewModel.getApplication<android.app.Application>()
-                                .let { app -> com.kitwlshcom.kdailyutil.data.repository.SettingsRepository(app) }
-                                .geminiApiKeyFlow.first()
+                            val aiAccess = viewModel.resolveAi()
+                            val apiKey = aiAccess.keyOrNull
 
                             if (apiKey.isNullOrBlank())
                             {

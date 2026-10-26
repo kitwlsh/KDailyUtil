@@ -4,6 +4,8 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kitwlshcom.kdailyutil.data.ai.AiArea
+import com.kitwlshcom.kdailyutil.data.ai.AiKeyProvider
 import com.kitwlshcom.kdailyutil.data.model.ChartRange
 import com.kitwlshcom.kdailyutil.data.model.EarningsDisclosure
 import com.kitwlshcom.kdailyutil.data.model.ExpectedEarnings
@@ -29,6 +31,7 @@ import java.util.Locale
 class StockViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settingsRepository = SettingsRepository(application)
+    private val aiKeys = AiKeyProvider(settingsRepository)
     private val stockRepository = StockRepository(application)
     private val newsRepository = com.kitwlshcom.kdailyutil.data.repository.NewsRepository(application)
 
@@ -445,7 +448,8 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _financialTrendLoading.value = true
             try {
-                val geminiKey = settingsRepository.geminiApiKeyFlow.first()
+                val aiAccess = aiKeys.resolve(AiArea.STOCK)
+                val geminiKey = aiAccess.keyOrNull
                 if (geminiKey.isNullOrBlank()) {
                     _financialTrendComment.value = "설정에서 Gemini API Key를 먼저 입력해야 추세 코멘트를 생성할 수 있습니다."
                     return@launch
@@ -490,7 +494,8 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
             _portfolioLoading.value = true
             _portfolioAnalysis.value = null
             try {
-                val geminiKey = settingsRepository.geminiApiKeyFlow.first()
+                val aiAccess = aiKeys.resolve(AiArea.STOCK)
+                val geminiKey = aiAccess.keyOrNull
                 if (geminiKey.isNullOrBlank()) {
                     _portfolioAnalysis.value = "설정 > AI·키 에서 Gemini API Key를 먼저 입력해 주세요."
                     return@launch
@@ -698,7 +703,8 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
             _isAiSummarizing.value = true
             _activeAiSummaryDisclosure.value = null
 
-            val geminiKey = settingsRepository.geminiApiKeyFlow.first()
+            val aiAccess = aiKeys.resolve(AiArea.STOCK)
+            val geminiKey = aiAccess.keyOrNull
             val dartKey = settingsRepository.dartApiKeyFlow.first()
 
             if (geminiKey.isNullOrBlank()) {
@@ -807,7 +813,8 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            val geminiKey = settingsRepository.geminiApiKeyFlow.first()
+            val aiAccess = aiKeys.resolve(AiArea.STOCK)
+            val geminiKey = aiAccess.keyOrNull
             if (geminiKey.isNullOrBlank()) {
                 onComplete("설정에서 Gemini API Key를 먼저 입력해야 사전 리포트를 생성할 수 있습니다.")
                 return@launch

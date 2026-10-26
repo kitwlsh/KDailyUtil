@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.kitwlshcom.kdailyutil.audio.RecordingManager
 import com.kitwlshcom.kdailyutil.audio.TtsManager
 import com.google.ai.client.generativeai.Chat
+import com.kitwlshcom.kdailyutil.data.ai.AiArea
+import com.kitwlshcom.kdailyutil.data.ai.AiKeyProvider
 import com.kitwlshcom.kdailyutil.data.model.AiChatSession
 import com.kitwlshcom.kdailyutil.data.model.ChatMessage
 import com.kitwlshcom.kdailyutil.data.model.ChatRole
@@ -31,6 +33,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     private val recordingManager = RecordingManager(application)
     private val sttManager = SttManager(application)
     private val aiChatRepository = AiChatRepository(application)
+    private val aiKeys = AiKeyProvider(settingsRepository)
 
     companion object {
         private const val TAG = "BriefingViewModel"
@@ -411,8 +414,9 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
         // 여러 개가 있으면 selectedAiCommand 혹은 첫 번째 선택, 없으면 하위 호환용 1개 사용
         val targetCommand = selectedAiCommand.value ?: commands.firstOrNull() ?: fallbackCommand
         
-        val apiKey = geminiApiKey.value
-        
+        val aiAccess = aiKeys.resolve(AiArea.NEWS)
+        val apiKey = aiAccess.keyOrNull
+
         if (targetCommand.isBlank() || apiKey.isNullOrBlank()) {
             _newsItems.value = listOf(
                 NewsItem(
@@ -772,17 +776,21 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     fun sendChat(userText: String) {
         val text = userText.trim()
         if (text.isBlank() || _isChatResponding.value) return
-        val apiKey = geminiApiKey.value
-        if (apiKey.isNullOrBlank()) {
-            _chatMessages.value = _chatMessages.value +
-                ChatMessage(ChatRole.AI, "API 키가 설정되지 않았습니다. 설정에서 Gemini 키를 입력해 주세요.")
-            return
-        }
-        // 사용자 말풍선 즉시 반영
-        _chatMessages.value = _chatMessages.value + ChatMessage(ChatRole.USER, text)
+        // 두 번 눌러 두 번 보내지 않게 — 키 확인(suspend)보다 먼저 막는다
         _isChatResponding.value = true
 
         viewModelScope.launch {
+            val aiAccess = aiKeys.resolve(AiArea.NEWS)
+            val apiKey = aiAccess.keyOrNull
+            if (apiKey.isNullOrBlank()) {
+                _chatMessages.value = _chatMessages.value +
+                    ChatMessage(ChatRole.AI, "API 키가 설정되지 않았습니다. 설정에서 Gemini 키를 입력해 주세요.")
+                _isChatResponding.value = false
+                return@launch
+            }
+            // 사용자 말풍선 반영
+            _chatMessages.value = _chatMessages.value + ChatMessage(ChatRole.USER, text)
+
             try {
                 val gemini = GeminiManager(apiKey)
                 // 지연 생성: 세션이 없으면 지금 컨텍스트(필터링된 오늘 뉴스 + 기존 대화)로 만든다.
