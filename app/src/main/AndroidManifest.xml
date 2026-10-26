@@ -41,6 +41,9 @@
         <package android:name="com.kitwlshCom.klotto645" />
         <package android:name="com.kitwlshcom.kjangbu" />
         <package android:name="com.kitwlshcom.kunbok" />
+        <!-- K달인(2026-10-07 출시)은 예약 id(kfamily1~5)를 쓰지 않아 따로 넣는다 — 없으면 카드는 뜨지만
+             '설치됨' 배지·직접 실행이 안 되고 늘 스토어로 간다(family.json K달인 _note 참조) -->
+        <package android:name="com.kitwlshcom.kdalin" />
         <!-- 여유 예약분: 신규 자매앱은 이 id를 우선 사용할 것 -->
         <package android:name="com.kitwlshcom.kfamily1" />
         <package android:name="com.kitwlshcom.kfamily2" />
