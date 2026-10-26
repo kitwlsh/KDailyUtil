@@ -956,6 +956,8 @@ fun ImageScannerTab(
                                         )
                                     )
                                 }
+                                // 체험이면 1회. 🔴 onQuizGenerated **앞에서** 센다 — 화면을 떠나면 이 scope가 취소돼 뒤에 둔 줄은 안 돈다
+                                if (list.isNotEmpty()) viewModel.recordAiUse(aiAccess)
                                 onQuizGenerated(list, categoryName)
                             }
                             else
@@ -1255,6 +1257,8 @@ fun WebCrawlingTab(
                                         )
                                     )
                                 }
+                                // 체험이면 1회. 🔴 onQuizGenerated **앞에서** 센다 — 화면을 떠나면 이 scope가 취소돼 뒤에 둔 줄은 안 돈다
+                                if (list.isNotEmpty()) viewModel.recordAiUse(aiAccess)
                                 onQuizGenerated(list, categoryName)
                             }
                             else

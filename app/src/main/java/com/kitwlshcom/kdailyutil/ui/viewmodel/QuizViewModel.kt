@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kitwlshcom.kdailyutil.data.ai.AiAccess
 import com.kitwlshcom.kdailyutil.data.ai.AiArea
 import com.kitwlshcom.kdailyutil.data.ai.AiKeyProvider
 import com.kitwlshcom.kdailyutil.data.model.QuizQuestion
@@ -38,6 +39,9 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
 
     /** 퀴즈 만들기 화면(`QuizCreatorScreen`)이 직접 AI를 부를 때 쓰는 키 — 화면이 키를 따로 읽지 않게 여기로 모은다. */
     suspend fun resolveAi() = aiKeys.resolve(AiArea.LEARNING)
+
+    /** [resolveAi]로 받은 권한으로 작업이 **성공했을 때** 화면이 부른다. 체험이면 1회 차감. */
+    suspend fun recordAiUse(access: AiAccess) = aiKeys.recordUse(access)
 
     private val soundPool: android.media.SoundPool
     private var correctSoundId: Int = 0
@@ -390,6 +394,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                 _currentInput.value = ""
                 _isCorrect.value = false
                 resetHintState()
+                if (aiQuestions.isNotEmpty()) aiKeys.recordUse(aiAccess)   // 체험이면 1회(문제가 나왔을 때만)
             } catch (e: Exception) {
                 Log.e("QuizViewModel", "❌ AI Quiz Generation Failed: ${e.message}", e)
                 // 에러 발생 시 초기 화면으로 — 사유는 사용자에게 알린다(조용히 삼키지 않는다)
@@ -498,8 +503,11 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                     correct = true
                 } else {
                     // 2단계: Gemini AI 채점 (API 키가 존재할 때에만 비동기로 실행)
-                    val aiAccess = aiKeys.resolve(AiArea.LEARNING)
-                    val apiKey = aiAccess.keyOrNull
+                    // 🔴 **본인 키일 때만** AI로 채점한다(체험 키는 쓰지 않는다 · 2026-10-26).
+                    //    채점은 사용자가 «AI를 써 달라»고 누른 작업이 아니라 답을 낼 때마다 저절로 불린다.
+                    //    체험으로 세면 퀴즈만 풀어도 횟수가 몰래 줄고, 안 세면 개발자 키가 무제한으로 나간다.
+                    //    키가 없을 때와 똑같이 위의 로컬 비교로만 채점한다.
+                    val apiKey = (aiKeys.resolve(AiArea.LEARNING) as? AiAccess.UserKey)?.key
                     if (!apiKey.isNullOrBlank()) {
                         try {
                             val gemini = GeminiManager(apiKey)
@@ -808,6 +816,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                     val optionsList = List(optionsArray.length()) { optionsArray.getString(it) }
                     val explanation = obj.getString("explanation")
                     onComplete(optionsList, explanation)
+                    aiKeys.recordUse(aiAccess)   // 체험이면 1회
                 }
                 else
                 {
@@ -919,6 +928,7 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                 _currentInput.value = ""
                 _isCorrect.value = false
                 resetHintState()
+                if (aiQuestions.isNotEmpty()) aiKeys.recordUse(aiAccess)   // 체험이면 사진 묶음 1번 = 1회
             }
             catch (e: Exception)
             {

@@ -3,6 +3,7 @@ package com.kitwlshcom.kdailyutil.data.repository
 import android.content.Context
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import com.kitwlshcom.kdailyutil.data.ai.AiArea
 import com.kitwlshcom.kdailyutil.ui.viewmodel.PlaybackMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -54,6 +55,19 @@ class SettingsRepository(private val context: Context) {
         val DAILY_TOTAL_CORRECT = intPreferencesKey("daily_total_correct")  // 누적 정답
         val DAILY_HISTORY = stringPreferencesKey("daily_history")           // 최근 30일 "yyyy-MM-dd:정답/전체"
         val DAILY_SEEN_QUIZ_COUNT = intPreferencesKey("daily_seen_quiz_count") // 마지막으로 사용자가 인지한 전체 문항 수(=새 문제 N개 계산용)
+    }
+
+    // ── 🎁 AI 체험판 사용 횟수(분야별) 2026-10-26 ──
+    // 체험 키로 **성공한 작업만** 센다. 본인 키로 쓴 것은 세지 않는다(키를 지우면 남은 횟수부터 이어진다).
+    private fun aiTrialUsedKey(area: AiArea) = intPreferencesKey("ai_trial_used_${area.name.lowercase()}")
+
+    fun aiTrialUsedFlow(area: AiArea): Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[aiTrialUsedKey(area)] ?: 0
+    }
+
+    /** 읽고 더하기를 한 트랜잭션에서 — 두 작업이 동시에 끝나도 한 번이 사라지지 않는다. */
+    suspend fun incrementAiTrialUsed(area: AiArea) {
+        context.dataStore.edit { it[aiTrialUsedKey(area)] = (it[aiTrialUsedKey(area)] ?: 0) + 1 }
     }
 
     /**

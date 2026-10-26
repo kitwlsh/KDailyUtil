@@ -372,7 +372,10 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
                 }
                 val text = GeminiManager(key).extractTextFromImage(bitmap)
                 if (text.isBlank()) onResult(null, "글자를 추출하지 못했습니다. 글자가 선명하게 나오도록 다시 촬영하거나, AI 사용량 초과일 수 있으니 잠시 후 다시 시도해 주세요.")
-                else onResult(text, null)
+                else {
+                    onResult(text, null)
+                    aiKeys.recordUse(aiAccess)   // 체험이면 사진 1장 = 1회
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ extractTextFromImage 실패: ${e.message}")
                 onResult(null, "글자를 추출하지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))
@@ -507,7 +510,10 @@ class ReadingTrainingViewModel(application: Application) : AndroidViewModel(appl
                     )
                 }
                 if (list.isEmpty()) onResult(null, "이해도 문제를 생성하지 못했습니다.")
-                else onResult(list, null)
+                else {
+                    onResult(list, null)
+                    aiKeys.recordUse(aiAccess)   // 체험이면 1회
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ generateComprehension 실패: ${e.message}")
                 onResult(null, "이해도 문제를 만들지 못했습니다.\n" + GeminiManager.aiErrorMessage(e))

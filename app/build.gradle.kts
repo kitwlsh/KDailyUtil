@@ -12,6 +12,11 @@ val localProperties = Properties().apply {
     if (file.exists()) file.inputStream().use { load(it) }
 }
 val dartDefaultKey: String = localProperties.getProperty("dart.default.key", "")
+// 🎁 AI 체험판 키(2026-10-26 칸만 만들었다). 비어 있으면 체험 자체가 없는 빌드다.
+// 🔴 **값은 맨 마지막에 넣는다** — 카운터·안내·원격 끄기 스위치가 다 붙은 뒤에(doc/NEXT_SESSION.md §할 일 4).
+//    🔴 **결제를 연결하지 않은 계정**의 키여야 한다 — 앱에 넣은 키는 숨길 수 없고, 무료 등급이면 털려도 0원이다
+//    (KJangbu/doc/AI_KEY_POLICY.md §1~§3).
+val geminiTrialKey: String = localProperties.getProperty("gemini.trial.key", "")
 
 android {
     namespace = "com.kitwlshcom.kdailyutil"
@@ -34,6 +39,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "DART_DEFAULT_KEY", "\"$dartDefaultKey\"")
+        buildConfigField("String", "GEMINI_TRIAL_KEY", "\"$geminiTrialKey\"")
     }
 
     // 릴리즈 서명: local.properties(VCS 제외)에 키 정보가 있을 때만 활성화.

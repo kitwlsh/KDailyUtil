@@ -3,9 +3,11 @@ package com.kitwlshcom.kdailyutil
 import com.kitwlshcom.kdailyutil.data.ai.AiAccess
 import com.kitwlshcom.kdailyutil.data.ai.AiArea
 import com.kitwlshcom.kdailyutil.data.ai.AiKeyProvider
+import com.kitwlshcom.kdailyutil.data.ai.AiTrialConfig
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -17,7 +19,7 @@ import org.junit.Test
  */
 class AiKeyProviderTest {
 
-    private fun provider(key: String?) = AiKeyProvider { key }
+    private fun provider(key: String?) = AiKeyProvider(userKey = { key })
 
     @Test
     fun `본인 키가 있으면 그 키를 쓴다 — 분야와 무관하다`() = runBlocking {
@@ -37,5 +39,104 @@ class AiKeyProviderTest {
     fun `빈 키는 없는 키다`() = runBlocking {
         assertNull(provider("").resolve(AiArea.STOCK).keyOrNull)
         assertNull(provider("   ").resolve(AiArea.LEARNING).keyOrNull)
+    }
+
+    // ── 🎁 체험 카운터 ──
+
+    /** 분야별 사용 횟수를 메모리에 두는 가짜 저장소. */
+    private class Counter {
+        val used = mutableMapOf<AiArea, Int>()
+        fun provider(
+            userKey: String? = null,
+            trialKey: String? = "TRIAL",
+            cfg: AiTrialConfig = AiTrialConfig.DEFAULT,
+        ) = AiKeyProvider(
+            userKey = { userKey },
+            trialKey = trialKey,
+            trialConfig = { cfg },
+            trialUsed = { used[it] ?: 0 },
+            addTrialUse = { used[it] = (used[it] ?: 0) + 1 },
+        )
+    }
+
+    @Test
+    fun `체험 키가 없는 빌드는 지금과 똑같다 — 키 없으면 못 쓴다`() = runBlocking {
+        val c = Counter()
+        assertEquals(
+            AiAccess.Unavailable(AiAccess.Reason.NO_KEY),
+            c.provider(trialKey = null).resolve(AiArea.NEWS)
+        )
+    }
+
+    @Test
+    fun `체험은 분야별 한도까지 쓰고 그다음은 소진이다`() = runBlocking {
+        val c = Counter()
+        val p = c.provider()
+        repeat(7) {
+            val access = p.resolve(AiArea.NEWS)
+            assertTrue("${it + 1}번째는 쓸 수 있어야 한다", access is AiAccess.Trial)
+            p.recordUse(access)
+        }
+        assertEquals(AiAccess.Unavailable(AiAccess.Reason.TRIAL_EXHAUSTED), p.resolve(AiArea.NEWS))
+    }
+
+    @Test
+    fun `한 분야를 다 써도 다른 분야는 남아 있다`() = runBlocking {
+        val c = Counter()
+        c.used[AiArea.NEWS] = 7
+        val p = c.provider()
+        assertTrue(p.resolve(AiArea.LEARNING) is AiAccess.Trial)
+        assertEquals(6, (p.resolve(AiArea.STOCK) as AiAccess.Trial).remaining)
+    }
+
+    @Test
+    fun `resolve만 하고 recordUse를 안 부르면 깎이지 않는다 — 실패는 세지 않는다`() = runBlocking {
+        val c = Counter()
+        val p = c.provider()
+        repeat(20) { p.resolve(AiArea.STOCK) }
+        assertEquals(6, (p.resolve(AiArea.STOCK) as AiAccess.Trial).remaining)
+    }
+
+    @Test
+    fun `본인 키가 있으면 체험보다 먼저고, 써도 체험이 줄지 않는다`() = runBlocking {
+        val c = Counter()
+        val p = c.provider(userKey = "MINE")
+        val access = p.resolve(AiArea.NEWS)
+        assertEquals(AiAccess.UserKey("MINE"), access)
+        repeat(100) { p.recordUse(access) }
+        assertEquals(0, c.used[AiArea.NEWS] ?: 0)
+    }
+
+    @Test
+    fun `본인 키를 지우면 남은 체험부터 이어진다`() = runBlocking {
+        val c = Counter()
+        c.used[AiArea.LEARNING] = 3
+        assertEquals(4, (c.provider(userKey = null).resolve(AiArea.LEARNING) as AiAccess.Trial).remaining)
+    }
+
+    @Test
+    fun `원격으로 끄면 횟수가 남아도 못 쓴다`() = runBlocking {
+        val c = Counter()
+        val off = AiTrialConfig.DEFAULT.copy(enabled = false)
+        assertEquals(
+            AiAccess.Unavailable(AiAccess.Reason.TRIAL_DISABLED),
+            c.provider(cfg = off).resolve(AiArea.NEWS)
+        )
+    }
+
+    @Test
+    fun `원격으로 꺼도 본인 키 사용자는 그대로다`() = runBlocking {
+        val c = Counter()
+        val off = AiTrialConfig.DEFAULT.copy(enabled = false)
+        assertEquals(AiAccess.UserKey("MINE"), c.provider(userKey = "MINE", cfg = off).resolve(AiArea.NEWS))
+    }
+
+    @Test
+    fun `한도를 0으로 내린 분야는 꺼진 것으로 본다`() = runBlocking {
+        val c = Counter()
+        val cfg = AiTrialConfig(enabled = true, limits = mapOf(AiArea.NEWS to 0, AiArea.LEARNING to 7))
+        assertEquals(AiAccess.Unavailable(AiAccess.Reason.TRIAL_DISABLED), c.provider(cfg = cfg).resolve(AiArea.NEWS))
+        assertEquals(AiAccess.Unavailable(AiAccess.Reason.TRIAL_DISABLED), c.provider(cfg = cfg).resolve(AiArea.STOCK))
+        assertTrue(c.provider(cfg = cfg).resolve(AiArea.LEARNING) is AiAccess.Trial)
     }
 }

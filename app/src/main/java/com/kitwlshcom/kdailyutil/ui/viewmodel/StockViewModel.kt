@@ -466,6 +466,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val gemini = GeminiManager(geminiKey)
                 _financialTrendComment.value = gemini.summarizeFinancialTrend(_financialHistoryTitle.value, periodsText)
+                aiKeys.recordUse(aiAccess)   // 체험이면 1회(실패하면 위에서 던져 여기 안 온다)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 추세 코멘트 생성 실패: ${e.message}")
                 _financialTrendComment.value = "추세 코멘트를 만들지 못했습니다.\n" + GeminiManager.aiErrorMessage(e)
@@ -543,6 +544,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 _portfolioAnalysis.value = result
                 _portfolioAnalyzedAt.value = timeStr
                 withContext(Dispatchers.IO) { stockRepository.savePortfolioAnalysis(result, timeStr) }
+                aiKeys.recordUse(aiAccess)   // 체험이면 1회
             } catch (e: Exception) {
                 Log.e(TAG, "❌ 포트폴리오 분석 실패: ${e.message}", e)
                 _portfolioAnalysis.value = "포트폴리오 분석을 하지 못했습니다.\n" + GeminiManager.aiErrorMessage(e)
@@ -783,6 +785,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 if (success) {
+                    aiKeys.recordUse(aiAccess)   // 체험이면 1회 — 429 재시도가 몇 번이었든 «작업 1건»이다
                     // 백그라운드면 시스템 알림, 앱 내 다른 메뉴면 인앱 배너, 해당 탭이면 콜백(다이얼로그)로 표시
                     when {
                         !appInForeground -> notifyAnalysisDone(disclosure.corp_name, 1)
@@ -831,6 +834,7 @@ class StockViewModel(application: Application) : AndroidViewModel(application) {
                 // 인메모리 + 파일 영속 저장 (앱 재시작 후에도 유지)
                 item.aiReport = report
                 stockRepository.saveExpectedReport(item.corp_name, report)
+                aiKeys.recordUse(aiAccess)   // 체험이면 1회
                 _expectedEarnings.value = _expectedEarnings.value.map {
                     if (it.corp_name == item.corp_name) item else it
                 }

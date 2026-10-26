@@ -484,6 +484,7 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
 
             // 파일 캐시로 영구 저장
             newsRepository.saveCachedNews(fileCacheKey, listOf(aiNewsItem))
+            aiKeys.recordUse(aiAccess)   // 체험이면 1회 차감(성공했을 때만). 캐시에서 꺼낸 것은 위에서 돌아가 세지 않는다
 
             Log.d(TAG, "✅ AI Analysis successful")
         } catch (e: Exception) {
@@ -811,13 +812,15 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
                 } else {
                     val answer = gemini.sendChatMessage(chat, text)
                     _chatMessages.value = _chatMessages.value + ChatMessage(ChatRole.AI, answer)
+                    aiKeys.recordUse(aiAccess)   // 체험이면 질문 1개 = 1회
                     if (_handsFree.value) speakThenListen(answer)
                 }
                 persistCurrentSession()
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Chat error: ${e.message}", e)
+                // sendChatMessage가 이제 던진다(2026-10-26) — 예전에 그 안에서 만들던 문구를 여기서 낸다
                 _chatMessages.value = _chatMessages.value +
-                    ChatMessage(ChatRole.AI, "오류가 발생했습니다. 잠시 후 다시 시도해 주세요.")
+                    ChatMessage(ChatRole.AI, "응답 생성 중 오류가 발생했습니다.\n" + GeminiManager.aiErrorMessage(e))
             } finally {
                 _isChatResponding.value = false
             }

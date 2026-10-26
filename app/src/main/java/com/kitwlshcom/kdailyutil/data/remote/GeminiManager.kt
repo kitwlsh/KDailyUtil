@@ -398,12 +398,12 @@ class GeminiManager(private val apiKey: String?) {
     /**
      * 채팅 세션에 메시지를 보내고 AI 응답 텍스트를 반환합니다.
      */
+    /**
+     * ⚠️ 실패하면 **던진다**(2026-10-26). 예전엔 오류 문구를 «답»으로 돌려줘서 호출부가 성공과 실패를
+     * 가를 수 없었다 — AI 체험판은 **성공한 작업만** 세야 한다. 안내 문구는 호출부가 같은 말로 만든다.
+     */
     suspend fun sendChatMessage(chat: Chat, message: String): String = withContext(Dispatchers.IO) {
-        try {
-            chat.sendMessage(message).text ?: "응답을 생성할 수 없습니다."
-        } catch (e: Exception) {
-            "응답 생성 중 오류가 발생했습니다.\n" + aiErrorMessage(e)
-        }
+        chat.sendMessage(message).text ?: "응답을 생성할 수 없습니다."
     }
 
     /**
@@ -792,7 +792,9 @@ class GeminiManager(private val apiKey: String?) {
             response?.text ?: "리포트를 생성할 수 없습니다."
         } catch (e: Exception) {
             android.util.Log.e("GeminiManager", "❌ generateExpectedEarningsReport error: ${e.message}", e)
-            "사전 리포트를 만들지 못했습니다.\n" + aiErrorMessage(e)
+            // 🔴 던진다(2026-10-26). 예전엔 오류 문구를 리포트로 돌려줘서 **그 문구가 리포트로 캐시에 저장됐다**
+            //    (호출부의 catch는 한 번도 안 돌았다). 안내 문구는 호출부가 같은 말로 낸다.
+            throw e
         }
     }
 
@@ -831,7 +833,7 @@ class GeminiManager(private val apiKey: String?) {
             response?.text ?: "코멘트를 생성할 수 없습니다."
         } catch (e: Exception) {
             android.util.Log.e("GeminiManager", "❌ summarizeFinancialTrend error: ${e.message}", e)
-            "추세 코멘트를 만들지 못했습니다.\n" + aiErrorMessage(e)
+            throw e   // 호출부가 같은 안내 문구를 낸다 — 성공·실패를 가려야 체험 횟수를 바르게 센다(2026-10-26)
         }
     }
 
@@ -868,7 +870,8 @@ class GeminiManager(private val apiKey: String?) {
             response?.text ?: "분석을 생성할 수 없습니다."
         } catch (e: Exception) {
             android.util.Log.e("GeminiManager", "❌ summarizePortfolio error: ${e.message}", e)
-            "포트폴리오 분석을 하지 못했습니다.\n" + aiErrorMessage(e)
+            // 🔴 던진다(2026-10-26). 예전엔 오류 문구가 분석 결과로 **캐시에 저장돼** 다음에 열어도 그대로 보였다.
+            throw e
         }
     }
 }
