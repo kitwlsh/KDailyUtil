@@ -153,6 +153,7 @@ release.key.password=<비밀번호>
 | **뉴스 우회 보고서** | [Google_News_Redirect_Issue_Report.md](doc/Google_News_Redirect_Issue_Report.md) | 구글 뉴스 수집 시 발생하는 리디렉션 이슈 분석 및 해결책 |
 | **오디오 개선 보고서** | [20260422_Audio_System_Enhancement_Report.md](doc/20260422_Audio_System_Enhancement_Report.md) | 미니 플레이어 및 오디오 수집 성능 최적화 개선 보고서 |
 | **공시 AI 요약 가이드** | [FEATURE_DART_AI_SUMMARY.md](doc/FEATURE_DART_AI_SUMMARY.md) | Open DART API + Gemini 실적 공시 자동 요약 설계 가이드 |
+| **🔔 관심종목 공시 알림 (기획)** | [FEATURE_DISCLOSURE_ALERT.md](doc/FEATURE_DISCLOSURE_ALERT.md) | **기획만(2026-10-16 · 코드 0줄).** 위 가이드 §10-1·§14-3(백그라운드 감시)을 이어받아 관심종목 공시를 WorkManager로 하루 4번 확인 → 갈래 배지(희석·위험/구조 변화/주주환원/실적) → AI 3줄 해설. 🔴 «매수 신호»는 쓰지 않는다 · 시세·수급 신호는 Smart_stock 몫. §10에 열린 결정 5개 |
 | **빠른 독서 훈련 설계** | [FEATURE_SPEED_READING.md](doc/FEATURE_SPEED_READING.md) | 배움터 속독 훈련(드릴/OCR/AI 이해도/보관함) 기능 설계서. 지문 공급은 아래 검토서가 정본 |
 | **📖 매일 새 지문 공급** | [FEATURE_DAILY_PASSAGES.md](doc/FEATURE_DAILY_PASSAGES.md) | **지문을 퀴즈처럼 매일 공급하는 설계 + ✅ 구현 결과(2026-09-07 · vc8).** 하드코딩 19편이 «19일에 한 바퀴 → 재독 → WPM 그래프 왜곡»을 만든다는 진단 + 저장 위치 후보 4개 비교(채택 = `korean_quiz_data`에 연도별 `passages_*.json`) + **로봇 지문과 사용자 보관함을 다른 파일로 두는 이유**(섞으면 동기화 버그 한 번에 사용자 촬영 지문이 날아간다) + 저작권 가드. 🔴 **§6 = 밀림 대책**(신규 창 7일·복귀 사면·목록 상한·퀴즈 카운터 상한) — 상한이 없으면 두 달 비운 사용자에게 「새 문제 300개」가 나간다. §10 표에 무엇을 넣고 무엇을 **일부러 안 만들었는지**(「지난 지문」 목록 = 빚 상환 화면) 적혀 있다 |
 | **뉴스 AI 대화창 설계** | [FEATURE_AI_NEWS_CHAT.md](doc/FEATURE_AI_NEWS_CHAT.md) | 뉴스탭 'AI' 탭 멀티턴 대화(제목+스니펫 컨텍스트)+음성 STT/TTS 설계·구현서(구현 완료, 30일 보관 정책) |
