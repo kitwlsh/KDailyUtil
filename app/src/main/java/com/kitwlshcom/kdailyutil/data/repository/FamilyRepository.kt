@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.kitwlshcom.kdailyutil.BuildConfig
 import com.kitwlshcom.kdailyutil.R
+import com.kitwlshcom.kdailyutil.data.ai.AiTrialConfig
 import com.kitwlshcom.kdailyutil.data.model.FamilyApp
 import com.kitwlshcom.kdailyutil.data.remote.GeminiManager
 import kotlinx.coroutines.Dispatchers
@@ -156,6 +157,7 @@ object FamilyRepository {
             // 원격 AI 모델 지정 — 모델이 막혀도 앱 재배포 없이 갈아끼우는 안전장치.
             // 레지스트리를 읽는 모든 경로(신선캐시/원격/last-good/번들)에서 함께 반영된다.
             applyAiModel(root)
+            applyAiTrial(root)
 
             val arr = root.optJSONArray("apps") ?: return null
             val apps = ArrayList<FamilyApp>(arr.length())
@@ -195,6 +197,44 @@ object FamilyRepository {
         if (GeminiManager.preferredModel != raw) {
             GeminiManager.preferredModel = raw
             Log.d(TAG, "🤖 원격 AI 모델 지정: $raw")
+        }
+    }
+
+    /**
+     * 🎁 AI 체험판 원격 레버. 기본값 = 켜짐(뉴스 7 · 배움터 7 · 증시 6).
+     * [AiKeyProvider]가 체험을 줄지 정할 때마다 읽는다.
+     */
+    @Volatile
+    var aiTrialConfig: AiTrialConfig = AiTrialConfig.DEFAULT
+        private set
+
+    /**
+     * `aiTrialKDailyUtil`(객체)을 [aiTrialConfig]에 반영한다(2026-10-26).
+     *
+     * ```json
+     * "aiTrialKDailyUtil": { "enabled": false }                       // 체험 즉시 중단(본인 키 사용자는 그대로)
+     * "aiTrialKDailyUtil": { "news": 3, "learning": 3, "stock": 3 }   // 횟수만 조정
+     * ```
+     *
+     * 🔴 **K장부의 `aiTrial`과 일부러 다른 키다.** 같은 키를 읽으면 `aiModel`처럼 **한 앱의 체험을 끄려다
+     * 다른 앱 것까지 끈다**(두 앱은 체험 키도 다르다). 레지스트리 = doc/family_config/README.md §3-1.
+     *
+     * 체험 키가 털린 정황이 보이면 `enabled: false` 한 줄로 **앱 재배포 없이** 멈춘다.
+     * 🔴 레버가 **없으면 켜짐으로 되돌린다** — 라이브에서 레버를 지우면 다음 읽기에 다시 켜진다.
+     */
+    private fun applyAiTrial(root: JSONObject) {
+        val o = root.optJSONObject("aiTrialKDailyUtil")
+        fun intOrNull(k: String) = if (o != null && o.has(k)) o.optInt(k, -1).takeIf { it >= 0 } else null
+        val cfg = AiTrialConfig.fromRemote(
+            present = o != null,
+            enabled = if (o != null && o.has("enabled")) o.optBoolean("enabled", true) else null,
+            news = intOrNull("news"),
+            learning = intOrNull("learning"),
+            stock = intOrNull("stock"),
+        )
+        if (cfg != aiTrialConfig) {
+            aiTrialConfig = cfg
+            Log.d(TAG, "🎁 AI 체험 원격 설정: $cfg")
         }
     }
 

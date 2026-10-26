@@ -185,6 +185,37 @@ class AiKeyProviderTest {
         assertNull(c.provider(cfg = AiTrialConfig.DEFAULT.copy(enabled = false)).trialRemaining())
     }
 
+    // ── 원격 끄기 스위치(aiTrialKDailyUtil) — 킬스위치는 사고 난 날 처음 당긴다. 양쪽 방향을 다 박아 둔다 ──
+
+    @Test
+    fun `레버가 없으면 켜짐이다 — 원격이 죽어도 체험이 갑자기 끊기지 않는다`() {
+        assertEquals(AiTrialConfig.DEFAULT, AiTrialConfig.fromRemote(false, null, null, null, null))
+    }
+
+    @Test
+    fun `enabled false를 명시하면 실제로 꺼진다`() {
+        val cfg = AiTrialConfig.fromRemote(true, false, null, null, null)
+        assertTrue(!cfg.enabled)
+        assertEquals(
+            AiAccess.Unavailable(AiAccess.Reason.TRIAL_DISABLED),
+            runBlocking { Counter().provider(cfg = cfg).resolve(AiArea.LEARNING) }
+        )
+    }
+
+    @Test
+    fun `횟수만 준 레버는 켜진 채 그 횟수를 쓰고, 안 준 분야는 기본값이다`() {
+        val cfg = AiTrialConfig.fromRemote(true, null, 3, null, 0)
+        assertTrue(cfg.enabled)
+        assertEquals(3, cfg.limitOf(AiArea.NEWS))
+        assertEquals(7, cfg.limitOf(AiArea.LEARNING))
+        assertEquals(0, cfg.limitOf(AiArea.STOCK))
+    }
+
+    @Test
+    fun `원격 오타(700)가 무제한이 되지 않는다`() {
+        assertEquals(AiTrialConfig.MAX_LIMIT, AiTrialConfig.fromRemote(true, true, 700, null, null).limitOf(AiArea.NEWS))
+    }
+
     @Test
     fun `한도를 0으로 내린 분야는 꺼진 것으로 본다`() = runBlocking {
         val c = Counter()

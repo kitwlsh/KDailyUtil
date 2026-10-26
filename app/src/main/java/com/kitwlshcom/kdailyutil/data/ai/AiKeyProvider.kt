@@ -27,6 +27,30 @@ data class AiTrialConfig(
             enabled = true,
             limits = mapOf(AiArea.NEWS to 7, AiArea.LEARNING to 7, AiArea.STOCK to 6),
         )
+
+        /** 원격이 아무리 큰 숫자를 줘도 이 이상은 열지 않는다 — 오타 한 번(700)이 무제한이 되지 않게. */
+        const val MAX_LIMIT = 100
+
+        /**
+         * 원격 레버 `aiTrialKDailyUtil`의 값 → 설정(2026-10-26 · 체험판 4단계). JSON을 모르는 순수 함수다(단위 테스트 대상).
+         *
+         * 🔴 **실패 방향은 «켜짐»** — 레버가 없거나(null) 값이 이상하면 기본값을 쓴다(family_config/README §3-1 규칙).
+         * 끄는 것은 **`enabled: false`를 명시했을 때만**이다.
+         *
+         * @param present 레버 객체가 있었는가. 없으면 나머지는 보지 않는다.
+         */
+        fun fromRemote(present: Boolean, enabled: Boolean?, news: Int?, learning: Int?, stock: Int?): AiTrialConfig {
+            if (!present) return DEFAULT
+            fun lim(v: Int?, area: AiArea) = (v ?: DEFAULT.limitOf(area)).coerceIn(0, MAX_LIMIT)
+            return AiTrialConfig(
+                enabled = enabled ?: true,
+                limits = mapOf(
+                    AiArea.NEWS to lim(news, AiArea.NEWS),
+                    AiArea.LEARNING to lim(learning, AiArea.LEARNING),
+                    AiArea.STOCK to lim(stock, AiArea.STOCK),
+                ),
+            )
+        }
     }
 }
 
@@ -96,6 +120,8 @@ class AiKeyProvider(
     constructor(settings: SettingsRepository) : this(
         userKey = { settings.geminiApiKeyFlow.first() },
         trialKey = BuildConfig.GEMINI_TRIAL_KEY.takeIf { it.isNotBlank() },
+        // 원격 레버 — 앱 시작 때(MainActivity.primeRemoteConfig) family.json을 읽으며 채워진다. 못 읽었으면 기본값(켜짐)
+        trialConfig = { com.kitwlshcom.kdailyutil.data.repository.FamilyRepository.aiTrialConfig },
         trialUsed = { settings.aiTrialUsedFlow(it).first() },
         addTrialUse = { settings.incrementAiTrialUsed(it) },
     )

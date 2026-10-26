@@ -71,6 +71,7 @@ https://raw.githubusercontent.com/kitwlsh/k-series-config/main/icons/kjangbu.png
 |---|---|---|---|---|
 | `aiModel` (문자열) | 🔴 **KDailyUtil + K장부 (둘 다)** | 앱 내장 별칭 사용 | **두 앱 모두** AI 모델이 지정 모델로 교체된다 | KDailyUtil vc7 / v1.6.1+ · K장부 vc2+ |
 | `aiTrial` (객체) | K장부 | 체험 활성(한도는 앱 기본) | AI 체험 중단 / 한도 조정 | K장부 vc2+ |
+| `aiTrialKDailyUtil` (객체) | KDailyUtil | 체험 활성 · 뉴스 7 · 배움터 7 · 증시 6 | `{"enabled": false}` = AI 체험 중단(본인 키 사용자는 그대로) · `{"news": 3, …}` = 분야별 한도 조정(0~100) | **KDailyUtil vc12+**(2026-10-26 코드 · 체험 키 투입 전이라 아직 효과 없음). 🔴 **K장부 `aiTrial`과 일부러 다른 키다** — 같은 키면 한 앱 체험을 끄려다 둘 다 끈다(`aiModel`의 교훈) |
 | `fscApi.enabled` (불린) | K장부 | **`true`(켜짐)** | 금융위 배당 API 차단 → Yahoo 폴백(지급일·알림만 사라짐) | **K장부 vc3+** |
 
 > 🔴 **가장 위험한 사고 경로 — "정본을 그대로 올린다"가 레버를 되살린다.**
