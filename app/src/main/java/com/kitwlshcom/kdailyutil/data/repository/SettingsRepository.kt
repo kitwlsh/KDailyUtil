@@ -125,6 +125,18 @@ class SettingsRepository(private val context: Context) {
         preferences[PreferencesKeys.DART_API_KEY] ?: com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY
     }
 
+    /**
+     * 설정 화면 입력칸용 — **사용자가 직접 넣은 키만**. 안 넣었으면 빈 문자열(2026-10-27).
+     *
+     * 🔴 예전엔 입력칸이 [dartApiKeyFlow](= 없으면 공용 키)를 그대로 보여 줘서, 처음 설치한 사람의 칸에
+     * **개발자 공용 키가 채워져** 있었고 👁 버튼으로 누구나 볼 수 있었다. 사용자는 «내가 넣었나?»로 헷갈렸고,
+     * 원래 의도한 안내(«기본 공용 키 사용 중 (비어있음)»)는 한 번도 보이지 않았다.
+     * 호출은 여전히 [dartApiKeyFlow]로 한다 — 비어 있으면 공용 키로 검색된다.
+     */
+    val dartUserKeyFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.DART_API_KEY] ?: ""
+    }
+
     val categoriesFlow: Flow<List<String>> = context.dataStore.data.map { preferences ->
         readOrderedList(
             preferences, PreferencesKeys.NEWS_CATEGORIES_ORDER, PreferencesKeys.NEWS_CATEGORIES,

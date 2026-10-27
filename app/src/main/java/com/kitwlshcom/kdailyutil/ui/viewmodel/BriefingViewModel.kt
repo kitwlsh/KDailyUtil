@@ -58,7 +58,8 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     ) { _, _, _, _ -> Unit }
         .map { aiKeys.trialRemaining() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
-    val dartApiKey = settingsRepository.dartApiKeyFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY)
+    // 설정 입력칸용 = 사용자가 넣은 키만(없으면 "" → 안내 문구가 보인다). 공용 키를 칸에 채워 보여 주지 않는다
+    val dartApiKey = settingsRepository.dartUserKeyFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     
     val aiBriefingCommand = settingsRepository.aiBriefingCommandFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val aiBriefingCommands = settingsRepository.aiBriefingCommandsFlow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
