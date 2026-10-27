@@ -423,8 +423,11 @@ class BriefingViewModel(application: Application) : AndroidViewModel(application
     }
 
     private suspend fun generateAiCustomBriefing(forceRefresh: Boolean) {
-        val commands = aiBriefingCommands.value
-        val fallbackCommand = aiBriefingCommand.value
+        // 🔴 StateFlow.value가 아니라 저장소에서 읽는다(2026-10-27 실기기). `aiBriefingCommands`는
+        //    WhileSubscribed라 화면이 구독하기 전에는 **빈 목록**이다 — 앱을 켜자마자 AI 탭을 누르면
+        //    명령이 있는데도 «설정에서 명령어를 등록하고…»가 떴다.
+        val commands = settingsRepository.aiBriefingCommandsFlow.first()
+        val fallbackCommand = settingsRepository.aiBriefingCommandFlow.first()
         
         // 여러 개가 있으면 selectedAiCommand 혹은 첫 번째 선택, 없으면 하위 호환용 1개 사용
         val targetCommand = selectedAiCommand.value ?: commands.firstOrNull() ?: fallbackCommand

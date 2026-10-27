@@ -1,6 +1,9 @@
 package com.kitwlshcom.kdailyutil.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -124,12 +127,12 @@ fun AiKeyGuideDialog(onDismiss: () -> Unit) {
     )
 }
 
-/** «뉴스 7 · 배움터 7 · 증시 6회» — 체험 남은 횟수를 한 줄로. */
+/** «뉴스 7·배움터 7·증시 6» — 체험 남은 횟수를 한 줄로(접힌 배너에 들어가게 짧게). */
 fun aiTrialRemainingText(remaining: Map<com.kitwlshcom.kdailyutil.data.ai.AiArea, Int>): String {
     fun n(a: com.kitwlshcom.kdailyutil.data.ai.AiArea) = remaining[a] ?: 0
-    return "뉴스 ${n(com.kitwlshcom.kdailyutil.data.ai.AiArea.NEWS)} · " +
-        "배움터 ${n(com.kitwlshcom.kdailyutil.data.ai.AiArea.LEARNING)} · " +
-        "증시 ${n(com.kitwlshcom.kdailyutil.data.ai.AiArea.STOCK)}회"
+    return "뉴스 ${n(com.kitwlshcom.kdailyutil.data.ai.AiArea.NEWS)}·" +
+        "배움터 ${n(com.kitwlshcom.kdailyutil.data.ai.AiArea.LEARNING)}·" +
+        "증시 ${n(com.kitwlshcom.kdailyutil.data.ai.AiArea.STOCK)}"
 }
 
 /**
@@ -138,6 +141,10 @@ fun aiTrialRemainingText(remaining: Map<com.kitwlshcom.kdailyutil.data.ai.AiArea
  * 🔴 **데이터 고지를 여기서 한 번 더 한다**(K장부 AI_KEY_POLICY §9-5 «체험 시작 시 안내»).
  * 본인 키는 사용자가 알고 발급하지만, 체험은 **개발자가 «제 키로 써 보세요»라고 권하는 것**이라
  * 무료 등급 조건(Google 제품 개선에 쓰일 수 있음)을 모르고 쓰게 하면 안 된다.
+ *
+ * 🔴 **기본은 한 줄로 접혀 있다**(2026-10-27 실기기). 예전 «키가 필요합니다» 배너는 AI가 **안 될 때만** 떠서
+ * 결과와 같이 나올 일이 없었는데, 체험 배너는 **AI 결과와 동시에** 뜬다. 다 펼친 채로 두면 뉴스 AI 탭에서
+ * 결과 영역이 0 높이로 눌려 **분석 결과를 볼 수 없었다**. 접힌 줄에도 «무료 등급»을 남겨 고지가 사라지지 않게 했다.
  */
 @Composable
 fun AiTrialBanner(
@@ -146,23 +153,31 @@ fun AiTrialBanner(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var expanded by androidx.compose.runtime.saveable.rememberSaveable {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clickable { expanded = !expanded },
         colors = CardDefaults.cardColors(containerColor = Gold24K.copy(alpha = 0.10f)),
         border = BorderStroke(0.8.dp, Gold24K.copy(alpha = 0.45f))
     ) {
-        Column(Modifier.padding(12.dp)) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            // 좁은 화면(왼쪽 주제 칸 옆)에서도 «▾»까지 한 줄에 들어가게 짧게 쓴다 — 잘리면 펼칠 수 있다는 것을 모른다
             Text(
-                "🎁 AI 체험 중 — 키 없이 바로 써 보세요",
+                "🎁 체험 ${aiTrialRemainingText(remaining)} ${if (expanded) "▴" else "▾"}",
                 fontWeight = FontWeight.Bold,
                 color = Gold24K,
-                fontSize = 13.5.sp
+                fontSize = 12.5.sp,
+                maxLines = if (expanded) Int.MAX_VALUE else 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
+            if (!expanded) return@Column
             Spacer(Modifier.height(4.dp))
             Text(
-                "남은 횟수: ${aiTrialRemainingText(remaining)} (성공했을 때만 줄어요)",
+                "AI 체험 중이에요 — 키 없이 바로 써 볼 수 있고, 횟수는 성공했을 때만 줄어요.",
                 fontSize = 11.5.sp,
                 color = Color.White.copy(alpha = 0.8f)
             )
