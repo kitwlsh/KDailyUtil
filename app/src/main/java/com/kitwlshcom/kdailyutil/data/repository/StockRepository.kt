@@ -32,6 +32,14 @@ class StockRepository(private val context: Context) {
     companion object {
         private const val TAG = "StockRepository"
 
+        /**
+         * 로그에 남기기 전에 DART 키를 가린다.
+         * 🔴 Jsoup은 HTTP 오류 때 예외 문구에 요청 URL을 통째로 넣는다(`URL=[…crtfc_key=…]`) —
+         * 그대로 찍으면 실패할 때마다 공용 키·사용자 키가 logcat에 남는다(2026-10-27 발견).
+         */
+        internal fun redactDartKey(text: String?): String? =
+            text?.replace(Regex("(crtfc_key=)[^&\\s\\]]+"), "$1***")
+
         // 주요 한국 상장기업 DART 고유번호 매핑 (Zero-latency 로컬 매핑)
         private val CORP_CODE_MAP = mapOf(
             "삼성전자" to "00126380",
@@ -472,7 +480,7 @@ class StockRepository(private val context: Context) {
                 return@withContext disclosures
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Open DART API fetch failed: ${e.message}")
+            Log.e(TAG, "❌ Open DART API fetch failed: ${redactDartKey(e.message)}")
         }
         return@withContext emptyList()
     }
@@ -585,7 +593,7 @@ class StockRepository(private val context: Context) {
                 put("net_income", JSONObject().put("current", netIncomeCurrent).put("previous", netIncomePrevious))
             }.toString()
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Financial fetch failed ($fsDiv) for $corpCode: ${e.message}")
+            Log.e(TAG, "❌ Financial fetch failed ($fsDiv) for $corpCode: ${redactDartKey(e.message)}")
             return null
         }
     }
@@ -744,7 +752,7 @@ class StockRepository(private val context: Context) {
                 }
                 false
             } catch (e: Exception) {
-                Log.e(TAG, "❌ corpCode 다운로드 실패: ${e.message}")
+                Log.e(TAG, "❌ corpCode 다운로드 실패: ${redactDartKey(e.message)}")
                 false
             }
         }
