@@ -10,6 +10,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.kitwlshcom.kdailyutil.data.EffectiveWpm
+import com.kitwlshcom.kdailyutil.data.PassageCacheMerge
+import com.kitwlshcom.kdailyutil.data.PassageReadLog
 import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -66,8 +68,10 @@ class ReadingTrainingRepository(private val context: Context) {
         val SEEN_PASSAGE_COUNT = intPreferencesKey("seen_passage_count")
         // 사용자가 목록에서 치운 로봇 지문 id. 🔴 원본은 지우지 않는다(«내가 못 본 것이 지워졌다»는 인상을 주지 않는다)
         val HIDDEN_REMOTE_IDS = stringSetPreferencesKey("hidden_remote_passage_ids")
-        // 이미 «초독»을 끝낸 지문들의 열쇠(PassageKey). 재독 판정에 쓴다.
+        // 🔴 옛 형식(2026-09-14~10-28) — 날짜 없는 열쇠 집합. 처음 읽을 때 [READ_PASSAGE_AT]으로 옮기고 지운다.
         val READ_PASSAGE_KEYS = stringSetPreferencesKey("read_passage_keys")
+        // 읽은 지문의 «열쇠|마지막으로 읽은 epochDay» 집합. 재독 판정에 쓴다 → [PassageReadLog]
+        val READ_PASSAGE_AT = stringSetPreferencesKey("read_passage_at")
         // 사용자가 정한 «기본 훈련». 지문 카드의 시작 버튼이 이것으로 시작한다.
         // 🔴 **키 문자열은 그대로 둔다**("last_training_module") — 2026-09-14에 의미만 바뀌었다
         //    («마지막에 한 것을 앱이 기억» → «사용자가 정한 기본»). 키를 바꾸면 기존 사용자의
@@ -123,21 +127,31 @@ class ReadingTrainingRepository(private val context: Context) {
      * (읽기와 쓰기를 한 번에 하는 이유 = 두 번 부르면 두 번째가 재독이 되어야 하기 때문이다).
      *
      * 🔴 빈 지문은 항상 false다 — 기록할 것이 없다.
+     * 🔴 «처음»의 뜻 = 읽은 적이 없거나, 마지막으로 읽은 지 [PassageReadLog.FRESH_AFTER_DAYS]일이 지났다(2026-10-28).
      */
-    suspend fun markReadAndCheckFirst(passageKey: String): Boolean {
+    suspend fun markReadAndCheckFirst(passageKey: String, today: LocalDate = LocalDate.now()): Boolean {
         if (passageKey.isBlank()) return false
+        val day = today.toEpochDay()
         var first = false
         context.readingDataStore.edit { p ->
-            val seen = p[Keys.READ_PASSAGE_KEYS] ?: emptySet()
-            first = passageKey !in seen
-            if (first) p[Keys.READ_PASSAGE_KEYS] = seen + passageKey
+            val log = p[Keys.READ_PASSAGE_AT]?.let { PassageReadLog.decode(it) }
+                ?: PassageReadLog.migrate(p[Keys.READ_PASSAGE_KEYS] ?: emptySet(), day)
+            val (isFirst, updated) = PassageReadLog.record(log, passageKey, day)
+            first = isFirst
+            p[Keys.READ_PASSAGE_AT] = PassageReadLog.encode(updated)
+            p.remove(Keys.READ_PASSAGE_KEYS)
         }
         return first
     }
 
-    /** 지금까지 초독을 끝낸 지문 편수(통계 화면 설명용). */
+    /**
+     * 최근 [PassageReadLog.FRESH_AFTER_DAYS]일 안에 읽은 지문 편수(통계 화면 설명용).
+     * 아직 옛 형식이면(이전 전) 옛 집합의 크기를 그대로 보인다.
+     */
     val readPassageCountFlow: Flow<Int> =
-        context.readingDataStore.data.map { (it[Keys.READ_PASSAGE_KEYS] ?: emptySet()).size }
+        context.readingDataStore.data.map {
+            it[Keys.READ_PASSAGE_AT]?.size ?: (it[Keys.READ_PASSAGE_KEYS] ?: emptySet()).size
+        }
 
     /** 이해도 점수(0~100) 기록 — 최고치만 갱신 */
     suspend fun recordComprehension(scorePercent: Int) {
@@ -373,9 +387,11 @@ class ReadingTrainingRepository(private val context: Context) {
      *
      * 연도별 파일 2개(작년·올해)만 받는다 — 앱은 조건부 요청을 하지 않아 매번 파일 전체를
      * 다시 받는다. 한 파일에 계속 쌓으면 퀴즈처럼 매 동기화가 수백 KB가 된다.
+     * 🔴 그보다 옛 연도는 **기기 캐시에 남겨 둔다**(2026-10-28 · «2년 창» 해소) → [PassageCacheMerge]
      */
     suspend fun syncRemotePassages(today: LocalDate = LocalDate.now()) = withContext(Dispatchers.IO) {
         val fetched = LinkedHashMap<Long, RemotePassage>()
+        val fetchedYears = mutableSetOf<Int>()
         var anySuccess = false
 
         for (year in listOf(today.year - 1, today.year)) {
@@ -389,6 +405,7 @@ class ReadingTrainingRepository(private val context: Context) {
                     200 -> {
                         val body = connection.inputStream.bufferedReader().use { it.readText() }
                         parseRemotePassages(body).forEach { fetched[it.id] = it }
+                        fetchedYears += year
                         anySuccess = true
                         Log.d("ReadingRepo", "✅ 지문 동기화 $fileName")
                     }
@@ -407,8 +424,9 @@ class ReadingTrainingRepository(private val context: Context) {
         }
 
         try {
+            val merged = PassageCacheMerge.merge(loadRemotePassages(), fetched.values.toList(), fetchedYears)
             val arr = JSONArray()
-            fetched.values.sortedBy { it.id }.forEach { p ->
+            merged.forEach { p ->
                 arr.put(JSONObject().apply {
                     put("id", p.id)
                     put("title", p.title)
@@ -418,7 +436,7 @@ class ReadingTrainingRepository(private val context: Context) {
                 })
             }
             remotePassagesFile.writeText(arr.toString())
-            Log.d("ReadingRepo", "지문 캐시 저장: ${fetched.size}편")
+            Log.d("ReadingRepo", "지문 캐시 저장: ${merged.size}편(이번에 받은 것 ${fetched.size}편)")
         } catch (e: Exception) {
             Log.e("ReadingRepo", "지문 캐시 저장 실패: ${e.message}")
         }

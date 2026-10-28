@@ -35,6 +35,7 @@ import androidx.compose.material3.*
 import com.kitwlshcom.kdailyutil.data.DailyRecord
 import com.kitwlshcom.kdailyutil.data.EffectiveWpm
 import com.kitwlshcom.kdailyutil.data.PassageLength
+import com.kitwlshcom.kdailyutil.data.PassageReadLog
 import com.kitwlshcom.kdailyutil.data.AiContentReport
 import com.kitwlshcom.kdailyutil.data.PassageSource
 import com.kitwlshcom.kdailyutil.data.ReadingTrainingModule
@@ -2044,8 +2045,8 @@ private fun StatsModule(viewModel: ReadingTrainingViewModel, onExit: () -> Unit)
                         fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
                     )
                     Text(
-                        "• 🔁 전에 읽은 지문은 속도 기록에 넣지 않아요. 내용을 알면 더 빨리 넘길 수 있어서, " +
-                            "그대로 세면 추이가 실제보다 부풀어요. (출석·연속·누적은 그대로 올라가요)",
+                        "• 🔁 최근 ${PassageReadLog.FRESH_AFTER_DAYS}일 안에 읽은 지문은 속도 기록에 넣지 않아요. 내용을 알면 더 빨리 넘길 수 있어서, " +
+                            "그대로 세면 추이가 실제보다 부풀어요. 그보다 오래됐으면 다시 «처음»으로 쳐요. (출석·연속·누적은 그대로 올라가요)",
                         fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
                     )
                     Text(
@@ -2059,7 +2060,7 @@ private fun StatsModule(viewModel: ReadingTrainingViewModel, onExit: () -> Unit)
                         fontSize = 12.sp, color = Color.White.copy(0.7f), lineHeight = 18.sp
                     )
                     Text(
-                        "지금까지 처음 읽은 지문 ${readCount}편",
+                        "최근 ${PassageReadLog.FRESH_AFTER_DAYS}일 동안 읽은 지문 ${readCount}편",
                         fontSize = 11.sp, color = Gold24K.copy(0.8f)
                     )
                 }
@@ -2145,7 +2146,7 @@ private fun ResultModule(
         if (wasRepeat == true) {
             Spacer(Modifier.height(6.dp))
             Text(
-                """🔁 전에 읽은 지문이에요.
+                """🔁 최근 ${PassageReadLog.FRESH_AFTER_DAYS}일 안에 읽은 지문이에요.
 내용을 아는 글은 더 빨리 넘길 수 있어서 속도 기록에는 넣지 않았어요.
 출석과 연속은 그대로 올라갑니다.""",
                 color = Gold24K.copy(0.9f), fontSize = 12.sp, lineHeight = 18.sp,
