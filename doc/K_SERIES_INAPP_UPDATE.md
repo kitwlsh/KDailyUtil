@@ -469,7 +469,7 @@ class MainActivity : ComponentActivity() {
 |---|---|---|
 | **KDailyUtil** | ✅ **2026-10-08 구현** | vc12에 실림(출시는 기능이 쌓인 뒤) · 단위 테스트 7건 |
 | **KLotto645** | ✅ **2026-10-14 구현** | vc15에 실린다 · 단위 테스트 7건 · 🔑 **XML/View + 탭마다 Activity**라 두 곳을 바꿨다 — ⓐ `attach(this)` 한 줄을 **탭 Activity 4개의 onCreate**에(한 곳에만 달면 다른 탭에 있는 동안 «다 받았어요»를 놓친다. ⚠️ 탭 모드 전환 함수에 두면 STARTED 뒤 등록으로 죽는다) ⓑ 카드 대신 하단 탭 위 **스낵바**(12초, 실행당 한 번). 에뮬레이터에서 §6-3 로그 확인 · 탭 전환 크래시 0 |
-| **K장부(KJangbu)** | ⬜ 미착수 | 그 세션이 이 문서대로 넣는다 |
+| **K장부(KJangbu)** | ✅ **2026-10-27 구현** | vc6에 실린다 · 단위 테스트 7건 · Compose 단일 Activity라 표준 그대로 · 카드는 하단 탭(80dp) + `navigationBarsPadding()` 위 · 🔴 **fragment를 직접 의존성에 넣어야 했다** — K장부는 fragment를 안 써서 app-update가 끌고 온 `fragment 1.1.0`이 그대로 남았고 `lintVitalRelease`(`InvalidFragmentVersionForActivityResult`)가 **릴리스 빌드만** 막았다(디버그·테스트는 통과). `androidx.fragment:fragment:1.8.5`로 끌어올려 해결. 권한 변화 없음(병합 매니페스트를 v1.0.4 AAB와 대조) |
 | **K달인(KDalin)** | ✅ **2026-10-13 구현** | 1.1(vc2)에 실린다 · 단위 테스트 7건 · 🔑 하단 탭은 없지만 결과 화면 배너 광고 때문에 카드를 `navigationBarsPadding()` + 72dp 띄웠다 |
 
 🔴 **각 앱 세션이 자기 저장소에 직접 넣는다.** KDailyUtil 세션은 **다른 저장소에 커밋하지 않는다**
