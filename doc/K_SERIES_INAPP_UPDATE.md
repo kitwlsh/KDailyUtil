@@ -65,6 +65,21 @@ implementation(libs.play.app.update.ktx)
 
 ⚠️ `settings.gradle.kts`의 `dependencyResolutionManagement`에 **`google()`이 있어야 한다**(K-시리즈는 전부 있다).
 
+🔴 **릴리스 빌드 함정 — fragment를 끌어올린다**(K장부 10-27 · KDailyUtil 11-02 · **두 앱이 똑같이 걸렸다**).
+app-update가 `fragment 1.1.0`을 끌고 오는데, 앱이 fragment를 직접 안 쓰면 그 옛 버전이 그대로 남아
+`lintVitalRelease`가 **`InvalidFragmentVersionForActivityResult`로 릴리스 빌드만** 막는다.
+디버그 빌드·단위 테스트는 이 검사를 안 거쳐서 **넣은 날에는 모른다**(KDailyUtil은 3주 뒤 첫 `bundleRelease`에서 알았다).
+→ 처음부터 같이 넣는다:
+
+```toml
+fragment = "1.8.5"   # [versions] — 직접 쓰지 않는다. 끌어올리기만
+androidx-fragment = { group = "androidx.fragment", name = "fragment", version.ref = "fragment" }   # [libraries]
+```
+```kotlin
+implementation(libs.androidx.fragment)
+```
+넣은 뒤 **`bundleRelease`를 한 번 돌려 본다** — 디버그 빌드 통과로는 확인이 안 된다.
+
 ### ③ 조르기 정책 — `app/src/main/java/com/kitwlshcom/<앱>/update/UpdatePromptPolicy.kt`
 
 🔴 **이 파일이 이 기능의 핵심이다.** 인앱 업데이트에서 제일 쉽게 망치는 것이 **조르기**다.
@@ -467,7 +482,7 @@ class MainActivity : ComponentActivity() {
 
 | 앱 | 상태 | 비고 |
 |---|---|---|
-| **KDailyUtil** | ✅ **2026-10-08 구현** | vc12에 실림(출시는 기능이 쌓인 뒤) · 단위 테스트 7건 |
+| **KDailyUtil** | ✅ **2026-10-08 구현** | vc12(1.7.4)에 실림 · 단위 테스트 7건 · 🔴 11-02 첫 `bundleRelease`에서 **fragment 함정**(§3 ②)에 걸려 1.8.5로 끌어올렸다 · 권한 변화 없음(v1.7.3 AAB와 대조) |
 | **KLotto645** | ✅ **2026-10-14 구현** | vc15에 실린다 · 단위 테스트 7건 · 🔑 **XML/View + 탭마다 Activity**라 두 곳을 바꿨다 — ⓐ `attach(this)` 한 줄을 **탭 Activity 4개의 onCreate**에(한 곳에만 달면 다른 탭에 있는 동안 «다 받았어요»를 놓친다. ⚠️ 탭 모드 전환 함수에 두면 STARTED 뒤 등록으로 죽는다) ⓑ 카드 대신 하단 탭 위 **스낵바**(12초, 실행당 한 번). 에뮬레이터에서 §6-3 로그 확인 · 탭 전환 크래시 0 |
 | **K장부(KJangbu)** | ✅ **2026-10-27 구현** | vc6에 실린다 · 단위 테스트 7건 · Compose 단일 Activity라 표준 그대로 · 카드는 하단 탭(80dp) + `navigationBarsPadding()` 위 · 🔴 **fragment를 직접 의존성에 넣어야 했다** — K장부는 fragment를 안 써서 app-update가 끌고 온 `fragment 1.1.0`이 그대로 남았고 `lintVitalRelease`(`InvalidFragmentVersionForActivityResult`)가 **릴리스 빌드만** 막았다(디버그·테스트는 통과). `androidx.fragment:fragment:1.8.5`로 끌어올려 해결. 권한 변화 없음(병합 매니페스트를 v1.0.4 AAB와 대조) |
 | **K달인(KDalin)** | ✅ **2026-10-13 구현** | 1.1(vc2)에 실린다 · 단위 테스트 7건 · 🔑 하단 탭은 없지만 결과 화면 배너 광고 때문에 카드를 `navigationBarsPadding()` + 72dp 띄웠다 |

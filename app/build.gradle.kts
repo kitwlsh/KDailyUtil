@@ -31,10 +31,10 @@ android {
         //   versionCode = Play가 보는 정수(업로드마다 증가, 사용자에게 안 보임)
         //   versionName = 사람이 보는 문자열. 버그수정→PATCH / 기능추가→MINOR / 호환깨짐→MAJOR
         // 상세·전환 배경 = doc/DEVELOPER_GUIDE.md '버전 스킴'
-        // ⚠️ 1.7.3도 기능 추가판이라 스킴대로면 1.8.0인데 **사용자가 1.7.3으로 결정했다**(2026-09-29).
-        //    🔴 **세 판 연속 예외다**(1.7.1 · 1.7.2도 같은 이유였다). 스킴이 바뀐 것은 아니다.
-        versionCode = 11
-        versionName = "1.7.3"
+        // ⚠️ 1.7.4도 기능 추가판이라 스킴대로면 1.8.0인데 **사용자가 «1.7.x로 간다»고 결정했다**(2026-10-28).
+        //    🔴 **네 판 연속 예외다**(1.7.1 · 1.7.2 · 1.7.3도 같은 이유였다). 스킴이 바뀐 것은 아니다.
+        versionCode = 12
+        versionName = "1.7.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -130,6 +130,9 @@ dependencies {
     // 🔴 「새 버전이 있어요」 인앱 업데이트(FLEXIBLE). Play 설치본에서만 동작하고,
     //    개발용 빌드에서는 조용히 아무 일도 하지 않는다 → update/InAppUpdateController.kt
     implementation(libs.play.app.update.ktx)
+    // 🔴 app-update가 fragment 1.1.0을 끌고 와 lintVitalRelease가 릴리스를 막는다 → 끌어올리기만 한다.
+    //    디버그 빌드·단위 테스트는 이 검사를 안 거쳐서 10-08~11-02 동안 아무도 몰랐다(첫 bundleRelease에서 발견)
+    implementation(libs.androidx.fragment)
 
 
     testImplementation(libs.junit)

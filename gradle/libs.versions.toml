@@ -18,6 +18,9 @@ splashscreen = "1.0.1"
 coil = "2.6.0"
 documentfile = "1.0.1"
 appUpdate = "2.1.0"
+# 🔴 직접 쓰지 않는다 — app-update가 끌고 오는 fragment 1.1.0이 lintVitalRelease
+#    (InvalidFragmentVersionForActivityResult)에 걸려 릴리스 빌드가 막혀서 끌어올린다(2026-11-02 · K장부와 같은 처방).
+fragment = "1.8.5"
 
 
 [libraries]
@@ -47,6 +50,7 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 
 play-app-update-ktx = { group = "com.google.android.play", name = "app-update-ktx", version.ref = "appUpdate" }
+androidx-fragment = { group = "androidx.fragment", name = "fragment", version.ref = "fragment" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
