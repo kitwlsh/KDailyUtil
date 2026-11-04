@@ -49,13 +49,17 @@ git clone https://github.com/kitwlsh/KDailyUtil.git
 
 ### 1) `local.properties` 만들기 — **저장소에 없다**(`.gitignore` 처리)
 
-프로젝트 루트에 아래 형식으로 직접 만든다. 값은 **저장소 밖 `_secrets` 폴더**와 개인 발급분에서 가져온다.
+🟢 **가장 쉬운 길 = `_secrets/KDailyUtil/local.properties`를 프로젝트 루트에 복사**하고 `sdk.dir`만 그 PC에 맞게 고친다
+(10-28부터 백업본이 작업본과 **값까지 같다** · 경로는 전부 상대경로). 처음부터 만들 때의 형식은 아래.
 
 ```properties
 sdk.dir=C\:\\Users\\<사용자>\\AppData\\Local\\Android\\Sdk
 
-# Open DART 기본 키 (사용자가 직접 키를 안 넣었을 때의 폴백)
+# Open DART 기본 키 (사용자가 직접 키를 안 넣었을 때의 폴백) — 🔴 2026-10-28에 새 계정 키로 바꿨다
 dart.default.key=<Open DART에서 발급받은 키>
+
+# AI 체험판 키 (2026-10-27~) — 🔴 결제 미연결 계정 키. 없으면 «체험 없는 앱»이 경고 없이 빌드된다
+gemini.trial.key=<Google AI Studio 키>
 
 # 릴리즈 서명 — 4개가 모두 있어야 서명된 AAB가 나온다
 release.store.file=<키스토어 경로. 저장소 루트 기준 상대경로 권장 (예: ../../_secrets/KDailyUtil/kitwlsh-upload.jks)>
@@ -68,6 +72,8 @@ release.key.password=<비밀번호>
 |---|---|
 | `sdk.dir` 없음 | 빌드 불가 |
 | `dart.default.key` 없음 | 앱은 뜨지만 DART 실적 조회가 기본 키 없이 동작(사용자가 직접 키 입력해야 함) |
+| `gemini.trial.key` 없음 | 🔴 **AI 체험판이 조용히 빠진다**(키 없는 사용자에게 체험 배너·횟수가 안 뜬다). 릴리스 빌드 뒤 `BuildConfig.GEMINI_TRIAL_KEY` 길이가 0이 아닌지 본다 |
+| `gradle.properties`의 `org.gradle.java.home` 경로가 그 PC에 없음 | 빌드가 설정 단계에서 깨진다 — **이 한 줄만 PC마다 다르다**(JDK 21 경로로 고치되 커밋하지 않는다) |
 | `release.*` 4개 중 하나라도 없음 | 🔴 **경고 한 줄 없이 「서명 없는 AAB」가 나온다.** 업로드 전 `keytool -printcert -jarfile <aab>` 로 반드시 확인할 것 |
 
 > 🔑 **키스토어 실물은 이 저장소에 없다.** 저장소 밖 `_secrets/` 에 있고 `release.store.file` 로 참조한다.
@@ -76,7 +82,7 @@ release.key.password=<비밀번호>
 ### 2) 빌드·테스트
 
 ```bash
-./gradlew :app:testDebugUnitTest      # 단위 테스트 (기기 불필요, 52건)
+./gradlew :app:testDebugUnitTest      # 단위 테스트 (기기 불필요, 195건)
 ./gradlew :app:assembleDebug          # 디버그 APK
 ./gradlew :app:bundleRelease          # 업로드용 AAB (서명 설정 필요)
 ```
