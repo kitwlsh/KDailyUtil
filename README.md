@@ -43,9 +43,19 @@
 
 ## ⚙️ 클론 직후 세팅 (이것 없이는 빌드가 반쪽이다)
 
-```bash
-git clone https://github.com/kitwlsh/KDailyUtil.git
 ```
+<작업 폴더>/
+├─ _secrets/KDailyUtil/     ← USB로 통째로 복사 (서명 키 · local.properties · 절차 README)
+└─ KDailyUtil/main/         ← 여기에 clone  (문서·서명 경로가 전부 이 배치를 전제한 상대경로다)
+```
+
+```bash
+cd <작업 폴더>/KDailyUtil
+git clone https://github.com/kitwlsh/KDailyUtil.git main
+```
+
+> 🔑 `_secrets/KDailyUtil/README.md`에 **같은 절차가 «비밀값 쪽에서 본» 형태로** 있다(USB로 같이 간다).
+> 다 하고 나면 [doc/NEXT_SESSION.md](doc/NEXT_SESSION.md) 맨 위 «🖥️ 다른 PC에서 이어 받기»부터 본다.
 
 ### 1) `local.properties` 만들기 — **저장소에 없다**(`.gitignore` 처리)
 

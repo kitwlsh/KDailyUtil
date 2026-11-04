@@ -8,6 +8,8 @@
 >
 > 🔴 **방금 `git clone`한 새 폴더라면 [README §클론 직후 세팅](README.md)을 먼저 본다** —
 > `local.properties`·키스토어는 **커밋되지 않아** clone만으로는 빌드가 반쪽이다.
+> 🖥️ **다른 PC로 옮겨 이어 받는 중이면(2026-11-04~) [doc/NEXT_SESSION.md](doc/NEXT_SESSION.md) 맨 위 «🖥️ 다른 PC에서 이어 받기» 5줄 확인표부터** —
+> 특히 `gemini.trial.key`·`dart.default.key`가 빠지면 **경고 없이** 체험·DART 없는 앱이 빌드된다.
 
 ---
 

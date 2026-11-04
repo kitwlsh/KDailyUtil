@@ -2,6 +2,24 @@
 
 > **신규 세션은 이 문서 하나만 읽고 사용자에게 브리핑하면 된다.** 기술 배경은 각 항목의 링크에 있다.
 >
+> ## 🖥️ 다른 PC에서 이어 받기 (2026-11-04 · 회사 PC → 다른 PC로 옮겨 작업 예정)
+>
+> 🔴 **새 PC의 첫 세션이면 이 블록부터 확인한다** — 비밀값은 git에 없어서, 세팅이 반쪽이면 «빌드는 되는데 체험·DART가 조용히 빠진 앱»이 나온다.
+>
+> | # | 확인 | 어떻게 |
+> |---|---|---|
+> | 1 | 폴더 배치가 `<작업 폴더>/KDailyUtil/main` + `<작업 폴더>/_secrets/KDailyUtil` 인가 | 서명 경로가 상대경로(`../../_secrets/…`)라 위치가 다르면 서명이 안 잡힌다 |
+> | 2 | `main/local.properties`가 있고 키 **7개**(sdk.dir · dart.default.key · gemini.trial.key · release.* 4개)가 다 있나 | `_secrets/KDailyUtil/local.properties`를 복사 → `sdk.dir`만 고친다. 🔴 **값을 출력·대화에 옮기지 말 것**(이름·길이만) |
+> | 3 | `gradle.properties`의 `org.gradle.java.home`이 그 PC의 JDK 21인가 | 다르면 고치되 **커밋하지 않는다** |
+> | 4 | `./gradlew :app:testDebugUnitTest` → **195건 통과** | 실패하면 1~3부터 다시 |
+> | 5 | (릴리스 빌드를 할 때만) `signingReport`의 release SHA-256 = `61:12:DE:…:A5:12:99` · BuildConfig의 `GEMINI_TRIAL_KEY` 39자 · `DART_DEFAULT_KEY` 40자 | 길이만 본다 |
+>
+> 절차 전문 = [README §⚙️ 클론 직후 세팅](../README.md) · 비밀값 쪽에서 본 절차 = `_secrets/KDailyUtil/README.md`(USB로 같이 간다).
+> ⚠️ `doc/family_icons/kjuldaleum_*.png` 2개는 **K줄달음 세션의 미커밋 파일**이라 clone에 없다 — 정상이다.
+>
+> **이어서 할 일(11-04 시점)** — ① 📦 **v1.7.4(vc12) 업로드**: AAB는 **이미 저장소에 있다**(`app/release/kdailyutil-v1.7.4.aab`) → 어느 PC에서든 올릴 수 있다.
+> 🔴 **업로드 전까지 앱 코드 수정 금지.** ② 업로드 **당일** 방침 배포본 교체(`doc/privacy-kdailyutil.html` → `../../k-series-config/main`) · 데이터 보안 칸 · «에셋 AI 선언» 확인 = `app/release/RELEASE_NOTES.md` §v1.7.4 «☑️» ③ 라이브 후 = 인앱 업데이트 실확인(§6) · 한참 뒤 **옛 DART 키 폐기** ④ 다음 판 = **공시 알림(1.7.5)** → [FEATURE_DISCLOSURE_ALERT.md](FEATURE_DISCLOSURE_ALERT.md)
+>
 > ## 🎯 지금 상황 세 줄
 >
 > 1. 🎉 **스토어 = v1.7.3(vc11) 라이브**(2026-09-29 · 업로드 당일). 스토어 = 저장소 · 밀린 출하 0건.
