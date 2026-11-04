@@ -44,9 +44,9 @@
 
 ### ☑️ 빌드·업로드 때 할 것 (빠뜨리면 사고)
 
-1. 🔴 **이 PC(회사)에서 빌드한다** — 체험 키·새 DART 키가 **이 PC의 `local.properties`에만** 있다(백업 = `_secrets/KDailyUtil/`).
+1. ✅ **(11-02 끝남)** 키가 있는 PC에서 빌드한다 — 체험 키·새 DART 키는 주 PC `local.properties`에 있다(백업 = `_secrets/KDailyUtil/` · 11-04 새 PC로 이전).
    `bundleRelease` 뒤 `BuildConfig`의 `GEMINI_TRIAL_KEY`·`DART_DEFAULT_KEY` **길이가 0이 아닌지** 본다(값은 보지 않는다)
-2. `versionCode 12` · versionName(사용자 결정) → `signingReport` → `bundleRelease` → `keytool -printcert`
+2. ✅ **(11-02 끝남)** `versionCode 12` · versionName(사용자 결정) → `signingReport` → `bundleRelease` → `keytool -printcert`
 3. 🔴 **방침 배포본 교체** — `doc/privacy-kdailyutil.html`(제8조 «AI 체험» · 최종 개정 10-26) → `k-series-config` 배포본. **업로드와 같은 날**
 4. 🟡 Play Console **데이터 보안 양식** — 체험판은 키 없는 사용자의 입력(뉴스·퀴즈·증시 요청)도 Google Gemini로 보낸다. 지금 신고 내용이 이것을 덮는지 본다
 5. 🟡 «에셋 AI 선언» 체크박스가 뜨는지 본다(09-29엔 못 봤다)
