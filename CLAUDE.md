@@ -3,7 +3,7 @@
 > 이 폴더에서 Claude 신규 세션을 시작하면 **이 파일 → [doc/NEXT_SESSION.md](doc/NEXT_SESSION.md) 순으로 읽고** 이어서 진행한다.
 >
 > 📁 **폴더 배치·서명키·이전 절차는 저장소 밖 공용 문서가 정본이다** — `../../README.md`
-> (= `<작업 폴더>/README.md`, 이 기기에서는 `D:/PERSONAL/20_GitHub/README.md`). 그 상위는 `D:/00_폴더구조_가이드.md`.
+> (= `<작업 폴더>/README.md`, 이 기기에서는 `D:/10.Develop/10.GitHub/README.md`). 그 상위는 `D:/00_폴더구조_가이드.md`.
 > **여기(CLAUDE.md)는 KDailyUtil 내부만** 다룬다 — 같은 내용을 두 곳에 복붙하지 않는다.
 >
 > 🔴 **방금 `git clone`한 새 폴더라면 [README §클론 직후 세팅](README.md)을 먼저 본다** —
@@ -294,7 +294,7 @@ keytool -printcert -jarfile app/build/outputs/bundle/release/app-release.aab   #
 
 ## 📒 K's works - 작업 마무리 기록
 
-전체 프로젝트를 한눈에 보는 자리가 **`D:/PERSONAL/20_GitHub/K's works`** 에 있다.
+전체 프로젝트를 한눈에 보는 자리가 **`D:/10.Develop/10.GitHub/K's works`** 에 있다.
 **작업을 마칠 때** 아래에 해당하는 일이 있었으면 CSV에 **한 줄**만 더한다 - 문서를 새로 쓰지 않는다.
 
 | 생긴 일 | 적을 곳 |

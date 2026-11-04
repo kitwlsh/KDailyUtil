@@ -4,13 +4,17 @@
 >
 > ## 🖥️ 다른 PC에서 이어 받기 (2026-11-04 · 회사 PC → 다른 PC로 옮겨 작업 예정)
 >
+> ✅ **2026-11-04 이전 완료 — 새 PC(`D:/10.Develop/10.GitHub`)가 이제 주 작업 PC다. 옛 PC는 더 쓰지 않는다.**
+> 확인표 1~5 전부 통과(테스트 195건 · 서명 `61:12:DE:…:A5:12:99` · 체험 키 39자 · DART 키 40자) · `assembleDebug`·`bundleRelease` 성공.
+> JDK 경로(`jdk-21.0.9.10-hotspot`)는 **주 PC 기준으로 커밋했다**. ⚠️ 이 PC의 `D:`는 `subst`로 만든 가상 드라이브다(공용 README 머리말).
+>
 > 🔴 **새 PC의 첫 세션이면 이 블록부터 확인한다** — 비밀값은 git에 없어서, 세팅이 반쪽이면 «빌드는 되는데 체험·DART가 조용히 빠진 앱»이 나온다.
 >
 > | # | 확인 | 어떻게 |
 > |---|---|---|
 > | 1 | 폴더 배치가 `<작업 폴더>/KDailyUtil/main` + `<작업 폴더>/_secrets/KDailyUtil` 인가 | 서명 경로가 상대경로(`../../_secrets/…`)라 위치가 다르면 서명이 안 잡힌다 |
 > | 2 | `main/local.properties`가 있고 키 **7개**(sdk.dir · dart.default.key · gemini.trial.key · release.* 4개)가 다 있나 | `_secrets/KDailyUtil/local.properties`를 복사 → `sdk.dir`만 고친다. 🔴 **값을 출력·대화에 옮기지 말 것**(이름·길이만) |
-> | 3 | `gradle.properties`의 `org.gradle.java.home`이 그 PC의 JDK 21인가 | 다르면 고치되 **커밋하지 않는다** |
+> | 3 | `gradle.properties`의 `org.gradle.java.home`이 그 PC의 JDK 21인가 | 다르면 고친다. 주 작업 PC 경로는 커밋해 둔다(11-04~ `jdk-21.0.9.10-hotspot`) · 다른 PC에서 고친 것은 커밋하지 않는다 |
 > | 4 | `./gradlew :app:testDebugUnitTest` → **195건 통과** | 실패하면 1~3부터 다시 |
 > | 5 | (릴리스 빌드를 할 때만) `signingReport`의 release SHA-256 = `61:12:DE:…:A5:12:99` · BuildConfig의 `GEMINI_TRIAL_KEY` 39자 · `DART_DEFAULT_KEY` 40자 | 길이만 본다 |
 >

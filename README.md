@@ -111,7 +111,7 @@ release.key.password=<비밀번호>
 ### 폴더 배치 (문서의 상대경로는 이 배치를 전제로 한다)
 
 ```
-<작업 폴더>/                      # 이 기기 = D:/PERSONAL/20_GitHub
+<작업 폴더>/                      # 이 기기 = D:/10.Develop/10.GitHub
 ├─ README.md                     # 📐 폴더·서명키 규칙의 «정본». 저장소 밖(= ../../README.md)
 ├─ _secrets/                     # 🔑 서명 키 (Git 아님, 백업 필수)
 │   └─ KDailyUtil/
