@@ -49,8 +49,8 @@
    `bundleRelease` 뒤 `BuildConfig`의 `GEMINI_TRIAL_KEY`·`DART_DEFAULT_KEY` **길이가 0이 아닌지** 본다(값은 보지 않는다)
 2. ✅ **(11-02 끝남)** `versionCode 12` · versionName(사용자 결정) → `signingReport` → `bundleRelease` → `keytool -printcert`
 3. ✅ **(11-05 끝남)** **방침 배포본 교체** — `doc/privacy-kdailyutil.html`(제8조 «AI 체험» · 최종 개정 10-26) → `k-series-config` 배포본. 라이브 URL에서 «AI 체험(키 없이 쓰기)» 문구 확인
-4. 🟡 Play Console **데이터 보안 양식** — 체험판은 키 없는 사용자의 입력(뉴스·퀴즈·증시 요청)도 Google Gemini로 보낸다. 지금 신고 내용이 이것을 덮는지 본다
-5. 🟡 «에셋 AI 선언» 체크박스가 뜨는지 본다(09-29엔 못 봤다)
+4. ✅ **(11-05 사용자 확인 · 변경 없음)** Play Console **데이터 보안 양식** — 체험판은 키 없는 사용자의 입력(뉴스·퀴즈·증시 요청)도 Google Gemini로 보낸다. 지금 신고 내용이 이것을 덮는지 본다
+5. ✅ **(11-05 · 해당 없음)** «에셋 AI 선언» — 메뉴에 따로 있지 않다. **스토어 등록정보·프로모션 콘텐츠에 새 이미지·영상을 올리는 흐름에서만** 에셋마다 체크박스가 뜬다([도움말 17262077](https://support.google.com/googleplay/android-developer/answer/17262077)). 이번 판은 등록정보 그림을 바꾸지 않으므로 할 일 없음. **다음에 아이콘·스크린샷을 새로 올릴 때** 체크한다(아이콘이 AI 생성 원본)
 6. 🟢 **라이브 후 한참 뒤** — 옛 DART 계정의 키 폐기(v1.7.3 사용자가 대부분 넘어온 뒤. 먼저 죽이면 v1.7.3의 공시가 멈춘다)
 
 ### ✅ Play '출시 노트' 붙여넣기용 (초안)
