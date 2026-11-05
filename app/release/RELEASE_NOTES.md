@@ -48,7 +48,7 @@
 1. ✅ **(11-02 끝남)** 키가 있는 PC에서 빌드한다 — 체험 키·새 DART 키는 주 PC `local.properties`에 있다(백업 = `_secrets/KDailyUtil/` · 11-04 새 PC로 이전).
    `bundleRelease` 뒤 `BuildConfig`의 `GEMINI_TRIAL_KEY`·`DART_DEFAULT_KEY` **길이가 0이 아닌지** 본다(값은 보지 않는다)
 2. ✅ **(11-02 끝남)** `versionCode 12` · versionName(사용자 결정) → `signingReport` → `bundleRelease` → `keytool -printcert`
-3. 🔴 **방침 배포본 교체** — `doc/privacy-kdailyutil.html`(제8조 «AI 체험» · 최종 개정 10-26) → `k-series-config` 배포본. **업로드와 같은 날**
+3. ✅ **(11-05 끝남)** **방침 배포본 교체** — `doc/privacy-kdailyutil.html`(제8조 «AI 체험» · 최종 개정 10-26) → `k-series-config` 배포본. 라이브 URL에서 «AI 체험(키 없이 쓰기)» 문구 확인
 4. 🟡 Play Console **데이터 보안 양식** — 체험판은 키 없는 사용자의 입력(뉴스·퀴즈·증시 요청)도 Google Gemini로 보낸다. 지금 신고 내용이 이것을 덮는지 본다
 5. 🟡 «에셋 AI 선언» 체크박스가 뜨는지 본다(09-29엔 못 봤다)
 6. 🟢 **라이브 후 한참 뒤** — 옛 DART 계정의 키 폐기(v1.7.3 사용자가 대부분 넘어온 뒤. 먼저 죽이면 v1.7.3의 공시가 멈춘다)
