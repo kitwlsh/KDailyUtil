@@ -40,7 +40,7 @@ AAB는 [`app/release/kdailyutil-v1.7.4.aab`](app/release/kdailyutil-v1.7.4.aab)�
 | 다음 행동 | ✅ **AI 체험판 완성(10-27 키 투입 · 실기기 통과)**. 🔴 남은 것 = **출시할 때 방침 배포본 교체** · 🔑 체험·DART 키 = 주 PC `local.properties` + `_secrets` 백업(키 없는 PC의 릴리스 빌드 = 체험 없는 AAB). 다음 기능 후보 = 아래 §다음 판. 🔴 **인앱 업데이트는 개발용 빌드로 확인이 안 된다** → [doc/K_SERIES_INAPP_UPDATE.md §6](doc/K_SERIES_INAPP_UPDATE.md) |
 | 10-26 작업 | 🎁 **AI 체험판 코드 1~4단계**(`AiKeyProvider` · 분야별 7/7/6 · 안내 · 원격 레버 `aiTrialKDailyUtil`) + K달인 `<queries>` + 🐛 «AI 실패 문구가 결과로 캐시되던» 버그. 테스트 **180건 통과**. 버전은 안 올렸다(사용자: «버전업은 나중에») |
 | 11-04 작업 | 🖥️ **새 PC 이전 완료** — 주 작업 PC = `D:/10.Develop/10.GitHub`(옛 회사 노트북은 은퇴). 확인표 1~5 통과 · `bundleRelease` 서명 확인 · JDK 경로 커밋 · 문서 경로 갱신. 앱 코드는 안 건드렸다 |
-| 11-02 작업 | 📦 **v1.7.4(vc12) AAB 빌드 · 업로드 대기** — `app/release/kdailyutil-v1.7.4.aab`(11,487,047 bytes · 서명 `61:12:DE:…:A5:12:99` · 권한 v1.7.3과 동일). 🐛 첫 `bundleRelease`가 **fragment lint 함정**에 걸려 `fragment 1.8.5`로 해결(레시피 4벌에 반영 · 다른 3 저장소는 미커밋). 🔴 **업로드 전에는 앱 코드를 건드리지 말 것** |
+| 11-02 작업 | 📦 **v1.7.4(vc12) AAB 빌드 · 업로드 대기** — `app/release/kdailyutil-v1.7.4.aab`(🔁 **11-05 재빌드 11,487,122 bytes** — 체험 키 «유출 신고» 차단으로 키만 교체 · 서명 `61:12:DE:…:A5:12:99` · 권한 v1.7.3과 동일). 🐛 첫 `bundleRelease`가 **fragment lint 함정**에 걸려 `fragment 1.8.5`로 해결(레시피 4벌에 반영 · 다른 3 저장소는 미커밋). 🔴 **업로드 전에는 앱 코드를 건드리지 말 것** |
 | 10-28 작업 | 🔑 DART 새 키 투입(실기기 확인) · 🔁 **재독 90일**(`PassageReadLog`) · 📚 **지문 캐시 합치기**(«2년 창» 해소 · `PassageCacheMerge`). 테스트 **195건 통과**. 🔴 **버전은 1.7.x로 간다**(사용자) → vc12 = 1.7.4. 다음 = 1.7.4 출시 → 공시 알림(1.7.5) → 광고는 K달인 검증 뒤 |
 | 10-27 작업 | ✅ 체험 키 투입 · 실기기 통과 + 🔑 **DART 설정 칸이 공용 키를 보여 주던 것** 수정 · DART 실패 로그의 키 가림. 테스트 **183건 통과**. 🟡 **공용 DART 키 재발급 권장**(공개 저장소 이력에 남아 있다 · 사용자 몫) |
 
@@ -265,6 +265,9 @@ keytool -printcert -jarfile app/build/outputs/bundle/release/app-release.aab   #
     어디로 풀렸는지부터 본다** → 앱의 [연결 테스트]가 «(모델 ○○○)»로 알려준다. 배경 = [doc/AI_KEY_NOTES.md §3-2](doc/AI_KEY_NOTES.md)
 - 🔴 **AAB를 빌드해 두고 아직 안 올렸다면 앱 코드를 건드리지 말 것.** 소스와 산출물이 어긋나
   «같은 versionCode인데 내용이 다른 빌드»가 생긴다. 다음 판 작업은 **업로드한 뒤에** 시작한다
+- 🔴 **AAB·APK를 커밋하지 말 것**(2026-11-05~ · `.gitignore`로 막았다). 체험·DART 키가 dex 안에 **평문**으로 들어 있고
+  이 저장소는 **공개**다 — 11-02에 푸시한 AAB 때문에 체험 키가 구글에 «유출 신고»돼 **403으로 차단**됐다.
+  `app/release/`의 파일은 로컬에만 두고, 백업은 `../../_secrets/KDailyUtil/release/`에 복사한다
 - **새 문서를 만들면 [README.md](README.md) '문서 인덱스' 표에 등록**한다(K-시리즈 규칙)
 - **날짜를 추측하지 말 것** — `git log --date=…`로 확인한다
 - 🔴 **세션을 끝낼 때 `git status -sb`로 `ahead N`을 확인한다.** 2026-08-25 세션이 커밋만 하고 푸시를 잊어

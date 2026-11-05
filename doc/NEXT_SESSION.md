@@ -4,7 +4,7 @@
 >
 > ## ▶️ 바로 할 일 — 📦 v1.7.4(vc12) Play 업로드
 >
-> - **AAB는 이미 있다** — [`app/release/kdailyutil-v1.7.4.aab`](../app/release/kdailyutil-v1.7.4.aab)(11,487,047 bytes · 11-02 빌드). **다시 빌드하지 않는다.**
+> - **AAB는 이미 있다** — [`app/release/kdailyutil-v1.7.4.aab`](../app/release/kdailyutil-v1.7.4.aab)(11,487,122 bytes · 🔁 **11-05 재빌드** — 체험 키가 «유출 신고»로 차단돼 키만 교체 · 실기기 확인 중). **다시 빌드하지 않는다.**
 >   🔴 **업로드 전까지 앱 코드 수정 금지**(소스 ≠ 산출물 사고)
 > - 순서 = [`RELEASE_NOTES.md`](../app/release/RELEASE_NOTES.md) §v1.7.4 «☑️ 빌드·업로드 때 할 것» **③~⑤**(①②는 11-02에 끝났다):
 >   ③ 방침 배포본 교체(`doc/privacy-kdailyutil.html` → `../../k-series-config/main` · **업로드와 같은 날**) ·
@@ -17,7 +17,7 @@
 > <details><summary>🖥️ 새 PC 이전 — ✅ 2026-11-04 완료(눌러서 펼친다 · 다음에 PC를 또 옮길 때 이 표를 쓴다)</summary>
 >
 > **주 작업 PC = `D:/10.Develop/10.GitHub`**(11-04~ · 옛 회사 노트북은 더 쓰지 않는다 — 복사 중 블루스크린을 반복했다).
-> 확인표 1~5 전부 통과(테스트 195건 · 서명 `61:12:DE:…:A5:12:99` · 체험 키 39자 · DART 키 40자) · `assembleDebug`·`bundleRelease` 성공.
+> 확인표 1~5 전부 통과(테스트 195건 · 서명 `61:12:DE:…:A5:12:99` · 체험 키 39자(→ 11-05 새 키 53자) · DART 키 40자) · `assembleDebug`·`bundleRelease` 성공.
 > 체험·DART 키는 이 PC `local.properties`와 `_secrets/KDailyUtil/`(백업)에 있다. JDK 경로(`jdk-21.0.9.10-hotspot`)는 커밋했다.
 > ⚠️ 이 PC의 `D:`는 `subst d: c:\data`로 만든 가상 드라이브다 — 재부팅 뒤 D:가 없으면 `D:/subst_drive.bat`.
 > ⚠️ 이 PC의 debug 서명 키는 옛 PC와 다르다 — 폰에 옛 PC의 개발용 앱(.debug)이 있으면 지우고 깔아야 한다(스토어 앱 무관).
@@ -28,7 +28,7 @@
 > | 2 | `main/local.properties`가 있고 키 **7개**(sdk.dir · dart.default.key · gemini.trial.key · release.* 4개)가 다 있나 | `_secrets/KDailyUtil/local.properties`를 복사 → `sdk.dir`만 고친다. 🔴 **값을 출력·대화에 옮기지 말 것**(이름·길이만) |
 > | 3 | `gradle.properties`의 `org.gradle.java.home`이 그 PC의 JDK 21인가 | 다르면 고친다. 주 작업 PC 경로는 커밋해 둔다(11-04~ `jdk-21.0.9.10-hotspot`) · 다른 PC에서 고친 것은 커밋하지 않는다 |
 > | 4 | `./gradlew :app:testDebugUnitTest` → **195건 통과** | 실패하면 1~3부터 다시 |
-> | 5 | (릴리스 빌드를 할 때만) `signingReport`의 release SHA-256 = `61:12:DE:…:A5:12:99` · BuildConfig의 `GEMINI_TRIAL_KEY` 39자 · `DART_DEFAULT_KEY` 40자 | 길이만 본다 |
+> | 5 | (릴리스 빌드를 할 때만) `signingReport`의 release SHA-256 = `61:12:DE:…:A5:12:99` · BuildConfig의 `GEMINI_TRIAL_KEY` **53자**(11-05~ · 옛 키 39자는 차단됨) · `DART_DEFAULT_KEY` 40자 | 길이만 본다 |
 >
 > 절차 전문 = [README §⚙️ 클론 직후 세팅](../README.md) · 비밀값 쪽 절차 = `_secrets/KDailyUtil/README.md`.
 >

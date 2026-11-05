@@ -13,12 +13,13 @@
 
 ---
 
-## 🆕 v1.7.4 (versionCode 12) — 📦 **2026-11-02 빌드 · 업로드 대기**
+## 🆕 v1.7.4 (versionCode 12) — 📦 **2026-11-05 재빌드(체험 키 교체) · 업로드 대기**
 
-> **빌드 산출물** — [`kdailyutil-v1.7.4.aab`](kdailyutil-v1.7.4.aab) (**11,487,047 bytes** · 2026-11-02 빌드 · 회사 PC)
+> **빌드 산출물** — [`kdailyutil-v1.7.4.aab`](kdailyutil-v1.7.4.aab) (**11,487,122 bytes** · 🔁 **2026-11-05 재빌드** · 새 주 PC)
+> · 🔴 **11-05 재빌드 이유** — 11-02 AAB의 체험 키가 구글에 «유출 신고»돼 차단됐다(`403 PERMISSION_DENIED` · `Your API key was reported as leaked`). 실기기에서 발견 · 저장소·작업 폴더에 키 흔적 없음(유출 경로 미상). **새 키(53자 · `AQ.` 신형식)만 바꿨고 앱 코드는 같다.** 옛 AAB는 버렸다
 > · versionCode **12** / versionName **1.7.4** — BuildConfig와 **AAB 내부 매니페스트**에서 확인(`1.7.3` 잔재 0건)
 > · 서명 SHA-256 `61:12:DE:02:AD:DF:…:A5:12:99` — 동일 업로드 키(`signingReport` → `bundleRelease` → `keytool -printcert -jarfile`)
-> · 🔑 `GEMINI_TRIAL_KEY` 39자 · `DART_DEFAULT_KEY` 40자(**10-28 새 키**) — 길이만 확인, 값은 보지 않았다
+> · 🔑 `GEMINI_TRIAL_KEY` **53자(11-05 새 키)** · `DART_DEFAULT_KEY` 40자(**10-28 새 키**) — 길이만 확인, 값은 보지 않았다
 > · 권한 **17개 — v1.7.3과 한 개도 다르지 않다**(AAB 내부 매니페스트 대조)
 > · 단위 테스트 **195건 전부 통과 · 실패 0**
 > · 🐛 **첫 `bundleRelease`가 lint에 막혔다** — app-update가 끌고 온 `fragment 1.1.0` → `InvalidFragmentVersionForActivityResult`.
