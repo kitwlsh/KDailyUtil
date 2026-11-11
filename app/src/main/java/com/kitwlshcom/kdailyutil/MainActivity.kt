@@ -71,6 +71,12 @@ class MainActivity : ComponentActivity() {
         
         checkAndRequestPermissions()
         primeRemoteConfig()
+        // 🔔 공시 알림이 켜져 있으면 주기 작업이 살아 있는지 확인한다(이미 있으면 그대로 둔다 · KEEP)
+        lifecycleScope.launch {
+            runCatching {
+                com.kitwlshcom.kdailyutil.data.disclosure.DisclosureAlertWorker.ensureScheduled(applicationContext)
+            }
+        }
         // 🔴 **setContent보다 먼저** 등록해야 한다 — ActivityResult 등록은 STARTED 전에만 된다.
         inAppUpdate.register()
         inAppUpdate.checkForUpdate()

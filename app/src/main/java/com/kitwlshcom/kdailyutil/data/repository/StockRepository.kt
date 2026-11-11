@@ -791,6 +791,88 @@ class StockRepository(private val context: Context) {
         return result
     }
 
+    // ===================== 관심종목 공시 알림 (1.7.5 · FEATURE_DISCLOSURE_ALERT) =====================
+
+    /** 회사별 공시 조회 결과. 한도·키 오류는 «그날 쉬기»·안내로 이어지므로 빈 목록과 구분한다. */
+    sealed class DartListResult {
+        data class Ok(val items: List<com.kitwlshcom.kdailyutil.data.disclosure.DisclosureItem>) : DartListResult()
+        /** status 020 — 요청 제한 초과. */
+        object Quota : DartListResult()
+        /** status 010·011·012·901 — 키가 없거나 막혔다. */
+        object BadKey : DartListResult()
+        object Failed : DartListResult()
+    }
+
+    /**
+     * 관심종목 한 줄(이름·티커)을 DART 고유번호로 바꾼다. 국내 상장사가 아니면 null(해외·코인·지수는 건너뛴다).
+     *
+     * 순서: ① 내장 매핑(즉시) ② `005930`·`005930.KS` 같은 종목코드 ③ corpCode 캐시의 **정확한** 회사명.
+     * 🔴 «포함» 검색은 쓰지 않는다 — «삼성»이 삼성전자·삼성SDI 중 아무거나로 풀리면 남의 회사 공시가 온다.
+     * ⚠️ ③은 corpCode.xml 캐시가 필요하다. 없으면 이 자리에서 한 번 받는다(수 MB · 이후엔 파일 캐시).
+     */
+    suspend fun resolveCorpCode(watchItem: String, apiKey: String): Pair<String, String>? = withContext(Dispatchers.IO) {
+        val q = watchItem.trim()
+        if (q.isBlank()) return@withContext null
+        CORP_CODE_MAP[q]?.let { return@withContext it to q }
+        val stockCode = Regex("^(\\d{6})(\\.K[SQ])?$", RegexOption.IGNORE_CASE).find(q)?.groupValues?.get(1)
+            ?: SYMBOL_MAP[q]?.let { Regex("^(\\d{6})\\.K[SQ]$").find(it)?.groupValues?.get(1) }
+        // 영문 티커·지수·코인(«나스닥»·«비트코인»처럼 한글이어도 SYMBOL_MAP이 해외로 풀면)은
+        // 국내 상장사일 수 없다 → 수 MB짜리 캐시를 받으러 가지 않는다
+        if (stockCode == null && (SYMBOL_MAP.containsKey(q) || !q.any { it in '가'..'힣' })) return@withContext null
+        if (!ensureCorpCodes(apiKey)) return@withContext null
+        return@withContext try {
+            val arr = JSONArray(corpCodeCacheFile.readText(StandardCharsets.UTF_8))
+            (0 until arr.length()).asSequence().map { arr.getJSONObject(it) }.firstOrNull { o ->
+                if (stockCode != null) o.optString("s") == stockCode else o.optString("n") == q
+            }?.let { it.optString("c") to it.optString("n") }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 고유번호 변환 실패($q): ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * 한 회사의 최근 공시 — **`pblntf_ty` 없이** 부른다(모든 갈래).
+     *
+     * 🔴 [fetchRecentDisclosures]를 고치지 않고 따로 둔다 — 그쪽은 정기공시(A)만 받아 「AI 실적 요약」 목록을 만든다.
+     * 섞으면 그 목록에 임원 지분 보고서가 쏟아진다(FEATURE_DISCLOSURE_ALERT §3-1 📌).
+     * 2026-11-11 실호출 확인: 삼성전자 40일치 = 46건 · 1페이지 · 결과 없음은 status 013.
+     */
+    suspend fun fetchCorpDisclosures(corpCode: String, bgnDe: String, endDe: String, apiKey: String): DartListResult =
+        withContext(Dispatchers.IO) {
+            val key = apiKey.ifBlank { com.kitwlshcom.kdailyutil.BuildConfig.DART_DEFAULT_KEY }
+            val url = "https://opendart.fss.or.kr/api/list.json?crtfc_key=$key&corp_code=$corpCode" +
+                "&bgn_de=$bgnDe&end_de=$endDe&page_count=100"
+            try {
+                val root = JSONObject(Jsoup.connect(url).ignoreContentType(true).timeout(10000).execute().body())
+                when (val status = root.optString("status")) {
+                    "000" -> {
+                        val list = root.optJSONArray("list") ?: JSONArray()
+                        DartListResult.Ok((0 until list.length()).map { i ->
+                            val o = list.getJSONObject(i)
+                            com.kitwlshcom.kdailyutil.data.disclosure.DisclosureItem(
+                                rceptNo = o.optString("rcept_no"),
+                                corpCode = o.optString("corp_code", corpCode),
+                                corpName = o.optString("corp_name"),
+                                reportNm = o.optString("report_nm"),
+                                rceptDt = o.optString("rcept_dt")
+                            )
+                        })
+                    }
+                    "013" -> DartListResult.Ok(emptyList())
+                    "020" -> DartListResult.Quota
+                    "010", "011", "012", "901" -> DartListResult.BadKey
+                    else -> {
+                        Log.w(TAG, "⚠️ DART 공시 조회 status=$status ${root.optString("message")}")
+                        DartListResult.Failed
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ DART 공시 조회 실패($corpCode): ${redactDartKey(e.message)}")
+                DartListResult.Failed
+            }
+        }
+
     /** 캐시된 상장사 목록에서 회사명으로 검색. (정확/시작 일치 우선) */
     suspend fun searchCorpByName(query: String, apiKey: String, limit: Int = 30): List<CorpEntry> = withContext(Dispatchers.IO) {
         val q = query.trim()

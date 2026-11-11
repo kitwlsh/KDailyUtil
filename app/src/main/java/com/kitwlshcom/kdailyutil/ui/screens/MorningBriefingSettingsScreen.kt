@@ -277,6 +277,13 @@ fun MorningBriefingSettingsScreen(
             onDelete = { viewModel.updateWatchStockKeywords(watchStockKeywords - it) }
         )
 
+        Spacer(modifier = Modifier.height(20.dp))
+        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // ── 섹션 3: 🔔 관심종목 공시 알림 (1.7.5) ──
+        com.kitwlshcom.kdailyutil.ui.components.DisclosureAlertSettingsSection()
+
         } // end 증시 탭 (1)
 
         // ===== 브리핑 탭 (0) - 기본 뉴스 서비스 설정 =====

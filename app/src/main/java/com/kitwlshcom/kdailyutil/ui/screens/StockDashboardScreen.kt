@@ -107,11 +107,20 @@ fun StockDashboardScreen(
 
     // 알림/인앱 배너에서 특정 서브탭으로 이동 요청을 받으면 전환
     val requestedSubTab by viewModel.requestedStockSubTab.collectAsState()
+    // 🔔 공시 알림 기록 창 — 상단 🔔 버튼, 또는 공시 알림을 탭해서 들어왔을 때 열린다
+    var showAlertHistory by remember { mutableStateOf(false) }
     LaunchedEffect(requestedSubTab) {
         requestedSubTab?.let {
-            selectedTabIndex = it.coerceIn(0, tabs.lastIndex)
+            if (it == com.kitwlshcom.kdailyutil.data.disclosure.DisclosureAlertWorker.SUBTAB_ALERT_HISTORY) {
+                showAlertHistory = true
+            } else {
+                selectedTabIndex = it.coerceIn(0, tabs.lastIndex)
+            }
             viewModel.consumeRequestedSubTab()
         }
+    }
+    if (showAlertHistory) {
+        com.kitwlshcom.kdailyutil.ui.components.DisclosureAlertHistoryDialog(onDismiss = { showAlertHistory = false })
     }
 
     val isPricesLoading by viewModel.isPricesLoading.collectAsState()
@@ -135,6 +144,9 @@ fun StockDashboardScreen(
                     titleContentColor = Gold24K
                 ),
                 actions = {
+                    IconButton(onClick = { showAlertHistory = true }) {
+                        Icon(Icons.Default.Notifications, contentDescription = "공시 알림 기록", tint = Gold24K)
+                    }
                     IconButton(onClick = {
                         when (selectedTabIndex) {
                             0 -> viewModel.loadStockPrices(showLoading = true)

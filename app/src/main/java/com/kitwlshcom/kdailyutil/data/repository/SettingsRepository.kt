@@ -55,6 +55,11 @@ class SettingsRepository(private val context: Context) {
         val DAILY_TOTAL_CORRECT = intPreferencesKey("daily_total_correct")  // 누적 정답
         val DAILY_HISTORY = stringPreferencesKey("daily_history")           // 최근 30일 "yyyy-MM-dd:정답/전체"
         val DAILY_SEEN_QUIZ_COUNT = intPreferencesKey("daily_seen_quiz_count") // 마지막으로 사용자가 인지한 전체 문항 수(=새 문제 N개 계산용)
+
+        // ── 🔔 관심종목 공시 알림 2026-11-11 (1.7.5 · FEATURE_DISCLOSURE_ALERT) ──
+        val DISCLOSURE_ALERT_ENABLED = booleanPreferencesKey("disclosure_alert_enabled")         // 기본 끔
+        val DISCLOSURE_ALERT_CATEGORIES = stringSetPreferencesKey("disclosure_alert_categories") // DisclosureCategory.name · 없으면 기본값
+        val DISCLOSURE_ALERT_CORRECTIONS = booleanPreferencesKey("disclosure_alert_corrections") // [기재정정] 등 · 기본 끔
     }
 
     // ── 🎁 AI 체험판 사용 횟수(분야별) 2026-10-26 ──
@@ -230,6 +235,34 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun updateGeminiApiKey(key: String) {
         context.dataStore.edit { it[PreferencesKeys.GEMINI_API_KEY] = key }
+    }
+
+    // ── 🔔 관심종목 공시 알림 ──
+    val disclosureAlertEnabledFlow: Flow<Boolean> = context.dataStore.data.map {
+        it[PreferencesKeys.DISCLOSURE_ALERT_ENABLED] ?: false
+    }
+
+    val disclosureAlertCategoriesFlow: Flow<Set<com.kitwlshcom.kdailyutil.data.disclosure.DisclosureCategory>> =
+        context.dataStore.data.map { p ->
+            p[PreferencesKeys.DISCLOSURE_ALERT_CATEGORIES]
+                ?.mapNotNull { com.kitwlshcom.kdailyutil.data.disclosure.DisclosureCategory.fromName(it) }?.toSet()
+                ?: com.kitwlshcom.kdailyutil.data.disclosure.DisclosureCategory.defaults
+        }
+
+    val disclosureAlertCorrectionsFlow: Flow<Boolean> = context.dataStore.data.map {
+        it[PreferencesKeys.DISCLOSURE_ALERT_CORRECTIONS] ?: false
+    }
+
+    suspend fun setDisclosureAlertEnabled(on: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.DISCLOSURE_ALERT_ENABLED] = on }
+    }
+
+    suspend fun setDisclosureAlertCategories(set: Set<com.kitwlshcom.kdailyutil.data.disclosure.DisclosureCategory>) {
+        context.dataStore.edit { p -> p[PreferencesKeys.DISCLOSURE_ALERT_CATEGORIES] = set.map { it.name }.toSet() }
+    }
+
+    suspend fun setDisclosureAlertCorrections(on: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.DISCLOSURE_ALERT_CORRECTIONS] = on }
     }
 
     suspend fun updateDartApiKey(key: String) {
