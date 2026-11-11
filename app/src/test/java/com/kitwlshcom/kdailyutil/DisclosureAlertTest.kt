@@ -206,6 +206,51 @@ class DisclosureAlertTest {
         assertTrue(notices[0].title, notices[0].title.contains("외 3종목") && notices[0].title.contains("공시 5건"))
     }
 
+    // ── 🤖 3줄 해설 (P2) ──────────────────────────────────────────────
+
+    private val explain = com.kitwlshcom.kdailyutil.data.disclosure.DisclosureExplain
+
+    @Test
+    fun `해설 프롬프트는 금지 조항과 입력을 담는다`() {
+        val p = explain.prompt("삼성전자", DisclosureCategory.RETURN, "주식소각결정   ", "20261111")
+        listOf("삼성전자", "주식소각결정", "주주환원", "권하지 말 것", "만들지 말 것", "무슨 일:", "확인할 점:")
+            .forEach { assertTrue("«$it» 빠짐", p.contains(it)) }
+    }
+
+    @Test
+    fun `세 줄 형식을 정리한다 · 마크다운과 군더더기는 떨어진다`() {
+        val raw = "다음은 해설입니다.\n- **무슨 일:** 자기주식 소각 결정\n* 무슨 뜻: 주식 수가 줄어 주당 가치가 오를 수 있음\n확인할 점: 소각 규모(공시 원문 확인 필요)\n"
+        assertEquals(
+            "무슨 일: 자기주식 소각 결정\n무슨 뜻: 주식 수가 줄어 주당 가치가 오를 수 있음\n확인할 점: 소각 규모(공시 원문 확인 필요)",
+            explain.clean(raw)
+        )
+    }
+
+    @Test
+    fun `형식을 못 맞추면 보여 주지 않는다`() {
+        assertNull(explain.clean("무슨 일: 소각\n무슨 뜻: 좋음"))
+        assertNull(explain.clean(""))
+    }
+
+    /** 🔴 프롬프트가 막아도 모델이 어길 수 있다 — 어긴 해설은 버린다. */
+    @Test
+    fun `권유와 예측이 섞이면 버린다`() {
+        val bad = listOf(
+            "지금 매수하세요", "보유를 권합니다", "목표가 9만 원", "주가가 오를 것으로 보입니다",
+            "급등 예상", "명백한 호재입니다"
+        )
+        bad.forEach { w ->
+            assertNull(w, explain.clean("무슨 일: 소각\n무슨 뜻: $w\n확인할 점: 원문"))
+        }
+    }
+
+    /** 사실로서의 «매수»(자기주식 매수 등)까지 막으면 해설을 못 쓴다. */
+    @Test
+    fun `사실을 말하는 매수는 막지 않는다`() {
+        assertFalse(explain.violates("회사가 자기주식을 장내 매수해 소각한다"))
+        assertFalse(explain.violates("공개매수를 통해 지분을 늘린다"))
+    }
+
     /** 🔴 §8 — 알림 문구에 투자 판단 표현이 끼어들면 안 된다. */
     @Test
     fun `알림 문구에 투자 판단 표현이 없다`() {

@@ -98,6 +98,21 @@ class DisclosureAlertStore(context: Context) {
         prefs.edit().putString(K_HISTORY, arr.toString()).apply()
     }
 
+    // ── 🤖 3줄 해설 캐시 (접수번호 → 해설) — 같은 공시는 다시 부르지 않는다(§5) ─────
+
+    fun explanation(rceptNo: String): String? =
+        runCatching { JSONObject(prefs.getString(K_EXPLAIN, "{}")!!).optString(rceptNo) }
+            .getOrNull()?.takeIf { it.isNotBlank() }
+
+    /** 기록에 남아 있는 공시의 해설만 들고 간다(기록이 30일·200건으로 잘리면 해설도 같이 빠진다). */
+    fun saveExplanation(rceptNo: String, text: String) {
+        val o = runCatching { JSONObject(prefs.getString(K_EXPLAIN, "{}")!!) }.getOrNull() ?: JSONObject()
+        o.put(rceptNo, text)
+        val keep = history().map { it.item.rceptNo }.toSet() + rceptNo
+        o.keys().asSequence().toList().filter { it !in keep }.forEach { o.remove(it) }
+        prefs.edit().putString(K_EXPLAIN, o.toString()).apply()
+    }
+
     // ── 마지막 확인 ───────────────────────────────────────────────
 
     fun lastCheck(): LocalDateTime? =
@@ -129,6 +144,7 @@ class DisclosureAlertStore(context: Context) {
         const val K_LAST_CHECK = "last_check"
         const val K_LAST_RESULT = "last_result"
         const val K_QUOTA_DAY = "quota_paused_day"
+        const val K_EXPLAIN = "explanations"
         const val MAX_HISTORY = 200
     }
 }

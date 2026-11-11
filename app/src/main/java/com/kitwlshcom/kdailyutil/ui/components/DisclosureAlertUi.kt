@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.kitwlshcom.kdailyutil.data.ai.errorMessage
+import com.kitwlshcom.kdailyutil.data.ai.unavailableMessage
 import com.kitwlshcom.kdailyutil.data.disclosure.AlertHistoryEntry
 import com.kitwlshcom.kdailyutil.data.disclosure.DisclosureAlertPolicy
 import com.kitwlshcom.kdailyutil.data.disclosure.DisclosureAlertStore
@@ -194,7 +196,15 @@ fun DisclosureAlertHistoryDialog(onDismiss: () -> Unit) {
 @Composable
 private fun HistoryRow(e: AlertHistoryEntry) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val store = remember { DisclosureAlertStore(context) }
     val at = Instant.ofEpochMilli(e.notifiedAtMillis).atZone(ZoneId.systemDefault()).toLocalDateTime()
+
+    // 🤖 3줄 해설 — 누를 때만 만든다(결정 ③). 한 번 만든 것은 캐시에서 바로 보인다.
+    var explanation by remember(e.item.rceptNo) { mutableStateOf(store.explanation(e.item.rceptNo)) }
+    var explaining by remember { mutableStateOf(false) }
+    var explainError by remember { mutableStateOf<String?>(null) }
+
     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         Text(
             "${e.category.badge} ${e.category.label} · ${e.item.corpName} · ${at.format(TIME_FMT)}",
@@ -202,16 +212,103 @@ private fun HistoryRow(e: AlertHistoryEntry) {
             color = Gold24K
         )
         Text(DisclosureCategory.displayTitle(e.item.reportNm), style = MaterialTheme.typography.bodyMedium)
-        TextButton(
-            contentPadding = PaddingValues(0.dp),
-            onClick = {
-                runCatching {
-                    context.startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse("https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${e.item.rceptNo}"))
-                    )
+
+        explanation?.let { text ->
+            Text(
+                text.lines().joinToString("\n") { "🤖 $it" },
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Text(
+                "AI가 공시 제목만 보고 쓴 일반 해설이에요. 숫자·세부는 원문으로 확인하세요.",
+                fontSize = 10.sp,
+                color = Color.White.copy(alpha = 0.45f)
+            )
+        }
+        explainError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Color(0xFFFFB74D)) }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(
+                contentPadding = PaddingValues(0.dp),
+                onClick = {
+                    runCatching {
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse("https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${e.item.rceptNo}"))
+                        )
+                    }
                 }
+            ) { Text("DART 원문", fontSize = 12.sp) }
+            Spacer(Modifier.width(12.dp))
+            when {
+                explaining -> CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                explanation == null -> TextButton(
+                    contentPadding = PaddingValues(0.dp),
+                    onClick = {
+                        explaining = true
+                        explainError = null
+                        scope.launch {
+                            val (text, err) = explainDisclosure(context, e)
+                            if (text != null) {
+                                store.saveExplanation(e.item.rceptNo, text)
+                                explanation = text
+                            }
+                            explainError = err
+                            explaining = false
+                        }
+                    }
+                ) { Text("🤖 3줄 해설", fontSize = 12.sp) }
+                else -> DisclosureReportLink(e, explanation!!)
             }
-        ) { Text("DART 원문 보기", fontSize = 12.sp) }
+        }
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
     }
+}
+
+/** 해설 1건 — (해설, 오류 안내) 중 하나만 채워 돌려준다. 체험 횟수는 **성공했을 때만** 1회 쓴다. */
+private suspend fun explainDisclosure(context: android.content.Context, e: AlertHistoryEntry): Pair<String?, String?> {
+    val keys = com.kitwlshcom.kdailyutil.data.ai.AiKeyProvider(SettingsRepository(context))
+    val access = keys.resolve(com.kitwlshcom.kdailyutil.data.ai.AiArea.STOCK)
+    val key = access.keyOrNull
+        ?: return null to access.unavailableMessage("설정 › AI·키 에서 Gemini API Key를 넣으면 3줄 해설을 볼 수 있어요.")
+    return try {
+        val raw = com.kitwlshcom.kdailyutil.data.remote.GeminiManager(key).explainDisclosure(
+            com.kitwlshcom.kdailyutil.data.disclosure.DisclosureExplain.prompt(
+                e.item.corpName, e.category, e.item.reportNm, e.item.rceptDt
+            )
+        )
+        val text = com.kitwlshcom.kdailyutil.data.disclosure.DisclosureExplain.clean(raw)
+        if (text == null) {
+            null to "해설을 만들지 못했어요(형식이 맞지 않았어요). 잠시 뒤 다시 눌러 주세요."
+        } else {
+            keys.recordUse(access)
+            text to null
+        }
+    } catch (ex: Exception) {
+        null to "해설을 만들지 못했어요.\n" + access.errorMessage(ex)
+    }
+}
+
+/** 🚩 신고 — 「📊 AI 실적 요약」과 같은 메일 신고(Play «AI 생성 콘텐츠» 정책). 식별 정보는 우리가 채운다. */
+@Composable
+private fun DisclosureReportLink(e: AlertHistoryEntry, text: String) {
+    val context = LocalContext.current
+    val what = "공시 해설 · ${e.item.corpName} · ${DisclosureCategory.displayTitle(e.item.reportNm)} (${e.item.rceptNo})"
+    TextButton(
+        contentPadding = PaddingValues(0.dp),
+        onClick = {
+            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                data = Uri.parse("mailto:")
+                putExtra(Intent.EXTRA_EMAIL, arrayOf(com.kitwlshcom.kdailyutil.data.AiContentReport.EMAIL))
+                putExtra(Intent.EXTRA_SUBJECT, com.kitwlshcom.kdailyutil.data.AiContentReport.aiSubject(what))
+                putExtra(Intent.EXTRA_TEXT, com.kitwlshcom.kdailyutil.data.AiContentReport.aiBody(what, text))
+            }
+            // 메일 앱이 없는 기기가 실제로 있다 — 잡지 않으면 신고하려다 앱이 죽는다
+            try {
+                context.startActivity(intent)
+            } catch (ex: Exception) {
+                android.widget.Toast.makeText(context, "이메일 앱을 찾을 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    ) { Text("🚩 이 해설 신고", fontSize = 12.sp, color = Color.White.copy(alpha = 0.5f)) }
 }

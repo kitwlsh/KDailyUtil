@@ -764,6 +764,17 @@ class GeminiManager(private val apiKey: String?) {
     /**
      * DART 정형 재무 JSON을 기반으로 어닝 서프라이즈 여부 판정 및 3줄 요약 Markdown을 생성합니다.
      */
+    /**
+     * 🔔 공시 3줄 해설(1.7.5 · P2). 프롬프트·검사는 [com.kitwlshcom.kdailyutil.data.disclosure.DisclosureExplain].
+     *
+     * ⚠️ 다른 증시 함수와 달리 **예외를 삼키지 않고 던진다** — 호출부가 `AiAccess.errorMessage`로
+     * «붐빈다 / 한도 / 키»를 구분해 말해야 하기 때문이다(빈 문자열로 뭉개면 «원인 미상»이 된다).
+     */
+    suspend fun explainDisclosure(prompt: String): String = withContext(Dispatchers.IO) {
+        if (!hasKey) return@withContext ""
+        ask(content { text(prompt) })
+    }
+
     suspend fun verifyEarningsDisclosure(rawFinancialJson: String): String = withContext(Dispatchers.IO) {
         if (!hasKey) {
             return@withContext ""
