@@ -152,6 +152,83 @@ class GeminiFallbackTest {
         )
     }
 
+    // ── 지연·끊김(UnknownException) — 2026-11-11(1.7.5) 추가 ───────────────
+
+    /** SDK 0.9.0 `UnknownException`의 실제 문구(클래스 파일에서 확인). 원인은 소켓 지연이다. */
+    private val unknownSlow = RuntimeException(
+        "Something unexpected happened.",
+        RuntimeException("Something unexpected happened.", java.net.SocketTimeoutException("timeout"))
+    )
+    /** SDK `RequestTimeoutException` 문구. */
+    private val requestTimeout = RuntimeException("The request failed to complete in the allotted time.")
+    /** 네트워크가 아예 없을 때도 SDK는 UnknownException으로 감싼다 — 진짜 원인은 2단 아래다. */
+    private val unknownOffline = RuntimeException(
+        "Something unexpected happened.",
+        RuntimeException(
+            "Something unexpected happened.",
+            java.net.UnknownHostException("Unable to resolve host \"generativelanguage.googleapis.com\"")
+        )
+    )
+
+    /** 🔴 11-05 실기기 사례 그 자체다 — 503이 «503»으로 오지 않고 끊김으로 왔다. */
+    @Test
+    fun `UnknownException이면 다음 후보로 넘어간다`() = runBlocking {
+        val first = GeminiManager.FALLBACK_MODELS[0]
+        val second = GeminiManager.FALLBACK_MODELS[1]
+
+        val out = manager().askWithFallback(caller(mapOf(first to unknownSlow)))
+
+        assertEquals("OK from $second", out)
+        assertEquals(listOf(first, second), tried)
+    }
+
+    @Test
+    fun `요청 시간 초과도 다음 후보로 넘어간다`() = runBlocking {
+        val first = GeminiManager.FALLBACK_MODELS[0]
+        val second = GeminiManager.FALLBACK_MODELS[1]
+
+        val out = manager().askWithFallback(caller(mapOf(first to requestTimeout)))
+
+        assertEquals("OK from $second", out)
+        assertEquals(listOf(first, second), tried)
+    }
+
+    /** 오프라인이면 후보를 바꿔도 같은 오류다 — 넘기지 말고 «네트워크»라고 말해야 한다. */
+    @Test
+    fun `네트워크가 끊긴 UnknownException은 넘기지 않는다`() = runBlocking {
+        val first = GeminiManager.FALLBACK_MODELS[0]
+        var thrown: Exception? = null
+
+        try {
+            manager().askWithFallback(caller(mapOf(first to unknownOffline)))
+        } catch (e: Exception) {
+            thrown = e
+        }
+
+        assertNotNull(thrown)
+        assertEquals("오프라인에 후보를 돌리면 안 된다", listOf(first), tried)
+        val msg = GeminiManager.aiErrorMessage(thrown!!)
+        assertTrue("네트워크 문제라고 말해야 한다: $msg", msg.contains("네트워크"))
+    }
+
+    @Test
+    fun `후보가 전부 끊기면 원인 미상이 아니라 지연으로 안내한다`() = runBlocking {
+        val all = GeminiManager.FALLBACK_MODELS.associateWith { unknownSlow as Exception }
+        var thrown: Exception? = null
+
+        try {
+            manager().askWithFallback(caller(all))
+        } catch (e: Exception) {
+            thrown = e
+        }
+
+        assertNotNull(thrown)
+        assertEquals(GeminiManager.FALLBACK_MODELS, tried)
+        val msg = GeminiManager.aiErrorMessage(thrown!!)
+        assertTrue("지연·혼잡을 말해야 한다: $msg", msg.contains("늦어지다 끊겼습니다"))
+        assertTrue("원인 미상(상세:)으로 떨어지면 안 된다: $msg", !msg.contains("상세:"))
+    }
+
     // ── 넘어가면 안 되는 경우 ─────────────────────────────────────────────
 
     @Test

@@ -71,9 +71,10 @@ class GeminiManager(private val apiKey: String?) {
                 looksRateLimited(m) -> rateLimitMessage(m)
                 looksModelUnavailable(m) ->
                     "사용 가능한 AI 모델을 찾지 못했습니다. 앱을 최신 버전으로 업데이트한 뒤 다시 시도해 주세요."
-                m.contains("UnknownHost", true) || m.contains("timeout", true) ||
-                    m.contains("Unable to resolve host", true) || m.contains("Failed to connect", true) ->
+                looksNetworkDown(chainText(e)) || m.contains("timeout", true) ->
                     "네트워크에 연결하지 못했습니다. 인터넷 상태를 확인한 뒤 다시 시도해 주세요."
+                looksTransient(m) ->
+                    "AI 응답이 늦어지다 끊겼습니다. 구글 쪽이 혼잡한 것이니 잠시 뒤 다시 시도해 주세요."
                 else -> "AI 응답을 받지 못했습니다. 잠시 뒤 다시 시도해 주세요. (상세: ${e.message ?: e.javaClass.simpleName})"
             }
         }
@@ -151,6 +152,41 @@ class GeminiManager(private val apiKey: String?) {
         internal fun looksRateLimited(m: String): Boolean =
             m.contains("429") || m.contains("RESOURCE_EXHAUSTED", true) ||
                 m.contains("QUOTA", true) || m.contains("rate limit", true)
+
+        /**
+         * **응답이 늘어지다 끊겼다** — SDK가 원인을 못 가려 `UnknownException`(«Something unexpected
+         * happened.») 또는 `RequestTimeoutException`(«…in the allotted time.»)으로 준 경우.
+         *
+         * 🔴 2026-11-05 실기기(릴리스 빌드)에서 `gemini-flash-latest`가 과부하이던 순간에 한 번
+         * 사용자에게 오류로 떴다 — **같은 순간 503은 정상 폴백**했으니, 503이 «503»으로 오지 않고
+         * 지연·끊김으로 온 것이다. 그래서 2026-11-11(1.7.5)부터 **이것도 다음 후보로 넘긴다.**
+         *
+         * ⚠️ 네트워크가 아예 없을 때도 SDK는 이 두 예외로 감쌀 수 있다 → [looksNetworkDown]이면
+         * 넘기지 않는다(후보를 바꿔도 같은 오류를 반복할 뿐이다). 문구는 SDK 0.9.0 클래스에서 확인했다.
+         */
+        internal fun looksTransient(m: String): Boolean =
+            (m.contains("Something unexpected happened", true) ||
+                m.contains("failed to complete in the allotted time", true)) &&
+                !looksNetworkDown(m)
+
+        /** 기기 쪽 네트워크가 끊겼다(모델을 바꿔도 소용없다). */
+        internal fun looksNetworkDown(m: String): Boolean =
+            m.contains("UnknownHost", true) || m.contains("Unable to resolve host", true) ||
+                m.contains("Failed to connect", true) || m.contains("Network is unreachable", true)
+
+        /**
+         * 예외와 그 원인 사슬의 메시지를 전부 잇는다(최대 5단). SDK는 `type` 예외가 `common` 예외를,
+         * 그것이 다시 실제 원인(소켓·DNS)을 감싸는 2~3단 구조라 `e.cause`만 보면 진짜 원인을 놓친다.
+         */
+        internal fun chainText(e: Throwable): String = buildString {
+            var t: Throwable? = e
+            var depth = 0
+            while (t != null && depth < 5) {
+                append(t.javaClass.simpleName).append(": ").append(t.message ?: "").append(" | ")
+                t = t.cause.takeIf { it !== t }
+                depth++
+            }
+        }
 
         /** 404 — 그 모델이 이 계정에 없다(사라졌거나 신규 계정에 닫혔다). */
         internal fun looksModelUnavailable(m: String): Boolean =
@@ -247,6 +283,7 @@ class GeminiManager(private val apiKey: String?) {
                     isModelUnavailable(e) -> "모델 없음(404) → 다음 후보"
                     isOverloaded(e) -> "모델 과부하(503) → 다음 후보"
                     isRateLimited(e) -> "한도 초과(429) → 다음 후보"
+                    isTransient(e) -> "응답 지연·끊김(Unknown/Timeout) → 다음 후보"
                     else -> "폴백 안 함"
                 }
                 android.util.Log.w("GeminiModel", "⚠️ $name 실패($reason): ${e.javaClass.simpleName}: ${e.message}")
@@ -261,7 +298,10 @@ class GeminiManager(private val apiKey: String?) {
                 //    앱 앞에는 **사람이 앉아 있고** 관측된 대기가 28~38초다. 그만큼 멈춰 세우면
                 //    «앱이 먹통»으로 보인다. 모델을 바꾸면 **그 자리에서 200이 나오므로** 그쪽이 빠르다.
                 //    후보가 전부 막히면 그때는 던진다 — 안내 문구가 「약 N초 뒤에」라고 말해 준다.
-                if (!isModelUnavailable(e) && !isOverloaded(e) && !isRateLimited(e)) throw e
+                //
+                // 🔴 **지연·끊김(UnknownException)도 넘어간다(2026-11-11 · 1.7.5).** 503이 503으로
+                //    오지 않고 «Something unexpected happened»로 온 사례가 11-05 실기기에서 있었다.
+                if (!isModelUnavailable(e) && !isOverloaded(e) && !isRateLimited(e) && !isTransient(e)) throw e
             }
         }
         throw last ?: IllegalStateException("사용 가능한 Gemini 모델을 찾지 못했습니다.")
@@ -276,6 +316,9 @@ class GeminiManager(private val apiKey: String?) {
     /** 🔴 2026-09-14 실측 뒤 폴백 대상이 됐다 — 한도는 모델마다 따로다. */
     private fun isRateLimited(e: Exception): Boolean =
         looksRateLimited((e.message ?: "") + (e.cause?.message ?: ""))
+
+    /** 🔴 2026-11-11 추가 — 원인 사슬 전체를 봐야 «네트워크 끊김»을 걸러낼 수 있다. */
+    private fun isTransient(e: Exception): Boolean = looksTransient(chainText(e))
 
     /** 기존 호출부의 `response?.text` 형태를 유지하기 위한 얇은 래퍼. 빈 응답은 null로 준다. */
     private class AiResponse(val text: String)
